@@ -61,6 +61,24 @@ router.get('/', authenticate, TicketsController.listTickets);
 router.get('/:id', authenticate, TicketsController.getTicket);
 
 /**
+ * @route GET /api/tickets/:id/priority-override-requests
+ * @desc List priority override requests
+ */
+router.get('/:id/priority-override-requests', authenticate, TicketsController.listPriorityOverrideRequests);
+
+/**
+ * @route POST /api/tickets/:id/priority-override-requests
+ * @desc Request priority override
+ */
+router.post('/:id/priority-override-requests', authenticate, TicketsController.requestPriorityOverride);
+
+/**
+ * @route PATCH /api/tickets/:id/priority-override-requests/:requestId
+ * @desc Approve/reject priority override
+ */
+router.patch('/:id/priority-override-requests/:requestId', authenticate, TicketsController.reviewPriorityOverride);
+
+/**
  * @route PATCH /api/tickets/:id
  * @desc Update ticket
  */

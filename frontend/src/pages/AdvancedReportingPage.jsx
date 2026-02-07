@@ -29,7 +29,31 @@ const AdvancedReportingPage = () => {
     sla_breaches_by_day: [],
   });
   const [agents, setAgents] = useState([]);
+  const [approvals, setApprovals] = useState({
+    change_requests: 0,
+    priority_overrides: 0,
+  });
+  const [escalationsOpen, setEscalationsOpen] = useState(0);
+  const [topTags, setTopTags] = useState([]);
   const [error, setError] = useState("");
+  const [exportFormat, setExportFormat] = useState("csv");
+  const [exportStart, setExportStart] = useState("");
+  const [exportEnd, setExportEnd] = useState("");
+  const [exportAction, setExportAction] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const currentUser = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) {
+      return null;
+    }
+  }, []);
+
+  const canExportAudit = ["it_manager", "system_admin"].includes(
+    currentUser?.role,
+  );
 
   const ticketVolumeData = useMemo(() => {
     const rows = [...trends.tickets_by_day].reverse();
@@ -76,6 +100,19 @@ const AdvancedReportingPage = () => {
     };
   }, [agents]);
 
+  const tagData = useMemo(() => {
+    return {
+      labels: topTags.map((tag) => tag.tag),
+      datasets: [
+        {
+          label: "Tickets",
+          data: topTags.map((tag) => tag.count),
+          backgroundColor: "rgba(45, 196, 142, 0.6)",
+        },
+      ],
+    };
+  }, [topTags]);
+
   useEffect(() => {
     const load = async () => {
       setError("");
@@ -89,6 +126,14 @@ const AdvancedReportingPage = () => {
           },
         );
         setAgents(res.data.data.agent_performance || []);
+        setApprovals(
+          res.data.data.approvals_pending || {
+            change_requests: 0,
+            priority_overrides: 0,
+          },
+        );
+        setEscalationsOpen(res.data.data.escalations_open || 0);
+        setTopTags(res.data.data.top_tags || []);
       } catch (err) {
         const message =
           err.response?.data?.message || "Failed to load reporting";
@@ -103,9 +148,103 @@ const AdvancedReportingPage = () => {
     load();
   }, []);
 
+  const handleAuditDownload = async () => {
+    setExporting(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      params.set("format", exportFormat);
+      if (exportStart) params.set("start_date", exportStart);
+      if (exportEnd) params.set("end_date", exportEnd);
+      if (exportAction.trim()) params.set("action_type", exportAction.trim());
+
+      const res = await apiClient.get(`/audit/export?${params.toString()}`, {
+        responseType: "blob",
+      });
+
+      const extension =
+        exportFormat === "json"
+          ? "json"
+          : exportFormat === "pdf"
+            ? "pdf"
+            : "csv";
+      const mimeType =
+        exportFormat === "json"
+          ? "application/json"
+          : exportFormat === "pdf"
+            ? "application/pdf"
+            : "text/csv";
+      const blob = new Blob([res.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-export.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to download audit log");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="dashboard-stack">
       {error && <div className="panel error">{error}</div>}
+      {canExportAudit && (
+        <div className="panel">
+          <h3>Audit Export</h3>
+          <div className="form-grid">
+            <label className="field">
+              <span>Start Date</span>
+              <input
+                type="date"
+                value={exportStart}
+                onChange={(e) => setExportStart(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>End Date</span>
+              <input
+                type="date"
+                value={exportEnd}
+                onChange={(e) => setExportEnd(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Action Type (optional)</span>
+              <input
+                value={exportAction}
+                onChange={(e) => setExportAction(e.target.value)}
+                placeholder="updated, created, commented"
+              />
+            </label>
+            <label className="field">
+              <span>Format</span>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <option value="csv">CSV</option>
+                <option value="pdf">PDF</option>
+                <option value="json">JSON</option>
+              </select>
+            </label>
+            <div className="field">
+              <span>&nbsp;</span>
+              <button
+                className="btn primary"
+                onClick={handleAuditDownload}
+                disabled={exporting}
+              >
+                {exporting ? "Downloading..." : "Download Audit Log"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="panel">
         <h3>Service Performance</h3>
         <div className="stats-row">
@@ -116,6 +255,16 @@ const AdvancedReportingPage = () => {
           <div className="stat-chip">
             <span>MTTA (hrs)</span>
             <strong>{summary.mtta_hours?.toFixed(2) || "0.00"}</strong>
+          </div>
+          <div className="stat-chip">
+            <span>Pending Approvals</span>
+            <strong>
+              {approvals.change_requests + approvals.priority_overrides}
+            </strong>
+          </div>
+          <div className="stat-chip">
+            <span>SLA Escalations</span>
+            <strong>{escalationsOpen}</strong>
           </div>
         </div>
       </div>
@@ -149,6 +298,17 @@ const AdvancedReportingPage = () => {
         ) : (
           <div className="chart-wrap">
             <Bar data={agentPerfData} />
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <h3>Top Tags</h3>
+        {topTags.length === 0 ? (
+          <div className="empty-state">No tag data.</div>
+        ) : (
+          <div className="chart-wrap">
+            <Bar data={tagData} />
           </div>
         )}
       </div>

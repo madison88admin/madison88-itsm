@@ -107,6 +107,55 @@ const TicketsController = {
       next(err);
     }
   },
+
+  async listPriorityOverrideRequests(req, res, next) {
+    try {
+      const requests = await TicketsService.listPriorityOverrideRequests({
+        ticketId: req.params.id,
+        user: req.user,
+      });
+      res.json({ status: 'success', data: { requests } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async requestPriorityOverride(req, res, next) {
+    try {
+      const result = await TicketsService.requestPriorityOverride({
+        ticketId: req.params.id,
+        payload: req.body,
+        user: req.user,
+        meta: {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          sessionId: req.headers['x-session-id'] || null,
+        },
+      });
+      res.status(201).json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async reviewPriorityOverride(req, res, next) {
+    try {
+      const result = await TicketsService.reviewPriorityOverride({
+        ticketId: req.params.id,
+        requestId: req.params.requestId,
+        payload: req.body,
+        user: req.user,
+        meta: {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          sessionId: req.headers['x-session-id'] || null,
+        },
+      });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = TicketsController;

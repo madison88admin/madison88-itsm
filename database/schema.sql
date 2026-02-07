@@ -6,110 +6,110 @@
 -- ============================================
 
 -- Users Table
-CREATE TABLE IF NOT EXISTS users (
-    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('end_user', 'it_agent', 'it_manager', 'system_admin')),
-    department VARCHAR(100),
-    location VARCHAR(50) CHECK (location IN ('Philippines', 'US', 'Indonesia', 'Other')),
-    phone VARCHAR(20),
-    is_active BOOLEAN DEFAULT true,
-    last_login TIMESTAMP WITH TIME ZONE,
-    password_changed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(user_id),
-    updated_by UUID REFERENCES users(user_id)
+CREATE TABLE IF NOT EXISTS USERS (
+    USER_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    EMAIL VARCHAR(255) NOT NULL UNIQUE,
+    PASSWORD_HASH VARCHAR(255) NOT NULL,
+    FIRST_NAME VARCHAR(100) NOT NULL,
+    LAST_NAME VARCHAR(100) NOT NULL,
+    FULL_NAME VARCHAR(255) NOT NULL,
+    ROLE VARCHAR(50) NOT NULL CHECK (ROLE IN ('end_user', 'it_agent', 'it_manager', 'system_admin')),
+    DEPARTMENT VARCHAR(100),
+    LOCATION VARCHAR(50) CHECK (LOCATION IN ('Philippines', 'US', 'Indonesia', 'Other')),
+    PHONE VARCHAR(20),
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    LAST_LOGIN TIMESTAMP WITH TIME ZONE,
+    PASSWORD_CHANGED_AT TIMESTAMP WITH TIME ZONE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CREATED_BY UUID REFERENCES USERS(USER_ID),
+    UPDATED_BY UUID REFERENCES USERS(USER_ID)
 );
 
 -- Teams Table
-CREATE TABLE IF NOT EXISTS teams (
-    team_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    team_name VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT,
-    team_lead_id UUID REFERENCES users(user_id),
-    location VARCHAR(50),
-    category_assigned VARCHAR(100),
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS TEAMS (
+    TEAM_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TEAM_NAME VARCHAR(100) NOT NULL UNIQUE,
+    DESCRIPTION TEXT,
+    TEAM_LEAD_ID UUID REFERENCES USERS(USER_ID),
+    LOCATION VARCHAR(50),
+    CATEGORY_ASSIGNED VARCHAR(100),
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Team Members Association
-CREATE TABLE IF NOT EXISTS team_members (
-    member_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    team_id UUID NOT NULL REFERENCES teams(team_id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    role VARCHAR(50) CHECK (role IN ('member', 'lead')),
-    is_active BOOLEAN DEFAULT true,
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(team_id, user_id)
+CREATE TABLE IF NOT EXISTS TEAM_MEMBERS (
+    MEMBER_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TEAM_ID UUID NOT NULL REFERENCES TEAMS(TEAM_ID) ON DELETE CASCADE,
+    USER_ID UUID NOT NULL REFERENCES USERS(USER_ID) ON DELETE CASCADE,
+    ROLE VARCHAR(50) CHECK (ROLE IN ('member', 'lead')),
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    JOINED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(TEAM_ID, USER_ID)
 );
 
 -- Tickets Table
-CREATE TABLE IF NOT EXISTS tickets (
-    ticket_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ticket_number VARCHAR(20) NOT NULL UNIQUE,
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    category VARCHAR(100) NOT NULL CHECK (category IN ('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other')),
-    subcategory VARCHAR(100),
-    priority VARCHAR(10) NOT NULL CHECK (priority IN ('P1', 'P2', 'P3', 'P4')),
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    business_impact TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'New' CHECK (status IN ('New', 'In Progress', 'Pending', 'Resolved', 'Closed', 'Reopened')),
-    location VARCHAR(50) CHECK (location IN ('Philippines', 'US', 'Indonesia', 'Other')),
-    assigned_to UUID REFERENCES users(user_id),
-    assigned_team UUID REFERENCES teams(team_id),
-    assigned_at TIMESTAMP WITH TIME ZONE,
-    assigned_by UUID REFERENCES users(user_id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    resolved_at TIMESTAMP WITH TIME ZONE,
-    closed_at TIMESTAMP WITH TIME ZONE,
-    sla_due_date TIMESTAMP WITH TIME ZONE,
-    sla_response_due TIMESTAMP WITH TIME ZONE,
-    sla_breached BOOLEAN DEFAULT false,
-    sla_response_breached BOOLEAN DEFAULT false,
-    priority_override_reason TEXT,
-    overridden_by UUID REFERENCES users(user_id),
-    overridden_at TIMESTAMP WITH TIME ZONE,
-    reopened_count INTEGER DEFAULT 0,
-    parent_ticket_id UUID REFERENCES tickets(ticket_id),
-    tags VARCHAR(255),
-    currency VARCHAR(3) DEFAULT 'USD',
-    estimated_cost DECIMAL(12, 2),
-    actual_cost DECIMAL(12, 2)
+CREATE TABLE IF NOT EXISTS TICKETS (
+    TICKET_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_NUMBER VARCHAR(20) NOT NULL UNIQUE,
+    USER_ID UUID NOT NULL REFERENCES USERS(USER_ID),
+    CATEGORY VARCHAR(100) NOT NULL CHECK (CATEGORY IN ('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other')),
+    SUBCATEGORY VARCHAR(100),
+    PRIORITY VARCHAR(10) NOT NULL CHECK (PRIORITY IN ('P1', 'P2', 'P3', 'P4')),
+    TITLE VARCHAR(255) NOT NULL,
+    DESCRIPTION TEXT NOT NULL,
+    BUSINESS_IMPACT TEXT,
+    STATUS VARCHAR(50) NOT NULL DEFAULT 'New' CHECK (STATUS IN ('New', 'In Progress', 'Pending', 'Resolved', 'Closed', 'Reopened')),
+    LOCATION VARCHAR(50) CHECK (LOCATION IN ('Philippines', 'US', 'Indonesia', 'Other')),
+    ASSIGNED_TO UUID REFERENCES USERS(USER_ID),
+    ASSIGNED_TEAM UUID REFERENCES TEAMS(TEAM_ID),
+    ASSIGNED_AT TIMESTAMP WITH TIME ZONE,
+    ASSIGNED_BY UUID REFERENCES USERS(USER_ID),
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    RESOLVED_AT TIMESTAMP WITH TIME ZONE,
+    CLOSED_AT TIMESTAMP WITH TIME ZONE,
+    SLA_DUE_DATE TIMESTAMP WITH TIME ZONE,
+    SLA_RESPONSE_DUE TIMESTAMP WITH TIME ZONE,
+    SLA_BREACHED BOOLEAN DEFAULT FALSE,
+    SLA_RESPONSE_BREACHED BOOLEAN DEFAULT FALSE,
+    PRIORITY_OVERRIDE_REASON TEXT,
+    OVERRIDDEN_BY UUID REFERENCES USERS(USER_ID),
+    OVERRIDDEN_AT TIMESTAMP WITH TIME ZONE,
+    REOPENED_COUNT INTEGER DEFAULT 0,
+    PARENT_TICKET_ID UUID REFERENCES TICKETS(TICKET_ID),
+    TAGS VARCHAR(255),
+    CURRENCY VARCHAR(3) DEFAULT 'USD',
+    ESTIMATED_COST DECIMAL(12, 2),
+    ACTUAL_COST DECIMAL(12, 2)
 );
 
 -- Ticket Comments Table
-CREATE TABLE IF NOT EXISTS ticket_comments (
-    comment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    comment_text TEXT NOT NULL,
-    is_internal BOOLEAN DEFAULT false,
-    is_edited BOOLEAN DEFAULT false,
-    edited_at TIMESTAMP WITH TIME ZONE,
-    edited_by UUID REFERENCES users(user_id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS TICKET_COMMENTS (
+    COMMENT_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID) ON DELETE CASCADE,
+    USER_ID UUID NOT NULL REFERENCES USERS(USER_ID),
+    COMMENT_TEXT TEXT NOT NULL,
+    IS_INTERNAL BOOLEAN DEFAULT FALSE,
+    IS_EDITED BOOLEAN DEFAULT FALSE,
+    EDITED_AT TIMESTAMP WITH TIME ZONE,
+    EDITED_BY UUID REFERENCES USERS(USER_ID),
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Ticket Attachments Table
-CREATE TABLE IF NOT EXISTS ticket_attachments (
-    attachment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
-    file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(512) NOT NULL,
-    file_size BIGINT NOT NULL,
-    file_type VARCHAR(50),
-    uploaded_by UUID NOT NULL REFERENCES users(user_id),
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN DEFAULT false
+CREATE TABLE IF NOT EXISTS TICKET_ATTACHMENTS (
+    ATTACHMENT_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID) ON DELETE CASCADE,
+    FILE_NAME VARCHAR(255) NOT NULL,
+    FILE_PATH VARCHAR(512) NOT NULL,
+    FILE_SIZE BIGINT NOT NULL,
+    FILE_TYPE VARCHAR(50),
+    UPLOADED_BY UUID NOT NULL REFERENCES USERS(USER_ID),
+    UPLOADED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    IS_DELETED BOOLEAN DEFAULT FALSE
 );
 
 -- ============================================
@@ -117,20 +117,20 @@ CREATE TABLE IF NOT EXISTS ticket_attachments (
 -- ============================================
 
 -- Audit Log Table
-CREATE TABLE IF NOT EXISTS audit_logs (
-    log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ticket_id UUID REFERENCES tickets(ticket_id) ON DELETE SET NULL,
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    action_type VARCHAR(50) NOT NULL,
-    entity_type VARCHAR(50) NOT NULL,
-    entity_id UUID,
-    old_value TEXT,
-    new_value TEXT,
-    description TEXT,
-    ip_address INET,
-    user_agent TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    session_id VARCHAR(255)
+CREATE TABLE IF NOT EXISTS AUDIT_LOGS (
+    LOG_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_ID UUID REFERENCES TICKETS(TICKET_ID) ON DELETE SET NULL,
+    USER_ID UUID NOT NULL REFERENCES USERS(USER_ID),
+    ACTION_TYPE VARCHAR(50) NOT NULL,
+    ENTITY_TYPE VARCHAR(50) NOT NULL,
+    ENTITY_ID UUID,
+    OLD_VALUE TEXT,
+    NEW_VALUE TEXT,
+    DESCRIPTION TEXT,
+    IP_ADDRESS INET,
+    USER_AGENT TEXT,
+    TIMESTAMP TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    SESSION_ID VARCHAR(255)
 );
 
 -- ============================================
@@ -138,58 +138,58 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- ============================================
 
 -- SLA Rules Table
-CREATE TABLE IF NOT EXISTS sla_rules (
-    sla_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    priority VARCHAR(10) NOT NULL UNIQUE CHECK (priority IN ('P1', 'P2', 'P3', 'P4')),
-    response_time_hours INTEGER NOT NULL,
-    resolution_time_hours INTEGER NOT NULL,
-    escalation_threshold_percent INTEGER DEFAULT 80,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS SLA_RULES (
+    SLA_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    PRIORITY VARCHAR(10) NOT NULL UNIQUE CHECK (PRIORITY IN ('P1', 'P2', 'P3', 'P4')),
+    RESPONSE_TIME_HOURS INTEGER NOT NULL,
+    RESOLUTION_TIME_HOURS INTEGER NOT NULL,
+    ESCALATION_THRESHOLD_PERCENT INTEGER DEFAULT 80,
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- SLA History Table (for tracking SLA changes per ticket)
-CREATE TABLE IF NOT EXISTS sla_history (
-    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
-    sla_id UUID NOT NULL REFERENCES sla_rules(sla_id),
-    response_due TIMESTAMP WITH TIME ZONE,
-    resolution_due TIMESTAMP WITH TIME ZONE,
-    response_met BOOLEAN,
-    resolution_met BOOLEAN,
-    escalated_at TIMESTAMP WITH TIME ZONE,
-    breached_at TIMESTAMP WITH TIME ZONE,
-    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS SLA_HISTORY (
+    HISTORY_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID) ON DELETE CASCADE,
+    SLA_ID UUID NOT NULL REFERENCES SLA_RULES(SLA_ID),
+    RESPONSE_DUE TIMESTAMP WITH TIME ZONE,
+    RESOLUTION_DUE TIMESTAMP WITH TIME ZONE,
+    RESPONSE_MET BOOLEAN,
+    RESOLUTION_MET BOOLEAN,
+    ESCALATED_AT TIMESTAMP WITH TIME ZONE,
+    BREACHED_AT TIMESTAMP WITH TIME ZONE,
+    RECORDED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Routing Rules Table
-CREATE TABLE IF NOT EXISTS routing_rules (
-    rule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    category VARCHAR(100) NOT NULL,
-    subcategory VARCHAR(100),
-    assigned_team UUID NOT NULL REFERENCES teams(team_id),
-    priority_override VARCHAR(10),
-    location VARCHAR(50),
-    is_active BOOLEAN DEFAULT true,
-    order_priority INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(category, subcategory, location)
+CREATE TABLE IF NOT EXISTS ROUTING_RULES (
+    RULE_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    CATEGORY VARCHAR(100) NOT NULL,
+    SUBCATEGORY VARCHAR(100),
+    ASSIGNED_TEAM UUID NOT NULL REFERENCES TEAMS(TEAM_ID),
+    PRIORITY_OVERRIDE VARCHAR(10),
+    LOCATION VARCHAR(50),
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    ORDER_PRIORITY INTEGER DEFAULT 0,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(CATEGORY, SUBCATEGORY, LOCATION)
 );
 
 -- Auto-Classification Rules Table
-CREATE TABLE IF NOT EXISTS classification_rules (
-    rule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    rule_name VARCHAR(255) NOT NULL,
-    keywords TEXT[] NOT NULL,
-    matching_type VARCHAR(20) DEFAULT 'any' CHECK (matching_type IN ('any', 'all')),
-    assigned_priority VARCHAR(10) NOT NULL CHECK (assigned_priority IN ('P1', 'P2', 'P3', 'P4')),
-    assigned_category VARCHAR(100),
-    is_active BOOLEAN DEFAULT true,
-    order_priority INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS CLASSIFICATION_RULES (
+    RULE_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    RULE_NAME VARCHAR(255) NOT NULL,
+    KEYWORDS TEXT[] NOT NULL,
+    MATCHING_TYPE VARCHAR(20) DEFAULT 'any' CHECK (MATCHING_TYPE IN ('any', 'all')),
+    ASSIGNED_PRIORITY VARCHAR(10) NOT NULL CHECK (ASSIGNED_PRIORITY IN ('P1', 'P2', 'P3', 'P4')),
+    ASSIGNED_CATEGORY VARCHAR(100),
+    IS_ACTIVE BOOLEAN DEFAULT TRUE,
+    ORDER_PRIORITY INTEGER DEFAULT 0,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -197,47 +197,47 @@ CREATE TABLE IF NOT EXISTS classification_rules (
 -- ============================================
 
 -- Knowledge Base Articles Table
-CREATE TABLE IF NOT EXISTS knowledge_base_articles (
-    article_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL UNIQUE,
-    content TEXT NOT NULL,
-    summary TEXT,
-    category VARCHAR(100) NOT NULL,
-    tags VARCHAR(255),
-    author_id UUID NOT NULL REFERENCES users(user_id),
-    status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
-    views INTEGER DEFAULT 0,
-    helpful_count INTEGER DEFAULT 0,
-    unhelpful_count INTEGER DEFAULT 0,
-    version INTEGER DEFAULT 1,
-    is_featured BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    published_at TIMESTAMP WITH TIME ZONE,
-    archived_at TIMESTAMP WITH TIME ZONE
+CREATE TABLE IF NOT EXISTS KNOWLEDGE_BASE_ARTICLES (
+    ARTICLE_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TITLE VARCHAR(255) NOT NULL,
+    SLUG VARCHAR(255) NOT NULL UNIQUE,
+    CONTENT TEXT NOT NULL,
+    SUMMARY TEXT,
+    CATEGORY VARCHAR(100) NOT NULL,
+    TAGS VARCHAR(255),
+    AUTHOR_ID UUID NOT NULL REFERENCES USERS(USER_ID),
+    STATUS VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (STATUS IN ('draft', 'published', 'archived')),
+    VIEWS INTEGER DEFAULT 0,
+    HELPFUL_COUNT INTEGER DEFAULT 0,
+    UNHELPFUL_COUNT INTEGER DEFAULT 0,
+    VERSION INTEGER DEFAULT 1,
+    IS_FEATURED BOOLEAN DEFAULT FALSE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PUBLISHED_AT TIMESTAMP WITH TIME ZONE,
+    ARCHIVED_AT TIMESTAMP WITH TIME ZONE
 );
 
 -- KB Article Versions Table
-CREATE TABLE IF NOT EXISTS kb_article_versions (
-    version_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    article_id UUID NOT NULL REFERENCES knowledge_base_articles(article_id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    version_number INTEGER NOT NULL,
-    changed_by UUID NOT NULL REFERENCES users(user_id),
-    change_summary TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(article_id, version_number)
+CREATE TABLE IF NOT EXISTS KB_ARTICLE_VERSIONS (
+    VERSION_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    ARTICLE_ID UUID NOT NULL REFERENCES KNOWLEDGE_BASE_ARTICLES(ARTICLE_ID) ON DELETE CASCADE,
+    CONTENT TEXT NOT NULL,
+    VERSION_NUMBER INTEGER NOT NULL,
+    CHANGED_BY UUID NOT NULL REFERENCES USERS(USER_ID),
+    CHANGE_SUMMARY TEXT,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ARTICLE_ID, VERSION_NUMBER)
 );
 
 -- KB Article Feedback Table
-CREATE TABLE IF NOT EXISTS kb_article_feedback (
-    feedback_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    article_id UUID NOT NULL REFERENCES knowledge_base_articles(article_id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(user_id),
-    feedback_type VARCHAR(50) CHECK (feedback_type IN ('helpful', 'unhelpful')),
-    comment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS KB_ARTICLE_FEEDBACK (
+    FEEDBACK_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    ARTICLE_ID UUID NOT NULL REFERENCES KNOWLEDGE_BASE_ARTICLES(ARTICLE_ID) ON DELETE CASCADE,
+    USER_ID UUID REFERENCES USERS(USER_ID),
+    FEEDBACK_TYPE VARCHAR(50) CHECK (FEEDBACK_TYPE IN ('helpful', 'unhelpful')),
+    COMMENT TEXT,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -245,37 +245,51 @@ CREATE TABLE IF NOT EXISTS kb_article_feedback (
 -- ============================================
 
 -- Change Requests Table
-CREATE TABLE IF NOT EXISTS change_requests (
-    change_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    change_number VARCHAR(20) NOT NULL UNIQUE,
-    ticket_id UUID REFERENCES tickets(ticket_id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    change_type VARCHAR(50) CHECK (change_type IN ('standard', 'normal', 'emergency')),
-    affected_systems VARCHAR(500),
-    implementation_plan TEXT,
-    rollback_plan TEXT,
-    risk_assessment VARCHAR(50) CHECK (risk_assessment IN ('low', 'medium', 'high', 'critical')),
-    change_window_start TIMESTAMP WITH TIME ZONE,
-    change_window_end TIMESTAMP WITH TIME ZONE,
-    requested_by UUID NOT NULL REFERENCES users(user_id),
-    status VARCHAR(50) NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'submitted', 'approved', 'scheduled', 'implemented', 'closed', 'rejected')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    approved_at TIMESTAMP WITH TIME ZONE,
-    implemented_at TIMESTAMP WITH TIME ZONE,
-    closed_at TIMESTAMP WITH TIME ZONE
+CREATE TABLE IF NOT EXISTS CHANGE_REQUESTS (
+    CHANGE_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    CHANGE_NUMBER VARCHAR(20) NOT NULL UNIQUE,
+    TICKET_ID UUID REFERENCES TICKETS(TICKET_ID),
+    TITLE VARCHAR(255) NOT NULL,
+    DESCRIPTION TEXT NOT NULL,
+    CHANGE_TYPE VARCHAR(50) CHECK (CHANGE_TYPE IN ('standard', 'normal', 'emergency')),
+    AFFECTED_SYSTEMS VARCHAR(500),
+    IMPLEMENTATION_PLAN TEXT,
+    ROLLBACK_PLAN TEXT,
+    RISK_ASSESSMENT VARCHAR(50) CHECK (RISK_ASSESSMENT IN ('low', 'medium', 'high', 'critical')),
+    CHANGE_WINDOW_START TIMESTAMP WITH TIME ZONE,
+    CHANGE_WINDOW_END TIMESTAMP WITH TIME ZONE,
+    REQUESTED_BY UUID NOT NULL REFERENCES USERS(USER_ID),
+    STATUS VARCHAR(50) NOT NULL DEFAULT 'new' CHECK (STATUS IN ('new', 'submitted', 'approved', 'scheduled', 'implemented', 'closed', 'rejected')),
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    APPROVED_AT TIMESTAMP WITH TIME ZONE,
+    IMPLEMENTED_AT TIMESTAMP WITH TIME ZONE,
+    CLOSED_AT TIMESTAMP WITH TIME ZONE
 );
 
 -- Change Approvers Table
-CREATE TABLE IF NOT EXISTS change_approvers (
-    approver_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    change_id UUID NOT NULL REFERENCES change_requests(change_id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    approval_status VARCHAR(50) DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
-    approval_comment TEXT,
-    approved_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(change_id, user_id)
+CREATE TABLE IF NOT EXISTS CHANGE_APPROVERS (
+    APPROVER_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    CHANGE_ID UUID NOT NULL REFERENCES CHANGE_REQUESTS(CHANGE_ID) ON DELETE CASCADE,
+    USER_ID UUID NOT NULL REFERENCES USERS(USER_ID),
+    APPROVAL_STATUS VARCHAR(50) DEFAULT 'pending' CHECK (APPROVAL_STATUS IN ('pending', 'approved', 'rejected')),
+    APPROVAL_COMMENT TEXT,
+    APPROVED_AT TIMESTAMP WITH TIME ZONE,
+    UNIQUE(CHANGE_ID, USER_ID)
+);
+
+-- Ticket Priority Override Approval Requests
+CREATE TABLE IF NOT EXISTS TICKET_PRIORITY_OVERRIDE_REQUESTS (
+    REQUEST_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID) ON DELETE CASCADE,
+    REQUESTED_PRIORITY VARCHAR(10) NOT NULL CHECK (REQUESTED_PRIORITY IN ('P1', 'P2', 'P3', 'P4')),
+    REASON TEXT NOT NULL,
+    REQUESTED_BY UUID NOT NULL REFERENCES USERS(USER_ID),
+    STATUS VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (STATUS IN ('pending', 'approved', 'rejected')),
+    REVIEWED_BY UUID REFERENCES USERS(USER_ID),
+    REVIEWED_AT TIMESTAMP WITH TIME ZONE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -283,20 +297,20 @@ CREATE TABLE IF NOT EXISTS change_approvers (
 -- ============================================
 
 -- Service Requests Table
-CREATE TABLE IF NOT EXISTS service_requests (
-    request_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    request_number VARCHAR(20) NOT NULL UNIQUE,
-    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id),
-    request_type VARCHAR(50) NOT NULL CHECK (request_type IN ('access_request', 'account_creation', 'hardware_request', 'software_request')),
-    details JSONB,
-    requested_by UUID NOT NULL REFERENCES users(user_id),
-    approver_id UUID REFERENCES users(user_id),
-    status VARCHAR(50) NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'approved', 'rejected', 'fulfilled', 'completed')),
-    approval_comment TEXT,
-    approved_at TIMESTAMP WITH TIME ZONE,
-    fulfilled_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS SERVICE_REQUESTS (
+    REQUEST_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    REQUEST_NUMBER VARCHAR(20) NOT NULL UNIQUE,
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID),
+    REQUEST_TYPE VARCHAR(50) NOT NULL CHECK (REQUEST_TYPE IN ('access_request', 'account_creation', 'hardware_request', 'software_request')),
+    DETAILS JSONB,
+    REQUESTED_BY UUID NOT NULL REFERENCES USERS(USER_ID),
+    APPROVER_ID UUID REFERENCES USERS(USER_ID),
+    STATUS VARCHAR(50) NOT NULL DEFAULT 'submitted' CHECK (STATUS IN ('submitted', 'approved', 'rejected', 'fulfilled', 'completed')),
+    APPROVAL_COMMENT TEXT,
+    APPROVED_AT TIMESTAMP WITH TIME ZONE,
+    FULFILLED_AT TIMESTAMP WITH TIME ZONE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -304,33 +318,33 @@ CREATE TABLE IF NOT EXISTS service_requests (
 -- ============================================
 
 -- IT Assets Table
-CREATE TABLE IF NOT EXISTS it_assets (
-    asset_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_tag VARCHAR(50) NOT NULL UNIQUE,
-    serial_number VARCHAR(100),
-    asset_type VARCHAR(50) NOT NULL CHECK (asset_type IN ('laptop', 'desktop', 'monitor', 'printer', 'phone', 'tablet', 'server', 'network_device', 'other')),
-    model VARCHAR(100),
-    manufacturer VARCHAR(100),
-    assigned_user_id UUID REFERENCES users(user_id),
-    location VARCHAR(100),
-    purchase_date DATE,
-    warranty_expiration DATE,
-    last_maintenance_date DATE,
-    next_maintenance_date DATE,
-    cost DECIMAL(12, 2),
-    currency VARCHAR(3) DEFAULT 'USD',
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'retired', 'for_repair')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS IT_ASSETS (
+    ASSET_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    ASSET_TAG VARCHAR(50) NOT NULL UNIQUE,
+    SERIAL_NUMBER VARCHAR(100),
+    ASSET_TYPE VARCHAR(50) NOT NULL CHECK (ASSET_TYPE IN ('laptop', 'desktop', 'monitor', 'printer', 'server', 'network_device', 'projector', 'docking_station', 'ups', 'other')),
+    MODEL VARCHAR(100),
+    MANUFACTURER VARCHAR(100),
+    ASSIGNED_USER_ID UUID REFERENCES USERS(USER_ID),
+    LOCATION VARCHAR(100),
+    PURCHASE_DATE DATE,
+    WARRANTY_EXPIRATION DATE,
+    LAST_MAINTENANCE_DATE DATE,
+    NEXT_MAINTENANCE_DATE DATE,
+    COST DECIMAL(12, 2),
+    CURRENCY VARCHAR(3) DEFAULT 'USD',
+    STATUS VARCHAR(50) DEFAULT 'active' CHECK (STATUS IN ('active', 'inactive', 'retired', 'for_repair')),
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Asset Ticket Association
-CREATE TABLE IF NOT EXISTS asset_tickets (
-    association_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_id UUID NOT NULL REFERENCES it_assets(asset_id) ON DELETE CASCADE,
-    ticket_id UUID NOT NULL REFERENCES tickets(ticket_id) ON DELETE CASCADE,
-    associated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, ticket_id)
+CREATE TABLE IF NOT EXISTS ASSET_TICKETS (
+    ASSOCIATION_ID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
+    ASSET_ID UUID NOT NULL REFERENCES IT_ASSETS(ASSET_ID) ON DELETE CASCADE,
+    TICKET_ID UUID NOT NULL REFERENCES TICKETS(TICKET_ID) ON DELETE CASCADE,
+    ASSOCIATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ASSET_ID, TICKET_ID)
 );
 
 -- ============================================
@@ -338,116 +352,225 @@ CREATE TABLE IF NOT EXISTS asset_tickets (
 -- ============================================
 
 -- User Indexes
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE INDEX IDX_USERS_EMAIL ON USERS(EMAIL);
+
+CREATE INDEX IDX_USERS_ROLE ON USERS(ROLE);
+
+CREATE INDEX IDX_USERS_IS_ACTIVE ON USERS(IS_ACTIVE);
 
 -- Team Indexes
-CREATE INDEX idx_team_members_team_id ON team_members(team_id);
-CREATE INDEX idx_team_members_user_id ON team_members(user_id);
+CREATE INDEX IDX_TEAM_MEMBERS_TEAM_ID ON TEAM_MEMBERS(TEAM_ID);
+
+CREATE INDEX IDX_TEAM_MEMBERS_USER_ID ON TEAM_MEMBERS(USER_ID);
 
 -- Ticket Indexes
-CREATE INDEX idx_tickets_ticket_number ON tickets(ticket_number);
-CREATE INDEX idx_tickets_user_id ON tickets(user_id);
-CREATE INDEX idx_tickets_assigned_to ON tickets(assigned_to);
-CREATE INDEX idx_tickets_assigned_team ON tickets(assigned_team);
-CREATE INDEX idx_tickets_status ON tickets(status);
-CREATE INDEX idx_tickets_priority ON tickets(priority);
-CREATE INDEX idx_tickets_category ON tickets(category);
-CREATE INDEX idx_tickets_created_at ON tickets(created_at);
-CREATE INDEX idx_tickets_sla_due_date ON tickets(sla_due_date);
-CREATE INDEX idx_tickets_sla_breached ON tickets(sla_breached);
+CREATE INDEX IDX_TICKETS_TICKET_NUMBER ON TICKETS(TICKET_NUMBER);
+
+CREATE INDEX IDX_TICKETS_USER_ID ON TICKETS(USER_ID);
+
+CREATE INDEX IDX_TICKETS_ASSIGNED_TO ON TICKETS(ASSIGNED_TO);
+
+CREATE INDEX IDX_TICKETS_ASSIGNED_TEAM ON TICKETS(ASSIGNED_TEAM);
+
+CREATE INDEX IDX_TICKETS_STATUS ON TICKETS(STATUS);
+
+CREATE INDEX IDX_TICKETS_PRIORITY ON TICKETS(PRIORITY);
+
+CREATE INDEX IDX_TICKETS_CATEGORY ON TICKETS(CATEGORY);
+
+CREATE INDEX IDX_TICKETS_CREATED_AT ON TICKETS(CREATED_AT);
+
+CREATE INDEX IDX_TICKETS_SLA_DUE_DATE ON TICKETS(SLA_DUE_DATE);
+
+CREATE INDEX IDX_TICKETS_SLA_BREACHED ON TICKETS(SLA_BREACHED);
 
 -- Ticket Comments Indexes
-CREATE INDEX idx_comments_ticket_id ON ticket_comments(ticket_id);
-CREATE INDEX idx_comments_user_id ON ticket_comments(user_id);
+CREATE INDEX IDX_COMMENTS_TICKET_ID ON TICKET_COMMENTS(TICKET_ID);
+
+CREATE INDEX IDX_COMMENTS_USER_ID ON TICKET_COMMENTS(USER_ID);
 
 -- Audit Log Indexes
-CREATE INDEX idx_audit_ticket_id ON audit_logs(ticket_id);
-CREATE INDEX idx_audit_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_timestamp ON audit_logs(timestamp);
-CREATE INDEX idx_audit_action_type ON audit_logs(action_type);
+CREATE INDEX IDX_AUDIT_TICKET_ID ON AUDIT_LOGS(TICKET_ID);
+
+CREATE INDEX IDX_AUDIT_USER_ID ON AUDIT_LOGS(USER_ID);
+
+CREATE INDEX IDX_AUDIT_TIMESTAMP ON AUDIT_LOGS(TIMESTAMP);
+
+CREATE INDEX IDX_AUDIT_ACTION_TYPE ON AUDIT_LOGS(ACTION_TYPE);
 
 -- KB Indexes
-CREATE INDEX idx_kb_articles_category ON knowledge_base_articles(category);
-CREATE INDEX idx_kb_articles_status ON knowledge_base_articles(status);
-CREATE INDEX idx_kb_articles_author_id ON knowledge_base_articles(author_id);
+CREATE INDEX IDX_KB_ARTICLES_CATEGORY ON KNOWLEDGE_BASE_ARTICLES(CATEGORY);
+
+CREATE INDEX IDX_KB_ARTICLES_STATUS ON KNOWLEDGE_BASE_ARTICLES(STATUS);
+
+CREATE INDEX IDX_KB_ARTICLES_AUTHOR_ID ON KNOWLEDGE_BASE_ARTICLES(AUTHOR_ID);
 
 -- Change Request Indexes
-CREATE INDEX idx_change_requests_status ON change_requests(status);
-CREATE INDEX idx_change_requests_ticket_id ON change_requests(ticket_id);
+CREATE INDEX IDX_CHANGE_REQUESTS_STATUS ON CHANGE_REQUESTS(STATUS);
+
+CREATE INDEX IDX_CHANGE_REQUESTS_TICKET_ID ON CHANGE_REQUESTS(TICKET_ID);
+
+-- Ticket Priority Override Indexes
+CREATE INDEX IDX_PRIORITY_OVERRIDE_TICKET_ID ON TICKET_PRIORITY_OVERRIDE_REQUESTS(TICKET_ID);
+
+CREATE INDEX IDX_PRIORITY_OVERRIDE_STATUS ON TICKET_PRIORITY_OVERRIDE_REQUESTS(STATUS);
+
+CREATE INDEX IDX_PRIORITY_OVERRIDE_REQUESTED_BY ON TICKET_PRIORITY_OVERRIDE_REQUESTS(REQUESTED_BY);
 
 -- Service Request Indexes
-CREATE INDEX idx_service_requests_ticket_id ON service_requests(ticket_id);
-CREATE INDEX idx_service_requests_status ON service_requests(status);
+CREATE INDEX IDX_SERVICE_REQUESTS_TICKET_ID ON SERVICE_REQUESTS(TICKET_ID);
+
+CREATE INDEX IDX_SERVICE_REQUESTS_STATUS ON SERVICE_REQUESTS(STATUS);
 
 -- Asset Indexes
-CREATE INDEX idx_assets_asset_tag ON it_assets(asset_tag);
-CREATE INDEX idx_assets_assigned_user ON it_assets(assigned_user_id);
-CREATE INDEX idx_assets_status ON it_assets(status);
+CREATE INDEX IDX_ASSETS_ASSET_TAG ON IT_ASSETS(ASSET_TAG);
+
+CREATE INDEX IDX_ASSETS_ASSIGNED_USER ON IT_ASSETS(ASSIGNED_USER_ID);
+
+CREATE INDEX IDX_ASSETS_STATUS ON IT_ASSETS(STATUS);
 
 -- ============================================
 -- VIEWS FOR REPORTING
 -- ============================================
 
 -- SLA Performance View
-CREATE OR REPLACE VIEW sla_performance_summary AS
-SELECT 
-    t.priority,
-    COUNT(*) as total_tickets,
-    SUM(CASE WHEN t.sla_breached = false THEN 1 ELSE 0 END) as sla_met,
-    SUM(CASE WHEN t.sla_breached = true THEN 1 ELSE 0 END) as sla_breached,
-    ROUND(100.0 * SUM(CASE WHEN t.sla_breached = false THEN 1 ELSE 0 END) / COUNT(*), 2) as sla_compliance_percent,
-    AVG(EXTRACT(EPOCH FROM (t.resolved_at - t.created_at)) / 3600) as avg_resolution_hours
-FROM tickets t
-WHERE t.status IN ('Resolved', 'Closed')
-GROUP BY t.priority
-ORDER BY CASE WHEN t.priority = 'P1' THEN 1 WHEN t.priority = 'P2' THEN 2 WHEN t.priority = 'P3' THEN 3 ELSE 4 END;
+CREATE OR REPLACE VIEW SLA_PERFORMANCE_SUMMARY AS
+    SELECT
+        T.PRIORITY,
+        COUNT(*)                                                       AS TOTAL_TICKETS,
+        SUM(
+            CASE
+                WHEN T.SLA_BREACHED = FALSE THEN
+                    1
+                ELSE
+                    0
+            END)                                                       AS SLA_MET,
+        SUM(
+            CASE
+                WHEN T.SLA_BREACHED = TRUE THEN
+                    1
+                ELSE
+                    0
+            END)                                                       AS SLA_BREACHED,
+        ROUND(100.0 * SUM(
+            CASE
+                WHEN T.SLA_BREACHED = FALSE THEN
+                    1
+                ELSE
+                    0
+            END) / COUNT(*), 2)                                        AS SLA_COMPLIANCE_PERCENT,
+        AVG(EXTRACT(EPOCH FROM (T.RESOLVED_AT - T.CREATED_AT)) / 3600) AS AVG_RESOLUTION_HOURS
+    FROM
+        TICKETS T
+    WHERE
+        T.STATUS IN ('Resolved', 'Closed')
+    GROUP BY
+        T.PRIORITY
+    ORDER BY
+        CASE
+            WHEN T.PRIORITY = 'P1' THEN
+                1
+            WHEN T.PRIORITY = 'P2' THEN
+                2
+            WHEN T.PRIORITY = 'P3' THEN
+                3
+            ELSE
+                4
+        END;
 
 -- Team Performance View
-CREATE OR REPLACE VIEW team_performance_summary AS
-SELECT 
-    tm.team_id,
-    t.team_name,
-    COUNT(tk.ticket_id) as tickets_assigned,
-    SUM(CASE WHEN tk.status = 'Closed' THEN 1 ELSE 0 END) as tickets_closed,
-    AVG(EXTRACT(EPOCH FROM (tk.resolved_at - tk.created_at)) / 3600) as avg_resolution_hours,
-    SUM(CASE WHEN tk.sla_breached = false THEN 1 ELSE 0 END) as sla_met
-FROM teams t
-LEFT JOIN team_members tm ON t.team_id = tm.team_id
-LEFT JOIN tickets tk ON tm.user_id = tk.assigned_to
-GROUP BY tm.team_id, t.team_id, t.team_name;
+CREATE OR REPLACE VIEW TEAM_PERFORMANCE_SUMMARY AS
+    SELECT
+        TM.TEAM_ID,
+        T.TEAM_NAME,
+        COUNT(TK.TICKET_ID)                                              AS TICKETS_ASSIGNED,
+        SUM(
+            CASE
+                WHEN TK.STATUS = 'Closed' THEN
+                    1
+                ELSE
+                    0
+            END)                                                         AS TICKETS_CLOSED,
+        AVG(EXTRACT(EPOCH FROM (TK.RESOLVED_AT - TK.CREATED_AT)) / 3600) AS AVG_RESOLUTION_HOURS,
+        SUM(
+            CASE
+                WHEN TK.SLA_BREACHED = FALSE THEN
+                    1
+                ELSE
+                    0
+            END)                                                         AS SLA_MET
+    FROM
+        TEAMS        T
+        LEFT JOIN TEAM_MEMBERS TM
+        ON T.TEAM_ID = TM.TEAM_ID
+        LEFT JOIN TICKETS TK
+        ON TM.USER_ID = TK.ASSIGNED_TO
+    GROUP BY
+        TM.TEAM_ID,
+        T.TEAM_ID,
+        T.TEAM_NAME;
 
 -- Aging Tickets View
-CREATE OR REPLACE VIEW aging_tickets AS
-SELECT 
-    ticket_id,
-    ticket_number,
-    title,
-    priority,
-    status,
-    created_at,
-    EXTRACT(DAY FROM CURRENT_TIMESTAMP - created_at) as days_open,
-    assigned_to,
-    sla_due_date,
-    CASE 
-        WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - created_at) > 30 THEN 'over_30_days'
-        WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - created_at) > 14 THEN 'over_14_days'
-        WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - created_at) > 7 THEN 'over_7_days'
-        ELSE 'normal'
-    END as age_category
-FROM tickets
-WHERE status NOT IN ('Resolved', 'Closed')
-ORDER BY created_at ASC;
+CREATE OR REPLACE VIEW AGING_TICKETS AS
+    SELECT
+        TICKET_ID,
+        TICKET_NUMBER,
+        TITLE,
+        PRIORITY,
+        STATUS,
+        CREATED_AT,
+        EXTRACT(DAY FROM CURRENT_TIMESTAMP - CREATED_AT) AS DAYS_OPEN,
+        ASSIGNED_TO,
+        SLA_DUE_DATE,
+        CASE
+            WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - CREATED_AT) > 30 THEN
+                'over_30_days'
+            WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - CREATED_AT) > 14 THEN
+                'over_14_days'
+            WHEN EXTRACT(DAY FROM CURRENT_TIMESTAMP - CREATED_AT) > 7 THEN
+                'over_7_days'
+            ELSE
+                'normal'
+        END                                              AS AGE_CATEGORY
+    FROM
+        TICKETS
+    WHERE
+        STATUS NOT IN ('Resolved', 'Closed')
+    ORDER BY
+        CREATED_AT ASC;
 
 -- ============================================
 -- INITIAL DATA (SLA Rules)
 -- ============================================
 
-INSERT INTO sla_rules (priority, response_time_hours, resolution_time_hours, is_active)
-VALUES 
-    ('P1', 1, 4, true),
-    ('P2', 4, 24, true),
-    ('P3', 8, 72, true),
-    ('P4', 24, 120, true)
-ON CONFLICT (priority) DO NOTHING;
+INSERT INTO SLA_RULES (
+    PRIORITY,
+    RESPONSE_TIME_HOURS,
+    RESOLUTION_TIME_HOURS,
+    IS_ACTIVE
+) VALUES (
+    'P1',
+    1,
+    4,
+    TRUE
+),
+(
+    'P2',
+    4,
+    24,
+    TRUE
+),
+(
+    'P3',
+    8,
+    72,
+    TRUE
+),
+(
+    'P4',
+    24,
+    120,
+    TRUE
+) ON CONFLICT (
+    PRIORITY
+) DO NOTHING;

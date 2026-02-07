@@ -10,7 +10,7 @@ const createSchema = Joi.object({
   asset_tag: Joi.string().min(3).required(),
   serial_number: Joi.string().allow('', null),
   asset_type: Joi.string()
-    .valid('laptop', 'desktop', 'monitor', 'printer', 'phone', 'tablet', 'server', 'network_device', 'other')
+    .valid('laptop', 'desktop', 'monitor', 'printer', 'server', 'network_device', 'projector', 'docking_station', 'ups', 'other')
     .required(),
   model: Joi.string().allow('', null),
   manufacturer: Joi.string().allow('', null),
@@ -28,7 +28,7 @@ const createSchema = Joi.object({
 const updateSchema = Joi.object({
   asset_tag: Joi.string().min(3),
   serial_number: Joi.string().allow('', null),
-  asset_type: Joi.string().valid('laptop', 'desktop', 'monitor', 'printer', 'phone', 'tablet', 'server', 'network_device', 'other'),
+  asset_type: Joi.string().valid('laptop', 'desktop', 'monitor', 'printer', 'server', 'network_device', 'projector', 'docking_station', 'ups', 'other'),
   model: Joi.string().allow('', null),
   manufacturer: Joi.string().allow('', null),
   assigned_user_id: Joi.string().uuid().allow('', null),
@@ -45,7 +45,7 @@ const updateSchema = Joi.object({
 router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin', 'end_user']), async (req, res, next) => {
   try {
     const { status, asset_type, assigned_user_id } = req.query;
-    const userAssignedId = req.user.role === 'end_user' ? null : assigned_user_id;
+    const userAssignedId = req.user.role === 'end_user' ? req.user.user_id : assigned_user_id;
     const assets = await AssetsModel.listAssets({ status, asset_type, assigned_user_id: userAssignedId });
     res.json({ status: 'success', data: { assets } });
   } catch (err) {
@@ -118,6 +118,10 @@ router.post('/:id/link-ticket', authenticate, authorize(['it_agent', 'it_manager
     if (req.user.role === 'end_user') {
       const ticket = await TicketsModel.getTicketById(value.ticket_id);
       if (!ticket || ticket.user_id !== req.user.user_id) {
+        return res.status(403).json({ status: 'error', message: 'Forbidden: insufficient permissions' });
+      }
+      const asset = await AssetsModel.getAssetById(req.params.id);
+      if (!asset || asset.assigned_user_id !== req.user.user_id) {
         return res.status(403).json({ status: 'error', message: 'Forbidden: insufficient permissions' });
       }
     }

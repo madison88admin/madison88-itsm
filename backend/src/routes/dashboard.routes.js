@@ -316,6 +316,38 @@ router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system
        LIMIT 10`
     );
 
+    const pendingChangeApprovals = await db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM change_requests
+       WHERE status = 'submitted'`
+    );
+
+    const pendingPriorityOverrides = await db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM ticket_priority_override_requests
+       WHERE status = 'pending'`
+    );
+
+    const escalationsOpen = await db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM tickets t
+       JOIN sla_rules s ON s.priority = t.priority AND s.is_active = true
+       WHERE t.status NOT IN ('Resolved','Closed')
+         AND t.sla_due_date IS NOT NULL
+         AND t.created_at IS NOT NULL
+         AND EXTRACT(EPOCH FROM (NOW() - t.created_at)) / NULLIF(EXTRACT(EPOCH FROM (t.sla_due_date - t.created_at)), 0) * 100 >= s.escalation_threshold_percent`
+    );
+
+    const topTags = await db.query(
+      `SELECT LOWER(TRIM(tag)) AS tag, COUNT(*)::int AS count
+       FROM tickets t
+       CROSS JOIN LATERAL unnest(string_to_array(COALESCE(t.tags, ''), ',')) AS tag
+       WHERE t.tags IS NOT NULL AND t.tags <> ''
+       GROUP BY tag
+       ORDER BY count DESC
+       LIMIT 10`
+    );
+
     res.json({
       status: 'success',
       data: {
@@ -328,6 +360,12 @@ router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system
           sla_breaches_by_day: slaTrend.rows,
         },
         agent_performance: agentPerf.rows,
+        approvals_pending: {
+          change_requests: pendingChangeApprovals.rows[0]?.count || 0,
+          priority_overrides: pendingPriorityOverrides.rows[0]?.count || 0,
+        },
+        escalations_open: escalationsOpen.rows[0]?.count || 0,
+        top_tags: topTags.rows,
       },
     });
   } catch (err) {

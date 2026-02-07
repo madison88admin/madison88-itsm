@@ -17,6 +17,26 @@ const priorityColor = {
   P4: "badge-p4",
 };
 
+const statusOptions = [
+  "",
+  "New",
+  "In Progress",
+  "Pending",
+  "Resolved",
+  "Closed",
+  "Reopened",
+];
+const priorityOptions = ["", "P1", "P2", "P3", "P4"];
+const categoryOptions = [
+  "",
+  "Hardware",
+  "Software",
+  "Access Request",
+  "Account Creation",
+  "Network",
+  "Other",
+];
+
 const TicketsPage = ({
   onSelectTicket,
   refreshKey,
@@ -28,12 +48,20 @@ const TicketsPage = ({
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const isManager = user?.role === "it_manager";
   const isAdmin = user?.role === "system_admin";
 
   useEffect(() => {
     const fetchTickets = async () => {
       setLoading(true);
+      setError("");
       try {
         const params = {};
         if (user?.role === "end_user") {
@@ -43,6 +71,13 @@ const TicketsPage = ({
         } else {
           params.assigned_to = user.user_id;
         }
+        if (searchQuery.trim()) params.q = searchQuery.trim();
+        if (tagQuery.trim()) params.tags = tagQuery.trim();
+        if (statusFilter) params.status = statusFilter;
+        if (priorityFilter) params.priority = priorityFilter;
+        if (categoryFilter) params.category = categoryFilter;
+        if (dateFrom) params.date_from = dateFrom;
+        if (dateTo) params.date_to = dateTo;
         const res = await apiClient.get("/tickets", { params });
         setTickets(res.data.data.tickets || []);
       } catch (err) {
@@ -53,7 +88,19 @@ const TicketsPage = ({
     };
 
     fetchTickets();
-  }, [refreshKey, viewMode, user?.role, user?.user_id]);
+  }, [
+    refreshKey,
+    viewMode,
+    user?.role,
+    user?.user_id,
+    searchQuery,
+    tagQuery,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   if (loading) {
     return <div className="panel">Loading tickets...</div>;
@@ -97,6 +144,60 @@ const TicketsPage = ({
           </div>
         )}
       </div>
+      <div className="filter-bar ticket-filters">
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search title, description, ticket number"
+        />
+        <input
+          value={tagQuery}
+          onChange={(e) => setTagQuery(e.target.value)}
+          placeholder="Tags (comma-separated)"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {statusOptions.map((option) => (
+            <option key={option || "all"} value={option}>
+              {option || "All Statuses"}
+            </option>
+          ))}
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+        >
+          {priorityOptions.map((option) => (
+            <option key={option || "all"} value={option}>
+              {option || "All Priorities"}
+            </option>
+          ))}
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          {categoryOptions.map((option) => (
+            <option key={option || "all"} value={option}>
+              {option || "All Categories"}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          title="Created from"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          title="Created to"
+        />
+      </div>
       <div className="ticket-list">
         {tickets.length === 0 && (
           <div className="empty-state">
@@ -117,6 +218,12 @@ const TicketsPage = ({
                 <span>{ticket.ticket_number}</span>
                 <span>•</span>
                 <span>{ticket.category}</span>
+                {ticket.tags && (
+                  <>
+                    <span>•</span>
+                    <span>{ticket.tags}</span>
+                  </>
+                )}
                 <span>•</span>
                 <span>{new Date(ticket.created_at).toLocaleString()}</span>
                 <span>•</span>

@@ -6,10 +6,11 @@ const assetTypes = [
   "desktop",
   "monitor",
   "printer",
-  "phone",
-  "tablet",
   "server",
   "network_device",
+  "projector",
+  "docking_station",
+  "ups",
   "other",
 ];
 

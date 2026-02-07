@@ -107,8 +107,11 @@ const ChangeModel = {
 
   async listApprovers(changeId) {
     const result = await db.query(
-      `SELECT approver_id, change_id, user_id, approval_status, approval_comment, approved_at
-       FROM change_approvers WHERE change_id = $1`,
+      `SELECT a.approver_id, a.change_id, a.user_id, a.approval_status, a.approval_comment, a.approved_at,
+              u.full_name
+       FROM change_approvers a
+       JOIN users u ON u.user_id = a.user_id
+       WHERE a.change_id = $1`,
       [changeId]
     );
     return result.rows;

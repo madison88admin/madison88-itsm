@@ -39,6 +39,7 @@ const NewTicketPage = ({ onCreated }) => {
     location: "",
     description: "",
     business_impact: "",
+    tags: "",
   });
   const [files, setFiles] = useState([]);
 
@@ -138,6 +139,8 @@ const NewTicketPage = ({ onCreated }) => {
         location: "",
         description: "",
         business_impact: "",
+        tags: "",
+        tags: "",
       });
       setFiles([]);
       setSelectedAssetId("");
@@ -227,6 +230,14 @@ const NewTicketPage = ({ onCreated }) => {
                 No assets assigned to your account.
               </small>
             )}
+          </label>
+          <label className="field">
+            <span>Tags (optional)</span>
+            <input
+              value={form.tags}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              placeholder="Example: vpn, urgent, onboarding"
+            />
           </label>
           <label className="field full">
             <span>Detailed Description</span>

@@ -96,6 +96,27 @@ const TicketsModel = {
       values.push(filters.category);
       where.push(`category = $${values.length}`);
     }
+    if (filters.q) {
+      values.push(`%${filters.q}%`);
+      const idx = values.length;
+      where.push(
+        `(title ILIKE $${idx} OR description ILIKE $${idx} OR ticket_number ILIKE $${idx} OR COALESCE(tags, '') ILIKE $${idx})`
+      );
+    }
+    if (filters.tags && filters.tags.length) {
+      for (const tag of filters.tags) {
+        values.push(`%${tag}%`);
+        where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+      }
+    }
+    if (filters.date_from) {
+      values.push(filters.date_from);
+      where.push(`created_at >= $${values.length}`);
+    }
+    if (filters.date_to) {
+      values.push(filters.date_to);
+      where.push(`created_at <= $${values.length}`);
+    }
     if (filters.assigned_to) {
       values.push(filters.assigned_to);
       where.push(`assigned_to = $${values.length}`);

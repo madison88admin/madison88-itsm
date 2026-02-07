@@ -393,6 +393,35 @@ textarea {
   gap: 10px;
 }
 
+.ticket-filters {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.ticket-filters input,
+.ticket-filters select {
+  background: rgba(10, 22, 53, 0.8);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--slate-100);
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.ticket-filters input[type="date"] {
+  flex: 0 1 160px;
+  min-width: 140px;
+}
+
+.ticket-filters input:focus,
+.ticket-filters select:focus {
+  outline: none;
+  border-color: var(--cyan-400);
+  box-shadow: 0 0 0 2px rgba(47, 215, 255, 0.2);
+}
+
 .filter-pill {
   border: 1px solid rgba(47, 215, 255, 0.2);
   background: rgba(10, 22, 53, 0.5);

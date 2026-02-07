@@ -27,6 +27,11 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
+  const [priorityOverrideReason, setPriorityOverrideReason] = useState("");
+  const [priorityRequestPriority, setPriorityRequestPriority] = useState("P3");
+  const [priorityRequestReason, setPriorityRequestReason] = useState("");
+  const [priorityRequests, setPriorityRequests] = useState([]);
+  const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [agents, setAgents] = useState([]);
   const [editTitle, setEditTitle] = useState("");
@@ -41,18 +46,33 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
     user?.role,
   );
   const canAssign = isManager || isAdmin;
-  const canOverridePriority = isManager || isAdmin;
+  const canOverridePriority = isAdmin;
+  const canRequestPriorityOverride = isManager;
 
   useEffect(() => {
     if (!ticketId) return;
     const fetchDetails = async () => {
       setLoading(true);
       setError("");
+      setNotice("");
       try {
         const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
         const auditRes = canSeeAudit
           ? await apiClient.get(`/tickets/${ticketId}/audit-log`)
           : { data: { data: { audit_logs: [] } } };
+        let overrideRequests = [];
+        if (isAdmin || isManager) {
+          try {
+            const overrideRes = await apiClient.get(
+              `/tickets/${ticketId}/priority-override-requests`,
+            );
+            overrideRequests = overrideRes.data.data.requests || [];
+          } catch (err) {
+            if (err.response?.status !== 404) {
+              throw err;
+            }
+          }
+        }
         const payload = ticketRes.data.data;
         setTicket(payload.ticket);
         setComments(payload.comments || []);
@@ -61,10 +81,13 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         setStatus(payload.ticket?.status || "");
         setPriority(payload.ticket?.priority || "");
         setAssignedTo(payload.ticket?.assigned_to || "");
+        setPriorityOverrideReason("");
+        setPriorityRequestPriority(payload.ticket?.priority || "P3");
         setEditTitle(payload.ticket?.title || "");
         setEditDescription(payload.ticket?.description || "");
         setEditImpact(payload.ticket?.business_impact || "");
         setAudit(auditRes.data.data.audit_logs || []);
+        setPriorityRequests(overrideRequests);
       } catch (err) {
         setError(
           err.response?.data?.message || "Failed to load ticket details",
@@ -130,7 +153,14 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
     if (!ticket) return;
     const payload = {};
     if (status && status !== ticket.status) payload.status = status;
-    if (priority && priority !== ticket.priority) payload.priority = priority;
+    if (priority && priority !== ticket.priority) {
+      if (!priorityOverrideReason.trim()) {
+        setError("Priority override reason required");
+        return;
+      }
+      payload.priority = priority;
+      payload.priority_override_reason = priorityOverrideReason.trim();
+    }
     if (assignedTo !== (ticket.assigned_to || ""))
       payload.assigned_to = assignedTo || "";
     if (Object.keys(payload).length === 0) return;
@@ -142,10 +172,61 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
       setStatus(ticketRes.data.data.ticket?.status || "");
       setPriority(ticketRes.data.data.ticket?.priority || "");
       setAssignedTo(ticketRes.data.data.ticket?.assigned_to || "");
+      setPriorityOverrideReason("");
       setAttachments(ticketRes.data.data.attachments || []);
       if (onUpdated) onUpdated();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update ticket");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePriorityOverrideRequest = async () => {
+    if (!priorityRequestReason.trim()) {
+      setError("Priority override reason required");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await apiClient.post(`/tickets/${ticketId}/priority-override-requests`, {
+        requested_priority: priorityRequestPriority,
+        reason: priorityRequestReason.trim(),
+      });
+      setNotice("Priority override request submitted");
+      setPriorityRequestReason("");
+      const res = await apiClient.get(
+        `/tickets/${ticketId}/priority-override-requests`,
+      );
+      setPriorityRequests(res.data.data.requests || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Failed to request priority override",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePriorityOverrideReview = async (requestId, statusValue) => {
+    setSaving(true);
+    setError("");
+    try {
+      await apiClient.patch(
+        `/tickets/${ticketId}/priority-override-requests/${requestId}`,
+        { status: statusValue },
+      );
+      const res = await apiClient.get(
+        `/tickets/${ticketId}/priority-override-requests`,
+      );
+      setPriorityRequests(res.data.data.requests || []);
+      const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
+      setTicket(ticketRes.data.data.ticket);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Failed to review priority override",
+      );
     } finally {
       setSaving(false);
     }
@@ -240,6 +321,10 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
           <strong>{ticket.category}</strong>
         </div>
         <div>
+          <span>Tags</span>
+          <strong>{ticket.tags || "None"}</strong>
+        </div>
+        <div>
           <span>Priority</span>
           <strong>{ticket.priority}</strong>
         </div>
@@ -265,6 +350,18 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
             {ticket.sla_due_date
               ? new Date(ticket.sla_due_date).toLocaleString()
               : "N/A"}
+          </strong>
+        </div>
+        <div>
+          <span>SLA Escalation</span>
+          <strong>
+            {ticket.sla_status?.escalated ? "Escalated" : "On Track"}
+          </strong>
+        </div>
+        <div>
+          <span>SLA Remaining (mins)</span>
+          <strong>
+            {ticket.sla_status?.resolution_remaining_minutes ?? "N/A"}
           </strong>
         </div>
       </div>
@@ -339,6 +436,16 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
               </select>
             </label>
           )}
+          {canOverridePriority && priority !== ticket.priority && (
+            <label className="field">
+              <span>Priority Override Reason</span>
+              <input
+                value={priorityOverrideReason}
+                onChange={(e) => setPriorityOverrideReason(e.target.value)}
+                placeholder="Explain why priority changed"
+              />
+            </label>
+          )}
           {canAssign && (
             <label className="field">
               <span>Assigned To</span>
@@ -362,6 +469,86 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
           >
             Update
           </button>
+        </div>
+      )}
+
+      {canRequestPriorityOverride && (
+        <div className="detail-section">
+          <h3>Request Priority Override</h3>
+          {notice && <p className="muted">{notice}</p>}
+          <div className="comment-form">
+            <select
+              value={priorityRequestPriority}
+              onChange={(e) => setPriorityRequestPriority(e.target.value)}
+            >
+              {priorityOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <input
+              value={priorityRequestReason}
+              onChange={(e) => setPriorityRequestReason(e.target.value)}
+              placeholder="Why should this priority change?"
+            />
+            <button
+              className="btn ghost"
+              onClick={handlePriorityOverrideRequest}
+              disabled={saving}
+            >
+              Submit Request
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(isAdmin || isManager) && priorityRequests.length > 0 && (
+        <div className="detail-section">
+          <h3>Priority Override Requests</h3>
+          <div className="comment-list">
+            {priorityRequests.map((request) => (
+              <div key={request.request_id} className="comment-item">
+                <div>
+                  <strong>{request.requested_by_name || "Requester"}</strong>
+                  <span>{new Date(request.created_at).toLocaleString()}</span>
+                </div>
+                <p>
+                  Requested: {request.requested_priority} · Status:{" "}
+                  {request.status}
+                </p>
+                <p>{request.reason}</p>
+                {isAdmin && request.status === "pending" && (
+                  <div className="comment-form">
+                    <button
+                      className="btn ghost"
+                      onClick={() =>
+                        handlePriorityOverrideReview(
+                          request.request_id,
+                          "approved",
+                        )
+                      }
+                      disabled={saving}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn ghost"
+                      onClick={() =>
+                        handlePriorityOverrideReview(
+                          request.request_id,
+                          "rejected",
+                        )
+                      }
+                      disabled={saving}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

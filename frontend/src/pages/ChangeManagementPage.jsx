@@ -18,6 +18,8 @@ const ChangeManagementPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [approversByChange, setApproversByChange] = useState({});
+  const [approvalComments, setApprovalComments] = useState({});
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -40,6 +42,21 @@ const ChangeManagementPage = ({ user }) => {
     try {
       const res = await apiClient.get("/changes");
       setChanges(res.data.data.changes || []);
+      if (canManage) {
+        const approvals = await Promise.all(
+          (res.data.data.changes || []).map(async (change) => {
+            try {
+              const approversRes = await apiClient.get(
+                `/changes/${change.change_id}/approvers`,
+              );
+              return [change.change_id, approversRes.data.data.approvers || []];
+            } catch (err) {
+              return [change.change_id, []];
+            }
+          }),
+        );
+        setApproversByChange(Object.fromEntries(approvals));
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load changes");
     } finally {
@@ -92,7 +109,11 @@ const ChangeManagementPage = ({ user }) => {
   const handleApprove = async (changeId, status) => {
     setError("");
     try {
-      await apiClient.post(`/changes/${changeId}/approve`, { status });
+      await apiClient.post(`/changes/${changeId}/approve`, {
+        status,
+        comment: approvalComments[changeId] || "",
+      });
+      setApprovalComments((prev) => ({ ...prev, [changeId]: "" }));
       load();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update approval");
@@ -247,11 +268,32 @@ const ChangeManagementPage = ({ user }) => {
                   {change.change_number} · {change.change_type} ·{" "}
                   {change.risk_assessment}
                 </p>
+                {approversByChange[change.change_id]?.length > 0 && (
+                  <p className="muted">
+                    Approvals:{" "}
+                    {approversByChange[change.change_id]
+                      .map(
+                        (approver) =>
+                          `${approver.full_name || approver.user_id} (${approver.approval_status})`,
+                      )
+                      .join(", ")}
+                  </p>
+                )}
               </div>
               <div className="user-actions">
                 <span className="badge">{change.status}</span>
                 {canManage && change.status === "submitted" && (
                   <>
+                    <input
+                      value={approvalComments[change.change_id] || ""}
+                      onChange={(e) =>
+                        setApprovalComments((prev) => ({
+                          ...prev,
+                          [change.change_id]: e.target.value,
+                        }))
+                      }
+                      placeholder="Approval comment (optional)"
+                    />
                     <button
                       className="btn ghost"
                       onClick={() =>

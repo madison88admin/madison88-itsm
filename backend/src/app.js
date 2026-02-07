@@ -48,8 +48,8 @@ const limiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  skip: (req) => req.path === '/health'
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+  skip: (req) => req.path === '/health' || process.env.NODE_ENV !== 'production'
 });
 
 app.use('/api/', apiLimiter);
@@ -71,6 +71,7 @@ app.use('/api/kb', require('./routes/knowledgebase.routes'));
 app.use('/api/users', require('./routes/users.routes'));
 app.use('/api/sla-rules', require('./routes/sla.routes'));
 app.use('/api/bi', require('./routes/bi.routes'));
+app.use('/api/audit', require('./routes/audit.routes'));
 
 // Placeholder routes - to be implemented
 const { adminRouter, teamsRouter, changesRouter, assetsRouter } = require('./routes/placeholder.routes');

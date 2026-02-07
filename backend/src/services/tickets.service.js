@@ -1,6 +1,8 @@
 const Joi = require('joi');
 const TicketsModel = require('../models/tickets.model');
 const AssetsModel = require('../models/assets.model');
+const SlaModel = require('../models/sla.model');
+const PriorityOverrideModel = require('../models/priority-override.model');
 
 const createSchema = Joi.object({
   title: Joi.string().min(5).max(255).required(),
@@ -28,12 +30,61 @@ const commentSchema = Joi.object({
   is_internal: Joi.boolean().default(false),
 });
 
+const priorityOverrideSchema = Joi.object({
+  requested_priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').required(),
+  reason: Joi.string().min(5).required(),
+});
+
 const PRIORITY_KEYWORDS = {
   P1: ['outage', 'down', 'security breach', 'breach', 'data loss', 'unavailable', 'critical'],
   P2: ['degradation', 'slow', 'vip', 'partial outage', 'mission critical'],
   P3: ['issue', 'problem', 'request', 'performance'],
   P4: ['information', 'feature request', 'question', 'documentation'],
 };
+
+async function getSlaRuleMap() {
+  const rules = await SlaModel.listRules();
+  return rules.reduce((acc, rule) => {
+    acc[rule.priority] = rule;
+    return acc;
+  }, {});
+}
+
+function computeSlaStatus(ticket, rule) {
+  if (!ticket || !ticket.sla_due_date || !rule) {
+    return {
+      response_remaining_minutes: null,
+      resolution_remaining_minutes: null,
+      response_breached: false,
+      resolution_breached: false,
+      escalated: false,
+    };
+  }
+
+  const now = new Date();
+  const createdAt = new Date(ticket.created_at);
+  const responseDue = ticket.sla_response_due ? new Date(ticket.sla_response_due) : null;
+  const resolutionDue = new Date(ticket.sla_due_date);
+
+  const responseRemaining = responseDue ? Math.ceil((responseDue - now) / 60000) : null;
+  const resolutionRemaining = Math.ceil((resolutionDue - now) / 60000);
+
+  const responseBreached = responseDue ? now > responseDue : false;
+  const resolutionBreached = now > resolutionDue;
+
+  const totalWindowMs = resolutionDue - createdAt;
+  const elapsedMs = now - createdAt;
+  const elapsedPercent = totalWindowMs > 0 ? (elapsedMs / totalWindowMs) * 100 : 0;
+  const escalated = elapsedPercent >= (rule.escalation_threshold_percent || 100);
+
+  return {
+    response_remaining_minutes: responseRemaining,
+    resolution_remaining_minutes: resolutionRemaining,
+    response_breached: responseBreached,
+    resolution_breached: resolutionBreached,
+    escalated,
+  };
+}
 
 function normalizeText(value) {
   return (value || '').toLowerCase();
@@ -161,8 +212,11 @@ const TicketsService = {
   },
 
   async listTickets({ query, user }) {
-    const { status, priority, category, assigned_to, page = 1, limit = 50 } = query;
-    const filters = { status, priority, category };
+    const { status, priority, category, assigned_to, page = 1, limit = 50, q, tags, date_from, date_to } = query;
+    const parsedTags = typeof tags === 'string'
+      ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+      : [];
+    const filters = { status, priority, category, q, tags: parsedTags, date_from, date_to };
 
     if (user.role === 'end_user') {
       filters.user_id = user.user_id;
@@ -174,7 +228,13 @@ const TicketsService = {
       filters.user_id = user.user_id;
     }
     const pagination = { page: parseInt(page, 10), limit: parseInt(limit, 10) };
-    return TicketsModel.listTickets(filters, pagination);
+    const data = await TicketsModel.listTickets(filters, pagination);
+    const slaRuleMap = await getSlaRuleMap();
+    const tickets = data.tickets.map((ticket) => ({
+      ...ticket,
+      sla_status: computeSlaStatus(ticket, slaRuleMap[ticket.priority]),
+    }));
+    return { ...data, tickets };
   },
 
   async getTicketDetails({ ticketId, user }) {
@@ -184,10 +244,15 @@ const TicketsService = {
     if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
       throw new Error('Forbidden');
     }
+    const slaRuleMap = await getSlaRuleMap();
+    const sla_status = computeSlaStatus(ticket, slaRuleMap[ticket.priority]);
     const comments = await TicketsModel.getComments(ticketId);
+    const visibleComments = user.role === 'end_user'
+      ? comments.filter((comment) => !comment.is_internal)
+      : comments;
     const attachments = await TicketsModel.getAttachments(ticketId);
     const assets = await AssetsModel.listTicketAssets(ticketId);
-    return { ticket, comments, attachments, assets };
+    return { ticket: { ...ticket, sla_status }, comments: visibleComments, attachments, assets };
   },
 
   async updateTicket({ ticketId, payload, user, meta }) {
@@ -230,8 +295,13 @@ const TicketsService = {
     if (value.priority && user.role === 'it_agent') {
       throw new Error('Forbidden');
     }
-    if (value.priority && (user.role === 'it_manager' || user.role === 'system_admin')) {
+    if (value.priority && user.role === 'it_manager') {
+      throw new Error('Use priority override request');
+    }
+    if (value.priority && user.role === 'system_admin') {
       if (!value.priority_override_reason) throw new Error('Priority override reason required');
+      value.overridden_by = user.user_id;
+      value.overridden_at = new Date();
     }
 
     if (user.role === 'it_agent') {
@@ -307,6 +377,9 @@ const TicketsService = {
     if (user.role === 'end_user' && ticket.user_id !== user.user_id) {
       throw new Error('Forbidden');
     }
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
 
     const attachments = [];
     for (const file of files) {
@@ -345,6 +418,129 @@ const TicketsService = {
     if (!ticket) throw new Error('Ticket not found');
     const audit_logs = await TicketsModel.getAuditLogs(ticketId);
     return { audit_logs };
+  },
+
+  async listPriorityOverrideRequests({ ticketId, user }) {
+    if (!['it_manager', 'system_admin'].includes(user.role)) throw new Error('Forbidden');
+    return PriorityOverrideModel.listByTicket(ticketId);
+  },
+
+  async requestPriorityOverride({ ticketId, payload, user, meta }) {
+    if (!['it_manager', 'system_admin'].includes(user.role)) throw new Error('Forbidden');
+    const { error, value } = priorityOverrideSchema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+
+    const pending = await PriorityOverrideModel.getPendingByTicket(ticketId);
+    if (pending) throw new Error('Pending priority override request already exists');
+
+    const request = await PriorityOverrideModel.createRequest({
+      ticket_id: ticketId,
+      requested_priority: value.requested_priority,
+      reason: value.reason,
+      requested_by: user.user_id,
+      status: user.role === 'system_admin' ? 'approved' : 'pending',
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'priority_override_requested',
+      entity_type: 'priority_override',
+      entity_id: request.request_id,
+      new_value: JSON.stringify(request),
+      description: 'Priority override requested',
+      ip_address: meta.ip,
+      user_agent: meta.userAgent,
+      session_id: meta.sessionId,
+    });
+
+    if (user.role === 'system_admin') {
+      const updated = await TicketsModel.updateTicket(ticketId, {
+        priority: value.requested_priority,
+        priority_override_reason: value.reason,
+        overridden_by: user.user_id,
+        overridden_at: new Date(),
+      });
+      await PriorityOverrideModel.updateRequest(request.request_id, {
+        reviewed_by: user.user_id,
+        reviewed_at: new Date(),
+      });
+      await TicketsModel.createAuditLog({
+        ticket_id: ticketId,
+        user_id: user.user_id,
+        action_type: 'priority_override_approved',
+        entity_type: 'priority_override',
+        entity_id: request.request_id,
+        new_value: JSON.stringify(updated),
+        description: 'Priority override approved and applied',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    return { request };
+  },
+
+  async reviewPriorityOverride({ ticketId, requestId, payload, user, meta }) {
+    if (user.role !== 'system_admin') throw new Error('Forbidden');
+    const schema = Joi.object({ status: Joi.string().valid('approved', 'rejected').required() });
+    const { error, value } = schema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+
+    const request = await PriorityOverrideModel.getRequestById(requestId);
+    if (!request || request.ticket_id !== ticketId) throw new Error('Request not found');
+    if (request.status !== 'pending') throw new Error('Request already processed');
+
+    const updatedRequest = await PriorityOverrideModel.updateRequest(requestId, {
+      status: value.status,
+      reviewed_by: user.user_id,
+      reviewed_at: new Date(),
+    });
+
+    if (value.status === 'approved') {
+      const updated = await TicketsModel.updateTicket(ticketId, {
+        priority: request.requested_priority,
+        priority_override_reason: request.reason,
+        overridden_by: user.user_id,
+        overridden_at: new Date(),
+      });
+      await TicketsModel.createAuditLog({
+        ticket_id: ticketId,
+        user_id: user.user_id,
+        action_type: 'priority_override_approved',
+        entity_type: 'priority_override',
+        entity_id: request.request_id,
+        new_value: JSON.stringify(updated),
+        description: 'Priority override approved',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    if (value.status === 'rejected') {
+      await TicketsModel.createAuditLog({
+        ticket_id: ticketId,
+        user_id: user.user_id,
+        action_type: 'priority_override_rejected',
+        entity_type: 'priority_override',
+        entity_id: request.request_id,
+        new_value: JSON.stringify(updatedRequest),
+        description: 'Priority override rejected',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    return { request: updatedRequest };
   },
 };
 

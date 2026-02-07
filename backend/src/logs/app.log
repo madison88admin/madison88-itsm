@@ -275,3 +275,66 @@
 {"timestamp":"2026-02-07T06:11:00.434Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-07T06:12:18.459Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-07T06:12:18.475Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:05:57.571Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T14:05:57.579Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T14:05:58.168Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:05:58.300Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T14:05:57.671Z"}}
+{"timestamp":"2026-02-07T14:07:37.328Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:07:38.758Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:10:02.819Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:10:02.826Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:11:20.423Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:12:16.248Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:12:16.275Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:17:23.903Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:17:23.919Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:17:23.923Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:18:06.246Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:18:07.659Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:18:07.663Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:18:45.587Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:18:45.591Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:23:45.372Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:23:49.107Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:25:06.604Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:25:06.616Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:25:07.050Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:26:14.833Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:26:16.633Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:26:16.637Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:27:21.355Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:27:54.086Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:27:54.106Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:29:11.559Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:29:11.722Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:30:35.403Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:31:12.948Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:31:15.632Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:33:00.593Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:33:01.836Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:35:25.796Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T14:35:25.820Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T14:35:35.017Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T14:35:35.023Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T14:35:35.630Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:35:35.746Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T14:35:35.121Z"}}
+{"timestamp":"2026-02-07T14:35:39.165Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:35:54.409Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:36:11.146Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.714Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.717Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.721Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.724Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.726Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:37:01.728Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:38:11.746Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:39:57.045Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T14:39:57.048Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T14:40:18.681Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T14:40:18.685Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T14:40:19.114Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:40:19.227Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T14:40:18.606Z"}}
+{"timestamp":"2026-02-07T14:43:47.656Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:43:47.661Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:43:47.695Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T14:43:47.902Z","level":"INFO","message":"Database connection established"}
