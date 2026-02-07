@@ -11,16 +11,40 @@ const UserModel = {
     const result = await db.query('SELECT * FROM users WHERE user_id = $1', [userId]);
     return result.rows[0];
   },
-  async create({ email, name, passwordHash, role, department, location, phone }) {
+  async create({ email, first_name, last_name, full_name, passwordHash, role, department, location, phone }) {
     const result = await db.query(
-      `INSERT INTO users (email, name, password, role, department, location, phone, is_active, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW()) RETURNING *`,
-      [email, name, passwordHash, role, department, location, phone]
+      `INSERT INTO users (email, password_hash, first_name, last_name, full_name, role, department, location, phone, is_active, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW()) RETURNING *`,
+      [email, passwordHash, first_name, last_name, full_name, role, department, location, phone]
     );
     return result.rows[0];
   },
   async updateLastLogin(userId) {
     await db.query('UPDATE users SET last_login = NOW() WHERE user_id = $1', [userId]);
+  },
+
+  async listUsers({ role } = {}) {
+    if (role) {
+      const result = await db.query(
+        'SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
+        [role]
+      );
+      return result.rows;
+    }
+    const result = await db.query('SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at FROM users ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async updateUser(userId, updates) {
+    const keys = Object.keys(updates);
+    const values = Object.values(updates);
+    const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
+
+    const result = await db.query(
+      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE user_id = $${keys.length + 1} RETURNING user_id, email, full_name, role, department, location, phone, is_active, created_at`,
+      [...values, userId]
+    );
+    return result.rows[0];
   },
 };
 

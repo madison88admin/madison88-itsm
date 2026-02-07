@@ -1,0 +1,351 @@
+const Joi = require('joi');
+const TicketsModel = require('../models/tickets.model');
+const AssetsModel = require('../models/assets.model');
+
+const createSchema = Joi.object({
+  title: Joi.string().min(5).max(255).required(),
+  description: Joi.string().min(10).required(),
+  business_impact: Joi.string().min(10).required(),
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other').required(),
+  location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'Other').required(),
+  subcategory: Joi.string().allow('', null),
+  tags: Joi.string().allow('', null),
+});
+
+const updateSchema = Joi.object({
+  status: Joi.string().valid('New', 'In Progress', 'Pending', 'Resolved', 'Closed', 'Reopened'),
+  priority: Joi.string().valid('P1', 'P2', 'P3', 'P4'),
+  title: Joi.string().min(5).max(255),
+  description: Joi.string().min(10),
+  business_impact: Joi.string().min(10),
+  assigned_to: Joi.string().uuid().allow(null, ''),
+  assigned_team: Joi.string().uuid().allow(null, ''),
+  priority_override_reason: Joi.string().allow('', null),
+}).min(1);
+
+const commentSchema = Joi.object({
+  comment_text: Joi.string().min(2).required(),
+  is_internal: Joi.boolean().default(false),
+});
+
+const PRIORITY_KEYWORDS = {
+  P1: ['outage', 'down', 'security breach', 'breach', 'data loss', 'unavailable', 'critical'],
+  P2: ['degradation', 'slow', 'vip', 'partial outage', 'mission critical'],
+  P3: ['issue', 'problem', 'request', 'performance'],
+  P4: ['information', 'feature request', 'question', 'documentation'],
+};
+
+function normalizeText(value) {
+  return (value || '').toLowerCase();
+}
+
+function detectPriority({ description, businessImpact, role }) {
+  const text = `${normalizeText(description)} ${normalizeText(businessImpact)}`;
+  const roleBoost = role === 'system_admin' || role === 'it_manager' ? 'vip' : '';
+  const combined = `${text} ${roleBoost}`.trim();
+
+  if (PRIORITY_KEYWORDS.P1.some((k) => combined.includes(k))) return 'P1';
+  if (PRIORITY_KEYWORDS.P2.some((k) => combined.includes(k))) return 'P2';
+  if (PRIORITY_KEYWORDS.P3.some((k) => combined.includes(k))) return 'P3';
+  return 'P4';
+}
+
+function matchClassificationRule(rules, { description, businessImpact }) {
+  const text = `${normalizeText(description)} ${normalizeText(businessImpact)}`;
+  for (const rule of rules) {
+    const keywords = (rule.keywords || []).map((k) => k.toLowerCase());
+    if (!keywords.length) continue;
+    const matches = keywords.filter((k) => text.includes(k));
+    const isMatch = rule.matching_type === 'all' ? matches.length === keywords.length : matches.length > 0;
+    if (isMatch) return rule;
+  }
+  return null;
+}
+
+async function buildSla(priority) {
+  const rule = await TicketsModel.getSlaRule(priority);
+  if (!rule) {
+    return { sla_due_date: null, sla_response_due: null };
+  }
+  const now = new Date();
+  const responseDue = new Date(now.getTime() + rule.response_time_hours * 60 * 60 * 1000);
+  const resolutionDue = new Date(now.getTime() + rule.resolution_time_hours * 60 * 60 * 1000);
+  return { sla_due_date: resolutionDue, sla_response_due: responseDue };
+}
+
+async function generateTicketNumber() {
+  const year = new Date().getFullYear();
+  const latest = await TicketsModel.getLatestTicketNumber(year);
+  const next = latest ? parseInt(latest.split('-').pop(), 10) + 1 : 1;
+  return `TKT-${year}-${String(next).padStart(4, '0')}`;
+}
+
+const TicketsService = {
+  async createTicket({ payload, user, meta }) {
+    if (user.role !== 'end_user') throw new Error('Forbidden');
+    const { error, value } = createSchema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const rules = await TicketsModel.getClassificationRules();
+    const matchedRule = matchClassificationRule(rules, {
+      description: value.description,
+      businessImpact: value.business_impact,
+    });
+    const priority = matchedRule?.assigned_priority || detectPriority({
+      description: value.description,
+      businessImpact: value.business_impact,
+      role: user.role,
+    });
+
+    const ticket_number = await generateTicketNumber();
+    const sla = await buildSla(priority);
+
+    const routingRule = await TicketsModel.getRoutingRule({
+      category: value.category,
+      subcategory: value.subcategory,
+      location: value.location,
+    });
+
+    const assigned_team = routingRule?.assigned_team || null;
+    const assigned_to = null;
+    const assigned_at = null;
+
+    const ticket = await TicketsModel.createTicket({
+      ticket_number,
+      user_id: user.user_id,
+      category: value.category,
+      subcategory: value.subcategory || null,
+      priority: routingRule?.priority_override || priority,
+      title: value.title,
+      description: value.description,
+      business_impact: value.business_impact,
+      status: 'New',
+      location: value.location,
+      tags: value.tags || null,
+      assigned_team,
+      assigned_to,
+      assigned_at,
+      assigned_by: null,
+      ...sla,
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticket.ticket_id,
+      user_id: user.user_id,
+      action_type: 'created',
+      entity_type: 'ticket',
+      entity_id: ticket.ticket_id,
+      new_value: JSON.stringify(ticket),
+      description: 'Ticket created',
+      ip_address: meta.ip,
+      user_agent: meta.userAgent,
+      session_id: meta.sessionId,
+    });
+
+    if (assigned_team) {
+      await TicketsModel.createAuditLog({
+        ticket_id: ticket.ticket_id,
+        user_id: user.user_id,
+        action_type: 'routed',
+        entity_type: 'ticket',
+        entity_id: ticket.ticket_id,
+        new_value: JSON.stringify({ assigned_team }),
+        description: 'Ticket routed to team queue',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    return { ticket };
+  },
+
+  async listTickets({ query, user }) {
+    const { status, priority, category, assigned_to, page = 1, limit = 50 } = query;
+    const filters = { status, priority, category };
+
+    if (user.role === 'end_user') {
+      filters.user_id = user.user_id;
+    } else if (user.role === 'it_agent') {
+      filters.assigned_to = user.user_id;
+    } else if (user.role === 'it_manager' || user.role === 'system_admin') {
+      if (assigned_to) filters.assigned_to = assigned_to;
+    } else {
+      filters.user_id = user.user_id;
+    }
+    const pagination = { page: parseInt(page, 10), limit: parseInt(limit, 10) };
+    return TicketsModel.listTickets(filters, pagination);
+  },
+
+  async getTicketDetails({ ticketId, user }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+    const comments = await TicketsModel.getComments(ticketId);
+    const attachments = await TicketsModel.getAttachments(ticketId);
+    const assets = await AssetsModel.listTicketAssets(ticketId);
+    return { ticket, comments, attachments, assets };
+  },
+
+  async updateTicket({ ticketId, payload, user, meta }) {
+    const { error, value } = updateSchema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    if (value.assigned_to === '') value.assigned_to = null;
+    if (value.assigned_team === '') value.assigned_team = null;
+
+    const existing = await TicketsModel.getTicketById(ticketId);
+    if (!existing) throw new Error('Ticket not found');
+
+    if (user.role === 'end_user') {
+      if (existing.user_id !== user.user_id) throw new Error('Forbidden');
+      if (!['New', 'Pending'].includes(existing.status)) {
+        throw new Error('Ticket can only be edited while New or Pending');
+      }
+      const allowedFields = ['title', 'description', 'business_impact'];
+      const invalidFields = Object.keys(value).filter((key) => !allowedFields.includes(key));
+      if (invalidFields.length) throw new Error('Forbidden');
+
+      const updated = await TicketsModel.updateTicket(ticketId, value);
+      await TicketsModel.createAuditLog({
+        ticket_id: ticketId,
+        user_id: user.user_id,
+        action_type: 'updated',
+        entity_type: 'ticket',
+        entity_id: ticketId,
+        old_value: JSON.stringify(existing),
+        new_value: JSON.stringify(updated),
+        description: 'Ticket updated by requester',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+
+      return { ticket: updated };
+    }
+
+    if (value.priority && user.role === 'it_agent') {
+      throw new Error('Forbidden');
+    }
+    if (value.priority && (user.role === 'it_manager' || user.role === 'system_admin')) {
+      if (!value.priority_override_reason) throw new Error('Priority override reason required');
+    }
+
+    if (user.role === 'it_agent') {
+      const isAssigned = existing.assigned_to === user.user_id;
+      const isUnassigned = !existing.assigned_to;
+      if (!isAssigned && !isUnassigned) throw new Error('Forbidden');
+    }
+
+    if (value.assigned_to && (user.role === 'it_agent' || user.role === 'end_user')) {
+      throw new Error('Forbidden');
+    }
+
+    const updated = await TicketsModel.updateTicket(ticketId, value);
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'updated',
+      entity_type: 'ticket',
+      entity_id: ticketId,
+      old_value: JSON.stringify(existing),
+      new_value: JSON.stringify(updated),
+      description: 'Ticket updated',
+      ip_address: meta.ip,
+      user_agent: meta.userAgent,
+      session_id: meta.sessionId,
+    });
+
+    return { ticket: updated };
+  },
+
+  async addComment({ ticketId, payload, user, meta }) {
+    const { error, value } = commentSchema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+
+    if (user.role === 'end_user' && value.is_internal) {
+      throw new Error('Forbidden');
+    }
+
+    const comment = await TicketsModel.createComment({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      comment_text: value.comment_text,
+      is_internal: value.is_internal,
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'commented',
+      entity_type: 'ticket_comment',
+      entity_id: comment.comment_id,
+      new_value: JSON.stringify(comment),
+      description: 'Comment added',
+      ip_address: meta.ip,
+      user_agent: meta.userAgent,
+      session_id: meta.sessionId,
+    });
+
+    return { comment };
+  },
+
+  async addAttachments({ ticketId, files, user, meta }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+
+    const attachments = [];
+    for (const file of files) {
+      const attachment = await TicketsModel.createAttachment({
+        ticket_id: ticketId,
+        file_name: file.originalname,
+        file_path: file.path,
+        file_size: file.size,
+        file_type: file.mimetype,
+        uploaded_by: user.user_id,
+      });
+      attachments.push(attachment);
+    }
+
+    if (attachments.length) {
+      await TicketsModel.createAuditLog({
+        ticket_id: ticketId,
+        user_id: user.user_id,
+        action_type: 'attachment_added',
+        entity_type: 'ticket_attachment',
+        entity_id: attachments[0].attachment_id,
+        new_value: JSON.stringify(attachments),
+        description: 'Attachment uploaded',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    return { attachments };
+  },
+
+  async getAuditLog({ ticketId, user }) {
+    if (user.role !== 'system_admin') throw new Error('Forbidden');
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    const audit_logs = await TicketsModel.getAuditLogs(ticketId);
+    return { audit_logs };
+  },
+};
+
+module.exports = TicketsService;

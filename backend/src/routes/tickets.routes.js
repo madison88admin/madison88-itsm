@@ -10,176 +10,78 @@
  */
 
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const TicketsController = require('../controllers/tickets.controller');
+const { authenticate, authorize } = require('../middleware/auth.middleware');
 const router = express.Router();
 
-// TODO: Implement ticket management routes
+const UPLOAD_DIR = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${Date.now()}_${safeName}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.xlsx', '.docx', '.msg'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowed.includes(ext)) {
+      return cb(new Error('Unsupported file type'));
+    }
+    cb(null, true);
+  }
+});
 
 /**
  * @route POST /api/tickets
  * @desc Create a new ticket
  */
-router.post('/', async (req, res, next) => {
-  try {
-    // TODO: Validate input
-    // TODO: Auto-classify priority
-    // TODO: Apply routing rules
-    // TODO: Create ticket in database
-    // TODO: Send email notifications
-    // TODO: Create audit log
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Ticket created successfully',
-      data: {
-        ticket_id: 'ticket_id',
-        ticket_number: 'TKT-2026-001'
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/', authenticate, TicketsController.createTicket);
 
 /**
  * @route GET /api/tickets
  * @desc List all tickets with filters
  */
-router.get('/', async (req, res, next) => {
-  try {
-    const { status, priority, category, assigned_to, page = 1, limit = 50 } = req.query;
-
-    // TODO: Build query with filters
-    // TODO: Implement pagination
-    // TODO: Return formatted tickets
-
-    res.json({
-      status: 'success',
-      data: {
-        tickets: [],
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: 0
-        }
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/', authenticate, TicketsController.listTickets);
 
 /**
  * @route GET /api/tickets/:id
  * @desc Get single ticket details
  */
-router.get('/:id', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // TODO: Fetch ticket from database
-    // TODO: Fetch comments and attachments
-    // TODO: Return formatted ticket
-
-    res.json({
-      status: 'success',
-      data: {
-        ticket: {}
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/:id', authenticate, TicketsController.getTicket);
 
 /**
  * @route PATCH /api/tickets/:id
  * @desc Update ticket
  */
-router.patch('/:id', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // TODO: Validate input
-    // TODO: Check permissions
-    // TODO: Update ticket in database
-    // TODO: Create audit log
-    // TODO: Send notifications if needed
-
-    res.json({
-      status: 'success',
-      message: 'Ticket updated successfully'
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.patch('/:id', authenticate, TicketsController.updateTicket);
 
 /**
  * @route POST /api/tickets/:id/comments
  * @desc Add comment to ticket
  */
-router.post('/:id/comments', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { comment_text, is_internal } = req.body;
-
-    // TODO: Validate input
-    // TODO: Create comment in database
-    // TODO: Create audit log
-    // TODO: Send notifications
-    // TODO: Emit Socket.io event
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Comment added successfully'
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/:id/comments', authenticate, TicketsController.addComment);
 
 /**
  * @route POST /api/tickets/:id/attachments
  * @desc Upload attachment to ticket
  */
-router.post('/:id/attachments', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // TODO: Validate file
-    // TODO: Upload to S3
-    // TODO: Save metadata to database
-    // TODO: Create audit log
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Attachment uploaded successfully'
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/:id/attachments', authenticate, upload.array('files', 5), TicketsController.addAttachments);
 
 /**
  * @route GET /api/tickets/:id/audit-log
  * @desc Get ticket audit trail
  */
-router.get('/:id/audit-log', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // TODO: Fetch audit logs from database
-    // TODO: Return formatted audit trail
-
-    res.json({
-      status: 'success',
-      data: {
-        audit_logs: []
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/:id/audit-log', authenticate, authorize(['system_admin']), TicketsController.getAuditLog);
 
 module.exports = router;

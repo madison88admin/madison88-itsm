@@ -1,1 +1,277 @@
 {"timestamp":"2026-02-07T02:58:41.030Z","level":"ERROR","message":"Database connection test failed:","data":{"errno":-4078,"code":"ECONNREFUSED","syscall":"connect","address":"::1","port":5432}}
+{"timestamp":"2026-02-07T03:51:40.154Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T03:51:40.275Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T03:51:39.532Z"}}
+{"timestamp":"2026-02-07T04:01:43.927Z","level":"ERROR","message":"Database connection test failed:","data":{"errno":-4078,"code":"ECONNREFUSED","syscall":"connect","address":"::1","port":5432}}
+{"timestamp":"2026-02-07T04:05:45.102Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:05:45.224Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:05:44.474Z"}}
+{"timestamp":"2026-02-07T04:08:11.953Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:08:12.080Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:08:11.334Z"}}
+{"timestamp":"2026-02-07T04:13:30.948Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:13:30.954Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:13:31.434Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:13:31.546Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:13:30.806Z"}}
+{"timestamp":"2026-02-07T04:14:19.846Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:16:00.352Z","level":"ERROR","message":"Database connection test failed:","data":{"errno":-4078,"code":"ECONNREFUSED","syscall":"connect","address":"::1","port":5432}}
+{"timestamp":"2026-02-07T04:20:58.078Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:25:24.910Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:29:27.296Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:29:27.300Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:29:27.772Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:29:27.884Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:29:27.142Z"}}
+{"timestamp":"2026-02-07T04:31:43.316Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:32:16.724Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:37:33.101Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:37:33.111Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:37:33.595Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:37:33.712Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:37:32.966Z"}}
+{"timestamp":"2026-02-07T04:37:47.731Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:37:47.739Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:37:48.328Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:37:48.439Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:37:47.690Z"}}
+{"timestamp":"2026-02-07T04:40:49.331Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:40:49.370Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:40:49.407Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T04:44:39.693Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:48:10.205Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:48:10.239Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:48:10.748Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:48:10.879Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:48:10.119Z"}}
+{"timestamp":"2026-02-07T04:48:18.840Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:48:18.846Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:48:19.325Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:48:19.450Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:48:18.689Z"}}
+{"timestamp":"2026-02-07T04:51:12.569Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:51:12.657Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:51:12.845Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T04:51:17.453Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T04:51:17.466Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T04:51:18.043Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:51:18.236Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T04:51:17.441Z"}}
+{"timestamp":"2026-02-07T04:52:23.327Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:53:19.813Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T04:56:53.771Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:00:24.461Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:00:24.470Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:00:25.050Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:00:25.164Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:00:24.405Z"}}
+{"timestamp":"2026-02-07T05:00:35.454Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:00:35.461Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:00:36.022Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:00:36.139Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:00:35.382Z"}}
+{"timestamp":"2026-02-07T05:00:45.740Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:00:45.751Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:00:46.271Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:00:46.386Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:00:45.630Z"}}
+{"timestamp":"2026-02-07T05:01:03.767Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:01:03.776Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:01:04.252Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:01:04.368Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:01:03.613Z"}}
+{"timestamp":"2026-02-07T05:01:16.630Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:01:16.640Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:01:17.130Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:01:17.247Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:01:16.487Z"}}
+{"timestamp":"2026-02-07T05:01:20.182Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:01:20.190Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:01:20.644Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:01:20.822Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:01:20.066Z"}}
+{"timestamp":"2026-02-07T05:01:39.392Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:01:39.403Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:01:40.546Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:01:43.324Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:01:43.335Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:01:43.783Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:02:02.583Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:02:02.608Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:02:03.513Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:02:03.656Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:02:02.870Z"}}
+{"timestamp":"2026-02-07T05:02:10.570Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:02:10.575Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:02:12.049Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:02:12.057Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:02:12.609Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:02:12.797Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:02:12.034Z"}}
+{"timestamp":"2026-02-07T05:02:26.482Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:02:26.489Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:02:26.981Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:02:27.093Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:02:26.336Z"}}
+{"timestamp":"2026-02-07T05:03:53.747Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:04:23.842Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:04:23.847Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:04:24.321Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:04:24.438Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:04:23.682Z"}}
+{"timestamp":"2026-02-07T05:04:35.835Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:04:35.845Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:04:37.339Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:04:37.343Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:04:37.774Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:04:37.881Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:04:37.128Z"}}
+{"timestamp":"2026-02-07T05:04:43.837Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:04:43.845Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:04:45.116Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:05:20.184Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:08:40.509Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:08:40.519Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:08:41.851Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:08:50.087Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:10:18.435Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:10:18.442Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:10:48.420Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:10:48.425Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:10:48.971Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:10:49.079Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:10:48.324Z"}}
+{"timestamp":"2026-02-07T05:14:24.283Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:16:29.370Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:16:52.541Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:16:52.542Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:17:43.488Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:17:44.712Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:17:44.716Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:19:28.009Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:19:29.304Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:19:29.306Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:19:56.322Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:19:56.353Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:19:56.401Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:20:08.812Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:20:11.426Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:20:11.440Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:20:56.450Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:20:56.547Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:22:15.844Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:22:17.162Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:22:17.164Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:22:17.199Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:23:59.172Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:24:05.443Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:24:05.446Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:24:50.690Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:24:52.975Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:24:52.977Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:25:33.745Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:25:33.777Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:25:33.828Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:25:35.154Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:25:51.866Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:25:51.871Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:25:57.866Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:25:57.871Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:25:58.338Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:25:58.451Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:25:57.690Z"}}
+{"timestamp":"2026-02-07T05:26:06.756Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:27:38.093Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:27:39.436Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:27:39.444Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:27:46.014Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:27:46.075Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:27:50.769Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:27:50.774Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:27:51.265Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:27:51.383Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:27:50.619Z"}}
+{"timestamp":"2026-02-07T05:27:57.057Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:29:18.696Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:29:37.968Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:30:14.468Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:30:56.974Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:30:58.208Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:30:58.211Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:31:11.027Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:31:11.086Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:31:15.341Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:31:15.347Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:31:16.975Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:31:17.795Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:31:17.800Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:31:18.449Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:32:28.104Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:33:17.035Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:33:58.710Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:33:58.713Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:35:48.594Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:36:03.774Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:39:44.351Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:39:47.945Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:39:47.956Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:40:23.330Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:41:16.844Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:41:16.851Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:41:23.888Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:41:23.900Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:41:24.405Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:41:24.528Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:41:23.756Z"}}
+{"timestamp":"2026-02-07T05:41:25.349Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:41:25.389Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:42:41.664Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:42:41.700Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:42:41.705Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:44:03.705Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:44:03.711Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:44:10.001Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:44:10.019Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:44:10.547Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:44:10.669Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:44:09.896Z"}}
+{"timestamp":"2026-02-07T05:44:10.708Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:44:10.730Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:44:10.746Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:45:13.207Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:45:13.211Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:45:20.461Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:45:20.476Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:45:21.067Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:45:21.186Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:45:20.415Z"}}
+{"timestamp":"2026-02-07T05:46:00.973Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:46:00.977Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:46:18.027Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:46:18.032Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:46:18.471Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:46:18.580Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:46:17.814Z"}}
+{"timestamp":"2026-02-07T05:48:14.144Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:49:18.215Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:51:25.397Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:52:52.473Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:52:53.919Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:53:04.851Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:53:04.914Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:53:15.484Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:53:15.498Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:53:15.548Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-07T05:53:19.473Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:53:19.480Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:53:19.482Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:53:19.486Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:58:49.448Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T05:58:49.459Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T05:58:55.712Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T05:58:55.720Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T05:58:56.210Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:58:56.330Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T05:58:55.555Z"}}
+{"timestamp":"2026-02-07T05:59:06.644Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T05:59:06.647Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:02:01.259Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T06:02:01.266Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T06:02:05.755Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T06:02:05.766Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T06:02:06.247Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:02:06.361Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T06:02:05.591Z"}}
+{"timestamp":"2026-02-07T06:03:15.461Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:04:28.128Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T06:04:28.146Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T06:04:34.455Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T06:04:34.462Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T06:04:35.064Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:04:35.182Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T06:04:34.412Z"}}
+{"timestamp":"2026-02-07T06:04:35.395Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:06:08.827Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:07:05.797Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:09:28.135Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:09:29.422Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:10:52.269Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-07T06:10:52.286Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-07T06:10:57.860Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-07T06:10:57.865Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-07T06:10:58.374Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:10:58.491Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-07T06:10:57.719Z"}}
+{"timestamp":"2026-02-07T06:11:00.261Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:11:00.270Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:11:00.434Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:12:18.459Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-07T06:12:18.475Z","level":"INFO","message":"Database connection established"}

@@ -69,13 +69,15 @@ app.use('/api/tickets', require('./routes/tickets.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/kb', require('./routes/knowledgebase.routes'));
 app.use('/api/users', require('./routes/users.routes'));
+app.use('/api/sla-rules', require('./routes/sla.routes'));
+app.use('/api/bi', require('./routes/bi.routes'));
 
 // Placeholder routes - to be implemented
 const { adminRouter, teamsRouter, changesRouter, assetsRouter } = require('./routes/placeholder.routes');
 app.use('/api/admin', adminRouter);
 app.use('/api/teams', teamsRouter);
-app.use('/api/changes', changesRouter);
-app.use('/api/assets', assetsRouter);
+app.use('/api/changes', require('./routes/changes.routes'));
+app.use('/api/assets', require('./routes/assets.routes'));
 
 // 404 Handler
 app.use((req, res) => {

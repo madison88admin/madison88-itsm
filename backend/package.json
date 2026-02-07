@@ -2,10 +2,10 @@
   "name": "madison88-itsm-backend",
   "version": "1.0.0",
   "description": "Madison88 IT Service Management Platform - Backend API",
-  "main": "src/app.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "migrate": "node migrations/migrate.js",

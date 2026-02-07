@@ -1,0 +1,131 @@
+const express = require('express');
+const Joi = require('joi');
+const { authenticate, authorize } = require('../middleware/auth.middleware');
+const AssetsModel = require('../models/assets.model');
+const TicketsModel = require('../models/tickets.model');
+
+const router = express.Router();
+
+const createSchema = Joi.object({
+  asset_tag: Joi.string().min(3).required(),
+  serial_number: Joi.string().allow('', null),
+  asset_type: Joi.string()
+    .valid('laptop', 'desktop', 'monitor', 'printer', 'phone', 'tablet', 'server', 'network_device', 'other')
+    .required(),
+  model: Joi.string().allow('', null),
+  manufacturer: Joi.string().allow('', null),
+  assigned_user_id: Joi.string().uuid().allow('', null),
+  location: Joi.string().allow('', null),
+  purchase_date: Joi.date().allow(null),
+  warranty_expiration: Joi.date().allow(null),
+  last_maintenance_date: Joi.date().allow(null),
+  next_maintenance_date: Joi.date().allow(null),
+  cost: Joi.number().precision(2).allow(null),
+  currency: Joi.string().length(3).default('USD'),
+  status: Joi.string().valid('active', 'inactive', 'retired', 'for_repair').default('active'),
+}).required();
+
+const updateSchema = Joi.object({
+  asset_tag: Joi.string().min(3),
+  serial_number: Joi.string().allow('', null),
+  asset_type: Joi.string().valid('laptop', 'desktop', 'monitor', 'printer', 'phone', 'tablet', 'server', 'network_device', 'other'),
+  model: Joi.string().allow('', null),
+  manufacturer: Joi.string().allow('', null),
+  assigned_user_id: Joi.string().uuid().allow('', null),
+  location: Joi.string().allow('', null),
+  purchase_date: Joi.date().allow(null),
+  warranty_expiration: Joi.date().allow(null),
+  last_maintenance_date: Joi.date().allow(null),
+  next_maintenance_date: Joi.date().allow(null),
+  cost: Joi.number().precision(2).allow(null),
+  currency: Joi.string().length(3),
+  status: Joi.string().valid('active', 'inactive', 'retired', 'for_repair'),
+}).min(1);
+
+router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin', 'end_user']), async (req, res, next) => {
+  try {
+    const { status, asset_type, assigned_user_id } = req.query;
+    const userAssignedId = req.user.role === 'end_user' ? null : assigned_user_id;
+    const assets = await AssetsModel.listAssets({ status, asset_type, assigned_user_id: userAssignedId });
+    res.json({ status: 'success', data: { assets } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id', authenticate, authorize(['it_agent', 'it_manager', 'system_admin', 'end_user']), async (req, res, next) => {
+  try {
+    const asset = await AssetsModel.getAssetById(req.params.id);
+    if (!asset) return res.status(404).json({ status: 'error', message: 'Asset not found' });
+    const tickets = await AssetsModel.listAssetTickets(req.params.id);
+    res.json({ status: 'success', data: { asset, tickets } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/', authenticate, authorize(['it_manager', 'system_admin']), async (req, res, next) => {
+  try {
+    const { error, value } = createSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({ status: 'error', message: error.details.map((d) => d.message).join(', ') });
+    }
+    const asset = await AssetsModel.createAsset({
+      asset_tag: value.asset_tag,
+      serial_number: value.serial_number || null,
+      asset_type: value.asset_type,
+      model: value.model || null,
+      manufacturer: value.manufacturer || null,
+      assigned_user_id: value.assigned_user_id || null,
+      location: value.location || null,
+      purchase_date: value.purchase_date || null,
+      warranty_expiration: value.warranty_expiration || null,
+      last_maintenance_date: value.last_maintenance_date || null,
+      next_maintenance_date: value.next_maintenance_date || null,
+      cost: value.cost || null,
+      currency: value.currency || 'USD',
+      status: value.status || 'active',
+    });
+    res.status(201).json({ status: 'success', data: { asset } });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ status: 'error', message: 'Asset tag already exists' });
+    }
+    next(err);
+  }
+});
+
+router.patch('/:id', authenticate, authorize(['it_manager', 'system_admin']), async (req, res, next) => {
+  try {
+    const { error, value } = updateSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({ status: 'error', message: error.details.map((d) => d.message).join(', ') });
+    }
+    const asset = await AssetsModel.updateAsset(req.params.id, value);
+    res.json({ status: 'success', data: { asset } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/link-ticket', authenticate, authorize(['it_agent', 'it_manager', 'system_admin', 'end_user']), async (req, res, next) => {
+  try {
+    const schema = Joi.object({ ticket_id: Joi.string().uuid().required() });
+    const { error, value } = schema.validate(req.body, { abortEarly: false });
+    if (error) {
+      return res.status(400).json({ status: 'error', message: error.details.map((d) => d.message).join(', ') });
+    }
+    if (req.user.role === 'end_user') {
+      const ticket = await TicketsModel.getTicketById(value.ticket_id);
+      if (!ticket || ticket.user_id !== req.user.user_id) {
+        return res.status(403).json({ status: 'error', message: 'Forbidden: insufficient permissions' });
+      }
+    }
+    const association = await AssetsModel.linkAssetTicket(req.params.id, value.ticket_id);
+    res.status(201).json({ status: 'success', data: { association } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;

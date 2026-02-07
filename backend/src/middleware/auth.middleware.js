@@ -20,6 +20,9 @@ async function authenticate(req, res, next) {
 
 function authorize(roles = []) {
   return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ status: 'error', message: 'Missing or invalid token' });
+    }
     if (!roles.length || roles.includes(req.user.role)) {
       return next();
     }
