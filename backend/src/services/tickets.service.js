@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const path = require('path');
 const TicketsModel = require('../models/tickets.model');
 const AssetsModel = require('../models/assets.model');
 const SlaModel = require('../models/sla.model');
@@ -14,6 +15,8 @@ const createSchema = Joi.object({
   location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'Other').required(),
   subcategory: Joi.string().allow('', null),
   tags: Joi.string().allow('', null),
+  priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').allow('', null),
+  ticket_type: Joi.string().valid('incident', 'request').default('incident'),
 });
 
 const updateSchema = Joi.object({
@@ -39,6 +42,11 @@ const commentSchema = Joi.object({
 const priorityOverrideSchema = Joi.object({
   requested_priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').required(),
   reason: Joi.string().min(5).required(),
+});
+
+const bulkAssignSchema = Joi.object({
+  ticket_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
+  assigned_to: Joi.string().uuid().required(),
 });
 
 const PRIORITY_KEYWORDS = {
@@ -119,6 +127,28 @@ function matchClassificationRule(rules, { description, businessImpact }) {
   return null;
 }
 
+function addBusinessDays(startDate, businessDays) {
+  const result = new Date(startDate);
+  let added = 0;
+  while (added < businessDays) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) {
+      added += 1;
+    }
+  }
+  return result;
+}
+
+function appendTag(tagString, tag) {
+  const existing = (tagString || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!existing.includes(tag)) existing.push(tag);
+  return existing.join(', ');
+}
+
 function mapPriorityToSeverity(priority) {
   switch (priority) {
     case 'P1':
@@ -161,7 +191,7 @@ const TicketsService = {
       description: value.description,
       businessImpact: value.business_impact,
     });
-    const priority = matchedRule?.assigned_priority || detectPriority({
+    const priority = value.priority || matchedRule?.assigned_priority || detectPriority({
       description: value.description,
       businessImpact: value.business_impact,
       role: user.role,
@@ -192,6 +222,7 @@ const TicketsService = {
       status: 'New',
       location: value.location,
       tags: value.tags || null,
+      ticket_type: value.ticket_type || 'incident',
       assigned_team,
       assigned_to,
       assigned_at,
@@ -245,11 +276,14 @@ const TicketsService = {
   },
 
   async listTickets({ query, user }) {
-    const { status, priority, category, assigned_to, page = 1, limit = 50, q, tags, date_from, date_to } = query;
+    const { status, priority, category, assigned_to, unassigned, include_archived, page = 1, limit = 50, q, tags, date_from, date_to } = query;
     const parsedTags = typeof tags === 'string'
       ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
       : [];
     const filters = { status, priority, category, q, tags: parsedTags, date_from, date_to };
+    if (include_archived !== 'true') {
+      filters.exclude_archived = true;
+    }
 
     if (user.role === 'end_user') {
       filters.user_id = user.user_id;
@@ -259,6 +293,13 @@ const TicketsService = {
       const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
       if (assigned_to) {
         filters.assigned_to = assigned_to;
+      } else if (unassigned === 'true') {
+        filters.assigned_to_is_null = true;
+        if (teamIds.length) {
+          filters.assigned_team_ids = teamIds;
+        } else {
+          return { tickets: [], pagination: { page: parseInt(page, 10), limit: parseInt(limit, 10), total: 0 } };
+        }
       } else if (teamIds.length) {
         const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
         filters.assigned_team_ids = teamIds;
@@ -268,6 +309,7 @@ const TicketsService = {
       }
     } else if (user.role === 'system_admin') {
       if (assigned_to) filters.assigned_to = assigned_to;
+      if (unassigned === 'true') filters.assigned_to_is_null = true;
     } else {
       filters.user_id = user.user_id;
     }
@@ -391,7 +433,10 @@ const TicketsService = {
       if (!value.resolution_summary || !value.resolution_category || !value.root_cause) {
         throw new Error('Resolution summary, category, and root cause are required');
       }
-      if (existing.assigned_to !== user.user_id) {
+      if (
+        existing.assigned_to !== user.user_id
+        && !['it_manager', 'system_admin'].includes(user.role)
+      ) {
         throw new Error('Forbidden');
       }
     }
@@ -419,6 +464,14 @@ const TicketsService = {
         new_status: value.status,
         changed_by: user.user_id,
         change_reason: statusReason,
+      });
+    }
+
+    if (statusChanged && value.status === 'Resolved') {
+      const requester = await UserModel.findById(existing.user_id);
+      await NotificationService.sendTicketResolvedNotice({
+        ticket: updated,
+        requester,
       });
     }
 
@@ -493,10 +546,12 @@ const TicketsService = {
 
     const attachments = [];
     for (const file of files) {
+      const fileName = file.filename || path.basename(file.path || '');
+      const filePath = fileName ? `uploads/${fileName}` : file.path;
       const attachment = await TicketsModel.createAttachment({
         ticket_id: ticketId,
         file_name: file.originalname,
-        file_path: file.path,
+        file_path: filePath,
         file_size: file.size,
         file_type: file.mimetype,
         uploaded_by: user.user_id,
@@ -724,6 +779,57 @@ const TicketsService = {
     return { request: updatedRequest };
   },
 
+  async bulkAssignTickets({ payload, user, meta }) {
+    if (!['it_manager', 'system_admin'].includes(user.role)) throw new Error('Forbidden');
+    const { error, value } = bulkAssignSchema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const tickets = await TicketsModel.listTicketsByIds(value.ticket_ids);
+    if (tickets.length !== value.ticket_ids.length) throw new Error('One or more tickets not found');
+
+    if (user.role === 'it_manager') {
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+      if (!memberIds.includes(value.assigned_to)) {
+        throw new Error('Forbidden');
+      }
+
+      const isAllowed = tickets.every((ticket) => {
+        const inTeam = teamIds.includes(ticket.assigned_team);
+        const assignedToMember = ticket.assigned_to && memberIds.includes(ticket.assigned_to);
+        return inTeam || assignedToMember;
+      });
+
+      if (!isAllowed) throw new Error('Forbidden');
+    }
+
+    const updatedTickets = await TicketsModel.updateTicketsAssignment({
+      ticketIds: value.ticket_ids,
+      assignedTo: value.assigned_to,
+      assignedBy: user.user_id,
+    });
+
+    const ticketMap = new Map(tickets.map((ticket) => [ticket.ticket_id, ticket]));
+    for (const ticket of updatedTickets) {
+      const previous = ticketMap.get(ticket.ticket_id);
+      await TicketsModel.createAuditLog({
+        ticket_id: ticket.ticket_id,
+        user_id: user.user_id,
+        action_type: 'bulk_assigned',
+        entity_type: 'ticket',
+        entity_id: ticket.ticket_id,
+        old_value: JSON.stringify(previous),
+        new_value: JSON.stringify(ticket),
+        description: 'Ticket bulk assigned',
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+        session_id: meta.sessionId,
+      });
+    }
+
+    return { tickets: updatedTickets };
+  },
+
   async runSlaEscalations({ thresholdPercent, statuses }) {
     const candidates = await TicketsModel.listSlaEscalationCandidates({
       thresholdPercent,
@@ -780,6 +886,54 @@ const TicketsService = {
     }
 
     return { escalated: results.length, items: results };
+  },
+
+  async runAutoCloseResolvedTickets({ businessDays }) {
+    const candidates = await TicketsModel.listResolvedTicketsForAutoClose();
+    const now = new Date();
+    const results = [];
+
+    for (const ticket of candidates) {
+      const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
+      if (!resolvedAt || Number.isNaN(resolvedAt.getTime())) continue;
+      const dueDate = addBusinessDays(resolvedAt, businessDays);
+      if (now < dueDate) continue;
+
+      const updated = await TicketsModel.updateTicket(ticket.ticket_id, {
+        status: 'Closed',
+        closed_at: now,
+        closed_by: ticket.assigned_to || ticket.user_id,
+        is_archived: true,
+        archived_at: now,
+        tags: appendTag(ticket.tags, 'auto-closed'),
+      });
+
+      await TicketsModel.createStatusHistory({
+        ticket_id: ticket.ticket_id,
+        old_status: ticket.status,
+        new_status: 'Closed',
+        changed_by: ticket.assigned_to || ticket.user_id,
+        change_reason: `Auto-closed after ${businessDays} business days`,
+      });
+
+      await TicketsModel.createAuditLog({
+        ticket_id: ticket.ticket_id,
+        user_id: ticket.assigned_to || ticket.user_id,
+        action_type: 'auto_closed',
+        entity_type: 'ticket',
+        entity_id: ticket.ticket_id,
+        old_value: JSON.stringify(ticket),
+        new_value: JSON.stringify(updated),
+        description: `Ticket auto-closed after ${businessDays} business days`,
+        ip_address: null,
+        user_agent: 'system',
+        session_id: null,
+      });
+
+      results.push({ ticket_id: ticket.ticket_id });
+    }
+
+    return { closed: results.length, items: results };
   },
 };
 

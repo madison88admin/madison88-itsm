@@ -11,6 +11,7 @@ import AdminSlaPage from "./pages/AdminSlaPage";
 import ChangeManagementPage from "./pages/ChangeManagementPage";
 import AssetsPage from "./pages/AssetsPage";
 import AdvancedReportingPage from "./pages/AdvancedReportingPage";
+import TicketTemplatesPage from "./pages/TicketTemplatesPage";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 import AgentDashboard from "./pages/dashboards/AgentDashboard";
 import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
@@ -69,6 +70,9 @@ function App() {
       ? [{ key: "advanced-reporting", label: "Advanced Reporting" }]
       : []),
     ...(isManager || isAdmin
+      ? [{ key: "ticket-templates", label: "Ticket Templates" }]
+      : []),
+    ...(isManager || isAdmin
       ? [{ key: "changes", label: "Change Management" }]
       : []),
     ...(isAgent || isManager || isAdmin
@@ -93,6 +97,7 @@ function App() {
     kb: "Knowledge Base",
     "kb-editor": "KB Editor",
     "advanced-reporting": "Advanced Reporting",
+    "ticket-templates": "Ticket Templates",
     changes: "Change Management",
     assets: "Asset Tracking",
     "admin-users": "User Management",
@@ -186,6 +191,7 @@ function App() {
           <KnowledgeBaseEditor />
         )}
         {activeTab === "advanced-reporting" && <AdvancedReportingPage />}
+        {activeTab === "ticket-templates" && <TicketTemplatesPage />}
         {activeTab === "changes" && <ChangeManagementPage user={user} />}
         {activeTab === "assets" && <AssetsPage user={user} />}
         {activeTab === "admin-users" && <AdminUsersPage />}

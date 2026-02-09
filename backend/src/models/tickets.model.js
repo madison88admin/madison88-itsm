@@ -17,8 +17,8 @@ const TicketsModel = {
   async createTicket(data) {
     const result = await db.query(
       `INSERT INTO tickets
-        (ticket_number, user_id, category, subcategory, priority, title, description, business_impact, status, location, tags, sla_due_date, sla_response_due, assigned_team, assigned_to, assigned_at, assigned_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        (ticket_number, user_id, category, subcategory, priority, title, description, business_impact, status, location, tags, ticket_type, sla_due_date, sla_response_due, assigned_team, assigned_to, assigned_at, assigned_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [
         data.ticket_number,
@@ -32,6 +32,7 @@ const TicketsModel = {
         data.status,
         data.location,
         data.tags,
+        data.ticket_type || 'incident',
         data.sla_due_date,
         data.sla_response_due,
         data.assigned_team || null,
@@ -121,6 +122,12 @@ const TicketsModel = {
       values.push(filters.assigned_to);
       where.push(`assigned_to = $${values.length}`);
     }
+    if (filters.assigned_to_is_null) {
+      where.push('assigned_to IS NULL');
+    }
+    if (filters.exclude_archived) {
+      where.push('(is_archived IS NULL OR is_archived = false)');
+    }
     const hasTeamIds = filters.assigned_team_ids && filters.assigned_team_ids.length;
     const hasMemberIds = filters.assigned_to_in && filters.assigned_to_in.length;
     if (hasTeamIds && hasMemberIds) {
@@ -165,6 +172,23 @@ const TicketsModel = {
   async getTicketById(ticketId) {
     const result = await db.query('SELECT * FROM tickets WHERE ticket_id = $1', [ticketId]);
     return result.rows[0];
+  },
+
+  async listResolvedTicketsForAutoClose() {
+    const result = await db.query(
+      `SELECT * FROM tickets
+       WHERE status = 'Resolved'
+         AND resolved_at IS NOT NULL
+         AND closed_at IS NULL
+         AND (is_archived IS NULL OR is_archived = false)`
+    );
+    return result.rows;
+  },
+
+  async listTicketsByIds(ticketIds) {
+    if (!ticketIds || !ticketIds.length) return [];
+    const result = await db.query('SELECT * FROM tickets WHERE ticket_id = ANY($1)', [ticketIds]);
+    return result.rows;
   },
 
   async listTeamIdsForUser(userId) {
@@ -246,6 +270,21 @@ const TicketsModel = {
       [...values, ticketId]
     );
     return result.rows[0];
+  },
+
+  async updateTicketsAssignment({ ticketIds, assignedTo, assignedBy }) {
+    if (!ticketIds || !ticketIds.length) return [];
+    const result = await db.query(
+      `UPDATE tickets
+       SET assigned_to = $1,
+           assigned_at = NOW(),
+           assigned_by = $2,
+           updated_at = NOW()
+       WHERE ticket_id = ANY($3)
+       RETURNING *`,
+      [assignedTo, assignedBy, ticketIds]
+    );
+    return result.rows;
   },
 
   async createComment(data) {

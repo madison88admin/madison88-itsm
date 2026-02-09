@@ -423,6 +423,21 @@ router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system
        LIMIT 12`
     );
 
+    const agentStatusMatrix = await db.query(
+      `SELECT u.user_id, u.full_name,
+              SUM(CASE WHEN t.status = 'New' THEN 1 ELSE 0 END)::int AS new_count,
+              SUM(CASE WHEN t.status = 'In Progress' THEN 1 ELSE 0 END)::int AS in_progress_count,
+              SUM(CASE WHEN t.status = 'Pending' THEN 1 ELSE 0 END)::int AS pending_count,
+              SUM(CASE WHEN t.status = 'Resolved' THEN 1 ELSE 0 END)::int AS resolved_count,
+              SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END)::int AS closed_count,
+              SUM(CASE WHEN t.status = 'Reopened' THEN 1 ELSE 0 END)::int AS reopened_count
+       FROM users u
+       LEFT JOIN tickets t ON t.assigned_to = u.user_id
+       WHERE u.role = 'it_agent'
+       GROUP BY u.user_id, u.full_name
+       ORDER BY u.full_name`
+    );
+
     res.json({
       status: 'success',
       data: {
@@ -457,6 +472,7 @@ router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system
         })),
         agent_performance: agentPerf.rows,
         agent_workload: agentWorkload.rows,
+        agent_status_matrix: agentStatusMatrix.rows,
         approvals_pending: {
           change_requests: pendingChangeApprovals.rows[0]?.count || 0,
           priority_overrides: pendingPriorityOverrides.rows[0]?.count || 0,

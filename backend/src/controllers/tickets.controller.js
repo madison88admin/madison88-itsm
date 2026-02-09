@@ -198,6 +198,23 @@ const TicketsController = {
       next(err);
     }
   },
+
+  async bulkAssign(req, res, next) {
+    try {
+      const result = await TicketsService.bulkAssignTickets({
+        payload: req.body,
+        user: req.user,
+        meta: {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          sessionId: req.headers['x-session-id'] || null,
+        },
+      });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 module.exports = TicketsController;

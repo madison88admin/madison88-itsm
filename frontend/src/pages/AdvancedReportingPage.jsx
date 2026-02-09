@@ -35,6 +35,7 @@ const AdvancedReportingPage = () => {
   });
   const [agents, setAgents] = useState([]);
   const [agentWorkload, setAgentWorkload] = useState([]);
+  const [agentStatusMatrix, setAgentStatusMatrix] = useState([]);
   const [approvals, setApprovals] = useState({
     change_requests: 0,
     priority_overrides: 0,
@@ -194,6 +195,29 @@ const AdvancedReportingPage = () => {
     };
   }, [agentWorkload]);
 
+  const statusKeys = useMemo(
+    () => [
+      { key: "new_count", label: "New", color: "47, 215, 255" },
+      { key: "in_progress_count", label: "In Progress", color: "43, 107, 255" },
+      { key: "pending_count", label: "Pending", color: "255, 181, 71" },
+      { key: "resolved_count", label: "Resolved", color: "55, 217, 150" },
+      { key: "closed_count", label: "Closed", color: "139, 151, 186" },
+      { key: "reopened_count", label: "Reopened", color: "255, 93, 108" },
+    ],
+    [],
+  );
+
+  const maxHeatCount = useMemo(() => {
+    let max = 0;
+    agentStatusMatrix.forEach((row) => {
+      statusKeys.forEach((status) => {
+        const value = row[status.key] || 0;
+        if (value > max) max = value;
+      });
+    });
+    return max;
+  }, [agentStatusMatrix, statusKeys]);
+
   const compactChartOptions = useMemo(
     () => ({
       responsive: true,
@@ -242,6 +266,7 @@ const AdvancedReportingPage = () => {
         );
         setAgents(res.data.data.agent_performance || []);
         setAgentWorkload(res.data.data.agent_workload || []);
+        setAgentStatusMatrix(res.data.data.agent_status_matrix || []);
         setApprovals(
           res.data.data.approvals_pending || {
             change_requests: 0,
@@ -516,6 +541,46 @@ const AdvancedReportingPage = () => {
           ) : (
             <div className="chart-wrap compact">
               <Bar data={workloadData} options={compactChartOptions} />
+            </div>
+          )}
+        </div>
+
+        <div className="panel">
+          <h3>Agent Status Heatmap</h3>
+          {agentStatusMatrix.length === 0 ? (
+            <div className="empty-state">No status data.</div>
+          ) : (
+            <div className="heatmap">
+              <div className="heatmap-row header">
+                <span>Agent</span>
+                {statusKeys.map((status) => (
+                  <span key={status.key}>{status.label}</span>
+                ))}
+              </div>
+              {agentStatusMatrix.map((row) => (
+                <div key={row.user_id} className="heatmap-row">
+                  <span className="heatmap-agent">
+                    {row.full_name || "Agent"}
+                  </span>
+                  {statusKeys.map((status) => {
+                    const value = row[status.key] || 0;
+                    const intensity = maxHeatCount
+                      ? Math.max(0.12, (value / maxHeatCount) * 0.7)
+                      : 0.12;
+                    return (
+                      <span
+                        key={status.key}
+                        className="heatmap-cell"
+                        style={{
+                          background: `rgba(${status.color}, ${intensity})`,
+                        }}
+                      >
+                        {value}
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           )}
         </div>

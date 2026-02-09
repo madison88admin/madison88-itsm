@@ -14,20 +14,25 @@ const AdminDashboard = () => {
     total_breached: 0,
     critical_breached: 0,
   });
+  const [agentStatusMatrix, setAgentStatusMatrix] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const load = async () => {
       setError("");
       try {
-        const [usersRes, statusRes, slaRes] = await Promise.all([
+        const [usersRes, statusRes, slaRes, reportingRes] = await Promise.all([
           apiClient.get("/users"),
           apiClient.get("/dashboard/status-summary"),
           apiClient.get("/dashboard/sla-summary"),
+          apiClient.get("/dashboard/advanced-reporting"),
         ]);
         setUsers(usersRes.data.data.users?.length || 0);
         setStatusSummary(statusRes.data.data.summary || {});
         setSlaSummary(slaRes.data.data.summary || {});
+        setAgentStatusMatrix(
+          reportingRes.data.data.agent_status_matrix || [],
+        );
       } catch (err) {
         setError(err.response?.data?.message || "Failed to load dashboard");
       }
@@ -61,6 +66,21 @@ const AdminDashboard = () => {
     { label: "Resolved", value: statusSummary.resolved || 0 },
     { label: "Closed", value: statusSummary.closed || 0 },
   ];
+  const statusKeys = [
+    { key: "new_count", label: "New", color: "47, 215, 255" },
+    { key: "in_progress_count", label: "In Progress", color: "43, 107, 255" },
+    { key: "pending_count", label: "Pending", color: "255, 181, 71" },
+    { key: "resolved_count", label: "Resolved", color: "55, 217, 150" },
+    { key: "closed_count", label: "Closed", color: "139, 151, 186" },
+    { key: "reopened_count", label: "Reopened", color: "255, 93, 108" },
+  ];
+  const maxHeatCount = agentStatusMatrix.reduce((max, row) => {
+    const rowMax = statusKeys.reduce((innerMax, status) => {
+      const value = row[status.key] || 0;
+      return value > innerMax ? value : innerMax;
+    }, 0);
+    return rowMax > max ? rowMax : max;
+  }, 0);
 
   return (
     <div className="admin-dashboard">
@@ -134,6 +154,46 @@ const AdminDashboard = () => {
           <strong>{slaSummary.total_breached || 0}</strong>
           <em>{breachPercent} of total</em>
         </div>
+      </section>
+
+      <section className="panel">
+        <h3>Agent Status Heatmap</h3>
+        {agentStatusMatrix.length === 0 ? (
+          <div className="empty-state">No status data.</div>
+        ) : (
+          <div className="heatmap">
+            <div className="heatmap-row header">
+              <span>Agent</span>
+              {statusKeys.map((status) => (
+                <span key={status.key}>{status.label}</span>
+              ))}
+            </div>
+            {agentStatusMatrix.map((row) => (
+              <div key={row.user_id} className="heatmap-row">
+                <span className="heatmap-agent">
+                  {row.full_name || "Agent"}
+                </span>
+                {statusKeys.map((status) => {
+                  const value = row[status.key] || 0;
+                  const intensity = maxHeatCount
+                    ? Math.max(0.12, (value / maxHeatCount) * 0.7)
+                    : 0.12;
+                  return (
+                    <span
+                      key={status.key}
+                      className="heatmap-cell"
+                      style={{
+                        background: `rgba(${status.color}, ${intensity})`,
+                      }}
+                    >
+                      {value}
+                    </span>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

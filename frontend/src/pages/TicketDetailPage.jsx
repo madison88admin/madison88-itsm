@@ -176,7 +176,15 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const handleTicketUpdate = async () => {
     if (!ticket) return;
     const payload = {};
-    if (status && status !== ticket.status) payload.status = status;
+    const isStatusChange = status && status !== ticket.status;
+    const isResolving = isStatusChange && ["Resolved", "Closed"].includes(status);
+    if (isResolving) {
+      if (!resolutionSummary.trim() || !resolutionCategory.trim() || !rootCause.trim()) {
+        setError("Resolution summary, category, and root cause are required before resolving.");
+        return;
+      }
+    }
+    if (isStatusChange) payload.status = status;
     if (priority && priority !== ticket.priority) {
       if (!priorityOverrideReason.trim()) {
         setError("Priority override reason required");
@@ -345,6 +353,19 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
 
   const stripHtml = (value) => value?.replace(/<[^>]*>/g, "") || "";
 
+  const buildAttachmentUrl = (filePath) => {
+    if (!filePath) return "";
+    if (filePath.startsWith("http")) return filePath;
+    const normalized = filePath.replace(/\\/g, "/");
+    const baseOrigin = window.location.port === "3000"
+      ? "http://localhost:3001"
+      : window.location.origin;
+    if (normalized.startsWith("/")) return `${baseOrigin}${normalized}`;
+    if (normalized.startsWith("uploads/")) return `${baseOrigin}/${normalized}`;
+    const fileName = normalized.split("/").pop();
+    return fileName ? `${baseOrigin}/uploads/${fileName}` : normalized;
+  };
+
   if (!ticketId) {
     return (
       <div className="panel detail-panel empty-state">
@@ -394,6 +415,10 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         <div>
           <span>Priority</span>
           <strong>{ticket.priority}</strong>
+        </div>
+        <div>
+          <span>Ticket Type</span>
+          <strong>{ticket.ticket_type || "incident"}</strong>
         </div>
         <div>
           <span>Status</span>
@@ -684,7 +709,13 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
           <div className="attachment-list">
             {attachments.map((file) => (
               <div key={file.attachment_id} className="attachment-item">
-                <span>{file.file_name}</span>
+                <a
+                  href={buildAttachmentUrl(file.file_path)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {file.file_name}
+                </a>
                 <span>{file.file_type || "file"}</span>
               </div>
             ))}

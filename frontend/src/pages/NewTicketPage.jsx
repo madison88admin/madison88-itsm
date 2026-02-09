@@ -15,6 +15,11 @@ const categories = [
 ];
 
 const locations = ["Philippines", "US", "Indonesia", "Other"];
+const priorities = ["P1", "P2", "P3", "P4"];
+const ticketTypes = [
+  { value: "incident", label: "Incident" },
+  { value: "request", label: "Request" },
+];
 
 const allowedExtensions = [
   ".pdf",
@@ -34,10 +39,14 @@ const NewTicketPage = ({ onCreated }) => {
   const [assets, setAssets] = useState([]);
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [duplicates, setDuplicates] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [form, setForm] = useState({
     title: "",
     category: "",
     location: "",
+    priority: "",
+    ticket_type: "incident",
     description: "",
     business_impact: "",
     tags: "",
@@ -59,8 +68,34 @@ const NewTicketPage = ({ onCreated }) => {
       }
     };
 
+    const loadTemplates = async () => {
+      try {
+        const res = await apiClient.get("/ticket-templates");
+        setTemplates(res.data.data.templates || []);
+      } catch (err) {
+        setTemplates([]);
+      }
+    };
+
     loadAssets();
+    loadTemplates();
   }, []);
+
+  useEffect(() => {
+    if (!selectedTemplateId) return;
+    const template = templates.find(
+      (item) => item.template_id === selectedTemplateId,
+    );
+    if (!template) return;
+    setForm((prev) => ({
+      ...prev,
+      title: template.title || prev.title,
+      category: template.category || prev.category,
+      description: template.description || prev.description,
+      business_impact: template.business_impact || prev.business_impact,
+      priority: template.priority || prev.priority,
+    }));
+  }, [selectedTemplateId, templates]);
 
   const validateStep = () => {
     if (step === 0) {
@@ -97,6 +132,10 @@ const NewTicketPage = ({ onCreated }) => {
 
     setFiles(combined);
     setError("");
+  };
+
+  const handleRemoveFile = (indexToRemove) => {
+    setFiles((current) => current.filter((_, index) => index !== indexToRemove));
   };
 
   const handleSubmit = async () => {
@@ -139,11 +178,13 @@ const NewTicketPage = ({ onCreated }) => {
         title: "",
         category: "",
         location: "",
+        priority: "",
+        ticket_type: "incident",
         description: "",
         business_impact: "",
         tags: "",
-        tags: "",
       });
+      setSelectedTemplateId("");
       setFiles([]);
       setSelectedAssetId("");
       setStep(0);
@@ -194,6 +235,20 @@ const NewTicketPage = ({ onCreated }) => {
       {step === 0 && (
         <div className="form-grid">
           <label className="field">
+            <span>Template (optional)</span>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+            >
+              <option value="">Select template</option>
+              {templates.map((template) => (
+                <option key={template.template_id} value={template.template_id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
             <span>Ticket Title</span>
             <input
               value={form.title}
@@ -225,6 +280,38 @@ const NewTicketPage = ({ onCreated }) => {
               {locations.map((loc) => (
                 <option key={loc} value={loc}>
                   {loc}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Ticket Type</span>
+            <select
+              value={form.ticket_type}
+              onChange={(e) =>
+                setForm({ ...form, ticket_type: e.target.value })
+              }
+            >
+              {ticketTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+            <small className="muted">
+              Incident = something is broken. Request = you need something new.
+            </small>
+          </label>
+          <label className="field">
+            <span>Priority (optional)</span>
+            <select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            >
+              <option value="">Auto</option>
+              {priorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
                 </option>
               ))}
             </select>
@@ -294,10 +381,22 @@ const NewTicketPage = ({ onCreated }) => {
             </small>
           </label>
           <div className="attachment-list">
-            {files.map((file) => (
-              <div key={file.name} className="attachment-item">
-                <span>{file.name}</span>
-                <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+            {files.map((file, index) => (
+              <div key={`${file.name}-${index}`} className="attachment-item">
+                <div>
+                  <span>{file.name}</span>
+                </div>
+                <div className="attachment-actions">
+                  <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                  <button
+                    type="button"
+                    className="attachment-remove"
+                    onClick={() => handleRemoveFile(index)}
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             ))}
             {files.length > 0 && (

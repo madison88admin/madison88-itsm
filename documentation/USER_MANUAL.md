@@ -56,24 +56,26 @@ The Madison88 IT Service Management (ITSM) Platform is a centralized system for 
 
 ### Creating a Ticket
 
-1. Click **"New Ticket"** button (top right)
-2. Fill in the required fields:
-   - **Category**: Select from Hardware, Software, Access Request, Account Creation, Network, or Other
+1. Open the left menu and click **"New Ticket"**
+2. (Optional) Select a **Template** to prefill common fields
+3. Fill in the required fields:
+   - **Category**: Hardware, Software, Access Request, Account Creation, Network, or Other
    - **Title**: Brief summary of the issue
    - **Description**: Detailed explanation of the problem
    - **Business Impact**: How this affects your work
-   - **Location**: Your location (Philippines, US, Indonesia)
+   - **Location**: Philippines, US, Indonesia, or Other
+   - **Priority (optional)**: Leave as Auto if unsure
    - **Attachments**: Add screenshots or files (optional)
 
-3. Click **"Submit"** button
+4. Click **"Submit"**
 
-**Note:** The system automatically calculates priority based on your input.
+**Note:** If Priority is left blank, the system automatically calculates it.
 
 ### Tracking Your Tickets
 
-1. Click **"My Tickets"** from the menu
-2. View ticket status, assigned agent, and SLA countdown
-3. Click a ticket number to see details
+1. Click **"Tickets"** from the menu
+2. View ticket status, assignee, and SLA countdown
+3. Click a ticket to see details
 
 ### Communicating on Tickets
 
@@ -83,16 +85,6 @@ The Madison88 IT Service Management (ITSM) Platform is a centralized system for 
 4. Click **"Post Comment"**
 
 **Tip:** Check the ticket details page regularly for agent responses.
-
-### Closing a Ticket
-
-1. When the issue is resolved, reply "Thank you, ticket resolved"
-2. The assigned agent will close the ticket
-3. You'll receive a confirmation email
-
-### Providing Feedback
-
-After a ticket is closed, you'll receive a brief survey. Your feedback helps improve our service.
 
 ### Uploading Attachments
 
@@ -108,7 +100,15 @@ After a ticket is closed, you'll receive a brief survey. Your feedback helps imp
 2. Use the search box to find articles
 3. Filter by category if needed
 4. Click on an article to read
-5. Rate the article as helpful or not
+
+---
+
+## SLA Countdown and Alerts
+
+- **SLA Countdown** appears on each ticket card and detail view
+- **Warning** badge shows when the ticket is close to breach
+- **Breached** badge shows when the SLA time has passed
+- If configured, the system can auto-escalate near breach
 
 ---
 
@@ -116,7 +116,7 @@ After a ticket is closed, you'll receive a brief survey. Your feedback helps imp
 
 ### Viewing Your Queue
 
-1. Click **"My Tickets"** to see tickets assigned to you
+1. Click **"Tickets"** to see tickets assigned to you
 2. Filter by status (New, In Progress, Pending, etc.)
 3. Sort by priority, date, or SLA due date
 
@@ -124,8 +124,7 @@ After a ticket is closed, you'll receive a brief survey. Your feedback helps imp
 
 1. Go to **"Team Queue"** to view unassigned tickets
 2. Click a ticket to review details
-3. Click **"Assign to Me"** to accept
-4. Or click **"Assign To"** to assign to another agent
+3. Managers/Admins can assign tickets to agents
 
 **SLA Indicators:**
 
@@ -145,6 +144,13 @@ After a ticket is closed, you'll receive a brief survey. Your feedback helps imp
    - **Closed**: Ticket complete
 
 4. Click **"Save"**
+
+**Resolution Requirement:**
+
+When setting **Resolved** or **Closed**, fill in:
+- **Resolution Summary**
+- **Resolution Category**
+- **Root Cause**
 
 ### Adding Internal Notes
 
@@ -166,31 +172,11 @@ After a ticket is closed, you'll receive a brief survey. Your feedback helps imp
 
 The end user will be notified of your response.
 
-### Changing Priority
+### Priority Changes
 
-1. Click the **"Priority"** field
-2. Select new priority (P1, P2, P3, or P4)
-3. Enter justification for the change
-4. Click **"Update"**
-
-This action is logged in the audit trail.
-
-### Reassigning Tickets
-
-1. Click **"Reassign"** button
-2. Select the agent or team
-3. Add a reassignment note
-4. Click **"Reassign"**
-
-The new agent will be notified.
-
-### Linking Related Tickets
-
-1. Open the ticket
-2. Find **"Related Tickets"** section
-3. Click **"Link Ticket"**
-4. Enter the ticket number to link
-5. Click **"Link"**
+- **Agents cannot change priority directly.**
+- Managers can **request a priority override**.
+- Admins can **approve and apply** priority overrides.
 
 ### Escalating Tickets
 
@@ -239,31 +225,20 @@ Click **"Dashboard"** to view:
 
 ### Viewing All Tickets
 
-1. Click **"All Tickets"** (requires manager role)
+1. Click **"Tickets"** or **"Team Queue"**
 2. Filter by:
    - Status
    - Priority
    - Category
-   - Team
    - Location
    - Date range
+   - Unassigned only
 
-3. Export data as CSV or JSON for external analysis
+3. Use **bulk assign** to assign multiple tickets at once
 
 ### Team Management
 
-1. Click **"Admin"** → **"Teams"**
-2. View team composition
-3. Assign tickets to teams
-4. Monitor team workload distribution
-
-### Approving Service Requests
-
-1. Click **"Service Requests"**
-2. Review pending requests (Access, Hardware, etc.)
-3. Click a request to review
-4. Click **"Approve"** or **"Reject"**
-5. Add approval comment
+Team membership is managed by IT admins in the database. Managers use **Team Queue** to manage assignment and workload.
 
 ### Managing Change Requests
 
@@ -298,12 +273,7 @@ Click **"Dashboard"** to view:
 4. Select date range
 5. Click **"Download"**
 
-**For Power BI:**
-
-1. Use exported JSON data
-2. Upload to Power BI
-3. Configure refresh schedule
-4. Create custom dashboards
+**Advanced Reporting** includes trends, workload charts, and heatmaps.
 
 ### User Management
 
@@ -318,21 +288,17 @@ Click **"Dashboard"** to view:
 4. Click **"Save Changes"**
 
 ### Audit Trail Review
+Audit data can be exported from **Advanced Reporting**.
 
-1. Click **"Admin"** → **"Audit Logs"**
-2. View all system actions:
-   - Ticket changes
-   - User logins
-   - Permission changes
-   - Data modifications
+### Ticket Templates
 
-3. Filter by:
-   - User
-   - Action type
-   - Date range
-   - Entity (Ticket, User, etc.)
+1. Open **"Ticket Templates"**
+2. Create or update templates for common requests
+3. End users select templates in **New Ticket**
 
-4. Export for compliance audits
+### Asset Health
+
+Asset Tracking shows a **Health Score** based on open ticket count and age.
 
 ---
 
@@ -352,20 +318,17 @@ Click **"Dashboard"** to view:
 6. Team prioritizes and works on resolution
 7. Real-time updates sent to all stakeholders
 
-### Task 2: Access Request Approval
+### Task 2: Bulk Assign Unassigned Tickets
 
-**Scenario:** New employee needs application access
+**Scenario:** Team Queue has multiple unassigned tickets
 
 **Steps:**
 
-1. User submits "Access Request"
-2. Ticket auto-routed to IT Security team
-3. IT Agent gathers requirements (app, access level)
-4. Creates Service Request for approval
-5. Manager reviews and approves
-6. IT Admin provisions access
-7. Agent confirms with user
-8. Ticket closed
+1. Manager opens **"Team Queue"**
+2. Filter **Unassigned only**
+3. Select multiple tickets using checkboxes
+4. Choose an agent in the bulk assign bar
+5. Click **"Assign selected"**
 
 ### Task 3: SLA Breach Prevention
 
@@ -374,9 +337,7 @@ Click **"Dashboard"** to view:
 **Steps:**
 
 1. Agent assigned ticket, works on solution
-2. At 80% SLA time (19.2 hours for P2):
-   - Agent receives warning notification
-   - Manager receives escalation alert
+2. SLA badges show warning and breach
 3. Agent either:
    - Completes resolution, or
    - Updates ticket with progress, or
@@ -404,7 +365,7 @@ Click **"Dashboard"** to view:
 
 ### Q: How do I know my ticket status?
 
-**A:** Log in, click "My Tickets", and view the status column. You also receive email notifications when status changes.
+**A:** Log in, click "Tickets", and view the status. You also see SLA countdown badges.
 
 ### Q: What do the priority levels mean?
 
@@ -425,7 +386,7 @@ Click **"Dashboard"** to view:
 
 ### Q: What if I don't agree with the assigned priority?
 
-**A:** Reply to your ticket explaining why you think the priority should be different. The assigned agent will review and adjust if appropriate.
+**A:** Reply to your ticket. Managers can request a priority override; admins can approve and apply it.
 
 ### Q: Can I talk to someone directly?
 
@@ -433,7 +394,7 @@ Click **"Dashboard"** to view:
 
 ### Q: What happens if my ticket stays open after SLA time?
 
-**A:** The SLA is marked as breached, your manager is notified, and the ticket receives elevated attention.
+**A:** The SLA is marked as breached and the ticket is flagged for escalation.
 
 ### Q: How do I search the knowledge base?
 
@@ -455,13 +416,9 @@ Click **"Dashboard"** to view:
 
 **A:** Articles are continuously added and updated. Changes go through an approval process.
 
-### Q: Can I export my ticket history?
+### Q: Can I export ticket data?
 
-**A:** Contact your IT manager. They can export all tickets to CSV/JSON format.
-
-### Q: What if I forget my password?
-
-**A:** Click "Forgot Password?" on the login page. Password reset instructions are sent to your email.
+**A:** Managers/Admins can export from Advanced Reporting.
 
 ### Q: Is the platform secure?
 
@@ -479,5 +436,5 @@ For issues with the ITSM platform itself:
 
 ---
 
-**Last Updated:** February 7, 2026
-**Version:** 1.0
+**Last Updated:** February 9, 2026
+**Version:** 1.1

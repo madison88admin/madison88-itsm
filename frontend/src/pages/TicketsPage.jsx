@@ -55,8 +55,18 @@ const TicketsPage = ({
   const [categoryFilter, setCategoryFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [selectedTickets, setSelectedTickets] = useState([]);
+  const [bulkAssignee, setBulkAssignee] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkRefresh, setBulkRefresh] = useState(0);
+  const [now, setNow] = useState(Date.now());
   const isManager = user?.role === "it_manager";
   const isAdmin = user?.role === "system_admin";
+  const canBulkAssign = isManager || isAdmin;
+  const isTeamUrgentView = (isManager || isAdmin) && viewMode === "team";
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -68,9 +78,11 @@ const TicketsPage = ({
           // backend limits to own tickets
         } else if (viewMode === "team") {
           // manager/admin global view
-        } else {
+        } else if (assignmentFilter !== "unassigned") {
           params.assigned_to = user.user_id;
         }
+        if (assignmentFilter === "unassigned") params.unassigned = true;
+        if (includeArchived) params.include_archived = true;
         if (searchQuery.trim()) params.q = searchQuery.trim();
         if (tagQuery.trim()) params.tags = tagQuery.trim();
         if (statusFilter) params.status = statusFilter;
@@ -93,6 +105,8 @@ const TicketsPage = ({
     viewMode,
     user?.role,
     user?.user_id,
+    assignmentFilter,
+    includeArchived,
     searchQuery,
     tagQuery,
     statusFilter,
@@ -100,7 +114,101 @@ const TicketsPage = ({
     categoryFilter,
     dateFrom,
     dateTo,
+    bulkRefresh,
   ]);
+
+  useEffect(() => {
+    if (!canBulkAssign) return;
+    const fetchAgents = async () => {
+      try {
+        const res = await apiClient.get("/users?role=it_agent");
+        setAgents(res.data.data.users || []);
+      } catch (err) {
+        setAgents([]);
+      }
+    };
+    fetchAgents();
+  }, [canBulkAssign]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatSlaCountdown = (ticket) => {
+    if (!ticket?.sla_due_date) return null;
+    const dueTime = new Date(ticket.sla_due_date).getTime();
+    if (Number.isNaN(dueTime)) return null;
+    const minutesLeft = Math.ceil((dueTime - now) / 60000);
+    const breached = minutesLeft < 0;
+    const absoluteMinutes = Math.abs(minutesLeft);
+    const hours = Math.floor(absoluteMinutes / 60);
+    const minutes = absoluteMinutes % 60;
+    const timeLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    if (breached) {
+      return {
+        label: `SLA Breached ${timeLabel}`,
+        className: "badge-sla-breached",
+      };
+    }
+    if (minutesLeft <= 60) {
+      return { label: `SLA ${timeLabel}`, className: "badge-sla-warning" };
+    }
+    return { label: `SLA ${timeLabel}`, className: "badge-sla" };
+  };
+
+  const getUrgencyScore = (ticket) => {
+    const remaining = ticket?.sla_status?.resolution_remaining_minutes;
+    if (typeof remaining === "number") return remaining;
+    if (ticket?.sla_due_date) {
+      const due = new Date(ticket.sla_due_date).getTime();
+      if (!Number.isNaN(due)) return Math.ceil((due - now) / 60000);
+    }
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  const displayedTickets = (() => {
+    if (!isTeamUrgentView) return tickets;
+    const sorted = [...tickets].sort(
+      (a, b) => getUrgencyScore(a) - getUrgencyScore(b),
+    );
+    return sorted.slice(0, 5);
+  })();
+
+  useEffect(() => {
+    setSelectedTickets((prev) =>
+      prev.filter((ticketId) => tickets.some((ticket) => ticket.ticket_id === ticketId))
+    );
+  }, [tickets]);
+
+  const toggleTicketSelection = (ticketId) => {
+    setSelectedTickets((prev) =>
+      prev.includes(ticketId)
+        ? prev.filter((id) => id !== ticketId)
+        : [...prev, ticketId]
+    );
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignee || selectedTickets.length === 0) return;
+    setBulkLoading(true);
+    setError("");
+    try {
+      await apiClient.post("/tickets/bulk-assign", {
+        ticket_ids: selectedTickets,
+        assigned_to: bulkAssignee,
+      });
+      setSelectedTickets([]);
+      setBulkAssignee("");
+      setBulkRefresh((prev) => prev + 1);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to bulk assign tickets");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   if (loading) {
     return <div className="panel">Loading tickets...</div>;
@@ -111,7 +219,7 @@ const TicketsPage = ({
   }
 
   return (
-    <div className="panel">
+    <div className={`panel ${isTeamUrgentView ? "team-queue-panel" : ""}`}>
       <div className="panel-header">
         <div>
           <h2>
@@ -155,6 +263,25 @@ const TicketsPage = ({
           onChange={(e) => setTagQuery(e.target.value)}
           placeholder="Tags (comma-separated)"
         />
+        {(isManager || isAdmin) && (
+          <select
+            value={assignmentFilter}
+            onChange={(e) => setAssignmentFilter(e.target.value)}
+          >
+            <option value="all">All assignments</option>
+            <option value="unassigned">Unassigned only</option>
+          </select>
+        )}
+        {(isManager || isAdmin) && (
+          <label className="archive-toggle">
+            <input
+              type="checkbox"
+              checked={includeArchived}
+              onChange={(e) => setIncludeArchived(e.target.checked)}
+            />
+            <span>Show archived</span>
+          </label>
+        )}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -198,13 +325,48 @@ const TicketsPage = ({
           title="Created to"
         />
       </div>
+      {isTeamUrgentView && (
+        <div className="urgent-note">
+          Showing top 5 urgent tickets by SLA due time.
+        </div>
+      )}
+      {canBulkAssign && (
+        <div className="bulk-assign-bar">
+          <span>{selectedTickets.length} selected</span>
+          <select
+            value={bulkAssignee}
+            onChange={(e) => setBulkAssignee(e.target.value)}
+          >
+            <option value="">Assign to agent...</option>
+            {agents.map((agent) => (
+              <option key={agent.user_id} value={agent.user_id}>
+                {agent.full_name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn primary"
+            disabled={!bulkAssignee || selectedTickets.length === 0 || bulkLoading}
+            onClick={handleBulkAssign}
+          >
+            {bulkLoading ? "Assigning..." : "Assign selected"}
+          </button>
+          <button
+            className="btn ghost small"
+            disabled={selectedTickets.length === 0}
+            onClick={() => setSelectedTickets([])}
+          >
+            Clear
+          </button>
+        </div>
+      )}
       <div className="ticket-list">
-        {tickets.length === 0 && (
+        {displayedTickets.length === 0 && (
           <div className="empty-state">
             No tickets yet. Create your first request.
           </div>
         )}
-        {tickets.map((ticket) => (
+        {displayedTickets.map((ticket) => (
           <button
             key={ticket.ticket_id}
             className={`ticket-card ${
@@ -212,6 +374,18 @@ const TicketsPage = ({
             }`}
             onClick={() => onSelectTicket(ticket.ticket_id)}
           >
+            {canBulkAssign && (
+              <div
+                className="ticket-select"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTickets.includes(ticket.ticket_id)}
+                  onChange={() => toggleTicketSelection(ticket.ticket_id)}
+                />
+              </div>
+            )}
             <div>
               <div className="ticket-title">{ticket.title}</div>
               <div className="ticket-meta">
@@ -242,6 +416,15 @@ const TicketsPage = ({
               <span className={`badge ${statusColor[ticket.status] || ""}`}>
                 {ticket.status}
               </span>
+              {ticket.sla_status?.escalated && (
+                <span className="badge badge-sla-escalated">Escalated</span>
+              )}
+              {(() => {
+                const sla = formatSlaCountdown(ticket);
+                return sla ? (
+                  <span className={`badge ${sla.className}`}>{sla.label}</span>
+                ) : null;
+              })()}
             </div>
           </button>
         ))}

@@ -22,12 +22,87 @@
   box-sizing: border-box;
 }
 
+.badge-sla {
+  background: rgba(47, 215, 255, 0.18);
+  color: var(--cyan-300);
+}
+
+.badge-sla-warning {
+  background: rgba(255, 181, 71, 0.2);
+  color: var(--warning);
+}
+
+.badge-sla-breached {
+  background: rgba(255, 93, 108, 0.2);
+  color: var(--danger);
+}
+
+.badge-sla-escalated {
+  background: rgba(255, 93, 108, 0.12);
+  color: #ffb0b8;
+}
+
+.health-badge {
+  background: rgba(10, 22, 53, 0.7);
+  border: 1px solid rgba(47, 215, 255, 0.12);
+  color: var(--slate-200);
+}
+
+.health-badge.health-good {
+  color: var(--success);
+  border-color: rgba(55, 217, 150, 0.3);
+}
+
+.health-badge.health-watch {
+  color: var(--warning);
+  border-color: rgba(255, 181, 71, 0.35);
+}
+
+.health-badge.health-risk {
+  color: var(--danger);
+  border-color: rgba(255, 93, 108, 0.4);
+}
 body {
   margin: 0;
   padding: 0;
   font-family: 'Sora', sans-serif;
   background: radial-gradient(circle at top, #10224c 0%, #050b1f 60%);
   color: var(--slate-100);
+}
+
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 560px;
+}
+
+.heatmap-row.header {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--slate-500);
+}
+
+.heatmap-agent {
+  font-size: 13px;
+  color: var(--slate-100);
+}
+
+.heatmap-cell {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid rgba(47, 215, 255, 0.12);
 }
 
 button,
@@ -66,6 +141,10 @@ textarea {
   flex-direction: column;
   gap: 32px;
   border-right: 1px solid rgba(111, 230, 255, 0.08);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .brand {
@@ -764,6 +843,34 @@ textarea {
   min-width: 160px;
 }
 
+.archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  background: rgba(10, 22, 53, 0.6);
+  color: var(--slate-200);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  width: fit-content;
+}
+
+.archive-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--cyan-300);
+}
+
+.archive-toggle span {
+  line-height: 1;
+}
+
 .ticket-filters input[type="date"] {
   flex: 0 1 160px;
   min-width: 140px;
@@ -835,6 +942,12 @@ textarea {
   background: transparent;
   border: 1px solid rgba(47, 215, 255, 0.2);
   color: var(--slate-100);
+}
+
+.btn.small {
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 10px;
 }
 
 .steps {
@@ -913,6 +1026,68 @@ textarea {
   box-shadow: 0 0 0 2px rgba(47, 215, 255, 0.2);
 }
 
+.template-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.6fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-card {
+  border: 1px solid rgba(47, 215, 255, 0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: rgba(10, 22, 53, 0.7);
+  color: inherit;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.template-card strong {
+  display: block;
+  font-size: 14px;
+}
+
+.template-card span {
+  font-size: 12px;
+  color: var(--slate-500);
+}
+
+.template-card.active {
+  border-color: rgba(47, 215, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(47, 215, 255, 0.25);
+}
+
+.template-card:hover {
+  border-color: rgba(47, 215, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.template-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--slate-500);
+}
+
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .editor {
   background: rgba(10, 22, 53, 0.8);
   border-radius: 12px;
@@ -934,10 +1109,38 @@ textarea {
 .attachment-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(10, 22, 53, 0.7);
   border: 1px solid rgba(47, 215, 255, 0.15);
+}
+
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attachment-remove {
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  background: transparent;
+  color: var(--slate-100);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: 0.2s ease;
+}
+
+.attachment-remove:hover {
+  border-color: rgba(255, 93, 108, 0.5);
+  color: #ffdbe0;
 }
 
 .attachment-total {
@@ -972,6 +1175,44 @@ textarea {
   transition: 0.2s ease;
 }
 
+.team-queue-panel .ticket-filters {
+  gap: 10px;
+}
+
+.team-queue-panel .ticket-filters input,
+.team-queue-panel .ticket-filters select {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.team-queue-panel .ticket-list {
+  gap: 10px;
+}
+
+.team-queue-panel .ticket-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.team-queue-panel .ticket-title {
+  font-size: 15px;
+}
+
+.team-queue-panel .ticket-meta {
+  font-size: 11px;
+}
+
+.team-queue-panel .ticket-badges .badge {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.urgent-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--slate-500);
+}
+
 .ticket-card.active {
   border-color: rgba(47, 215, 255, 0.6);
   box-shadow: 0 0 0 1px rgba(47, 215, 255, 0.3);
@@ -999,6 +1240,46 @@ textarea {
 .ticket-badges {
   display: flex;
   gap: 8px;
+}
+
+.bulk-assign-bar {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 22, 53, 0.7);
+  border: 1px solid rgba(47, 215, 255, 0.18);
+}
+
+.bulk-assign-bar span {
+  font-size: 12px;
+  color: var(--slate-300);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bulk-assign-bar select {
+  min-width: 180px;
+  background: rgba(10, 22, 53, 0.85);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: var(--slate-100);
+}
+
+.ticket-select {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.ticket-select input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cyan-300);
 }
 
 .badge {
@@ -1321,6 +1602,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-hero {
     grid-template-columns: 1fr;
   }
@@ -1395,6 +1680,10 @@ textarea {
 
   .admin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .template-meta {
+    align-items: flex-start;
   }
 }
 

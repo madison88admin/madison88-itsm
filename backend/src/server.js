@@ -53,6 +53,9 @@ let slaJobRunning = false;
 const SLA_ESCALATION_INTERVAL_MINUTES = Number(process.env.SLA_ESCALATION_INTERVAL_MINUTES || 5);
 const SLA_ESCALATION_THRESHOLD_PERCENT = Number(process.env.SLA_ESCALATION_THRESHOLD_PERCENT || 90);
 const SLA_ESCALATION_STATUSES = ['New', 'In Progress', 'Pending'];
+let autoCloseJobRunning = false;
+const AUTO_CLOSE_INTERVAL_MINUTES = Number(process.env.AUTO_CLOSE_INTERVAL_MINUTES || 60);
+const AUTO_CLOSE_BUSINESS_DAYS = Number(process.env.AUTO_CLOSE_BUSINESS_DAYS || 3);
 
 async function runSlaEscalationJob() {
   if (slaJobRunning) return;
@@ -74,6 +77,26 @@ async function runSlaEscalationJob() {
 
 setInterval(runSlaEscalationJob, SLA_ESCALATION_INTERVAL_MINUTES * 60 * 1000);
 runSlaEscalationJob();
+
+async function runAutoCloseJob() {
+  if (autoCloseJobRunning) return;
+  autoCloseJobRunning = true;
+  try {
+    const result = await TicketsService.runAutoCloseResolvedTickets({
+      businessDays: AUTO_CLOSE_BUSINESS_DAYS,
+    });
+    if (result.closed) {
+      logger.info(`Auto-closed tickets: ${result.closed}`);
+    }
+  } catch (err) {
+    logger.error('Auto-close job failed', { error: err.message });
+  } finally {
+    autoCloseJobRunning = false;
+  }
+}
+
+setInterval(runAutoCloseJob, AUTO_CLOSE_INTERVAL_MINUTES * 60 * 1000);
+runAutoCloseJob();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

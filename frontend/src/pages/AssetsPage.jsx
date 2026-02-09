@@ -171,6 +171,13 @@ const AssetsPage = ({ user }) => {
                 </div>
                 <div className="ticket-badges">
                   <span className="badge">{asset.location || "N/A"}</span>
+                  <span
+                    className={`badge health-badge ${
+                      asset.health_label ? `health-${asset.health_label}` : ""
+                    }`}
+                  >
+                    Health {asset.health_score ?? "-"}
+                  </span>
                 </div>
               </button>
             ))}
@@ -202,6 +209,10 @@ const AssetsPage = ({ user }) => {
               <div>
                 <span>Serial</span>
                 <strong>{selected.serial_number || "N/A"}</strong>
+              </div>
+              <div>
+                <span>Health Score</span>
+                <strong>{selected.health_score ?? "-"}</strong>
               </div>
               <div>
                 <span>Warranty</span>

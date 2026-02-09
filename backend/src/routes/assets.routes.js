@@ -47,7 +47,19 @@ router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin
     const { status, asset_type, assigned_user_id } = req.query;
     const userAssignedId = req.user.role === 'end_user' ? req.user.user_id : assigned_user_id;
     const assets = await AssetsModel.listAssets({ status, asset_type, assigned_user_id: userAssignedId });
-    res.json({ status: 'success', data: { assets } });
+    const scored = assets.map((asset) => {
+      const openCount = asset.open_ticket_count || 0;
+      const avgAge = Number(asset.avg_open_age_days || 0);
+      const rawScore = 100 - (openCount * 12 + avgAge * 3);
+      const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+      const health_label = score >= 80 ? 'good' : score >= 60 ? 'watch' : 'risk';
+      return {
+        ...asset,
+        health_score: score,
+        health_label,
+      };
+    });
+    res.json({ status: 'success', data: { assets: scored } });
   } catch (err) {
     next(err);
   }
@@ -58,7 +70,15 @@ router.get('/:id', authenticate, authorize(['it_agent', 'it_manager', 'system_ad
     const asset = await AssetsModel.getAssetById(req.params.id);
     if (!asset) return res.status(404).json({ status: 'error', message: 'Asset not found' });
     const tickets = await AssetsModel.listAssetTickets(req.params.id);
-    res.json({ status: 'success', data: { asset, tickets } });
+    const openCount = asset.open_ticket_count || 0;
+    const avgAge = Number(asset.avg_open_age_days || 0);
+    const rawScore = 100 - (openCount * 12 + avgAge * 3);
+    const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+    const health_label = score >= 80 ? 'good' : score >= 60 ? 'watch' : 'risk';
+    res.json({
+      status: 'success',
+      data: { asset: { ...asset, health_score: score, health_label }, tickets },
+    });
   } catch (err) {
     next(err);
   }

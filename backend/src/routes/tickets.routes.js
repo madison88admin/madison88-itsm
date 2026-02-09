@@ -55,6 +55,12 @@ router.post('/', authenticate, TicketsController.createTicket);
 router.get('/', authenticate, TicketsController.listTickets);
 
 /**
+ * @route POST /api/tickets/bulk-assign
+ * @desc Bulk assign tickets
+ */
+router.post('/bulk-assign', authenticate, TicketsController.bulkAssign);
+
+/**
  * @route GET /api/tickets/:id
  * @desc Get single ticket details
  */
