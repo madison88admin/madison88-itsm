@@ -7,6 +7,7 @@ const LoginPage = ({ onLogin }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,11 +32,8 @@ const LoginPage = ({ onLogin }) => {
             src={brandLogo}
             alt="Madison88"
           />
-          <div>
-            <h2>Madison88 ITSM</h2>
-            <p>Sign in to the service desk.</p>
-          </div>
         </div>
+        <p className="auth-subtitle">Sign in to the service desk.</p>
         {error && <div className="panel error">{error}</div>}
         <label className="field">
           <span>Email</span>
@@ -49,12 +47,21 @@ const LoginPage = ({ onLogin }) => {
         </label>
         <label className="field">
           <span>Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              className="password-toggle"
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
         </label>
         <button type="submit" className="btn primary" disabled={loading}>
           {loading ? "Logging in..." : "Login"}

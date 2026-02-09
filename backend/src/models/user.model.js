@@ -46,6 +46,15 @@ const UserModel = {
     );
     return result.rows[0];
   },
+
+  async listByIds(userIds) {
+    if (!userIds || !userIds.length) return [];
+    const result = await db.query(
+      'SELECT user_id, email, full_name, role FROM users WHERE user_id = ANY($1)',
+      [userIds]
+    );
+    return result.rows;
+  },
 };
 
 module.exports = UserModel;

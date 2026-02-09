@@ -108,6 +108,48 @@ const TicketsController = {
     }
   },
 
+  async getStatusHistory(req, res, next) {
+    try {
+      const result = await TicketsService.getStatusHistory({
+        ticketId: req.params.id,
+        user: req.user,
+      });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async listEscalations(req, res, next) {
+    try {
+      const result = await TicketsService.listEscalations({
+        ticketId: req.params.id,
+        user: req.user,
+      });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createEscalation(req, res, next) {
+    try {
+      const result = await TicketsService.createEscalation({
+        ticketId: req.params.id,
+        payload: req.body,
+        user: req.user,
+        meta: {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          sessionId: req.headers['x-session-id'] || null,
+        },
+      });
+      res.status(201).json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async listPriorityOverrideRequests(req, res, next) {
     try {
       const requests = await TicketsService.listPriorityOverrideRequests({

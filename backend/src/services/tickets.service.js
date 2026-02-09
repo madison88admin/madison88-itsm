@@ -3,6 +3,8 @@ const TicketsModel = require('../models/tickets.model');
 const AssetsModel = require('../models/assets.model');
 const SlaModel = require('../models/sla.model');
 const PriorityOverrideModel = require('../models/priority-override.model');
+const UserModel = require('../models/user.model');
+const NotificationService = require('./notification.service');
 
 const createSchema = Joi.object({
   title: Joi.string().min(5).max(255).required(),
@@ -23,6 +25,10 @@ const updateSchema = Joi.object({
   assigned_to: Joi.string().uuid().allow(null, ''),
   assigned_team: Joi.string().uuid().allow(null, ''),
   priority_override_reason: Joi.string().allow('', null),
+  resolution_summary: Joi.string().min(5).allow('', null),
+  resolution_category: Joi.string().min(3).allow('', null),
+  root_cause: Joi.string().min(3).allow('', null),
+  status_change_reason: Joi.string().allow('', null),
 }).min(1);
 
 const commentSchema = Joi.object({
@@ -113,6 +119,19 @@ function matchClassificationRule(rules, { description, businessImpact }) {
   return null;
 }
 
+function mapPriorityToSeverity(priority) {
+  switch (priority) {
+    case 'P1':
+      return 'critical';
+    case 'P2':
+      return 'high';
+    case 'P3':
+      return 'medium';
+    default:
+      return 'low';
+  }
+}
+
 async function buildSla(priority) {
   const rule = await TicketsModel.getSlaRule(priority);
   if (!rule) {
@@ -180,6 +199,14 @@ const TicketsService = {
       ...sla,
     });
 
+    await TicketsModel.createStatusHistory({
+      ticket_id: ticket.ticket_id,
+      old_status: null,
+      new_status: ticket.status,
+      changed_by: user.user_id,
+      change_reason: 'Ticket created',
+    });
+
     await TicketsModel.createAuditLog({
       ticket_id: ticket.ticket_id,
       user_id: user.user_id,
@@ -208,7 +235,13 @@ const TicketsService = {
       });
     }
 
-    return { ticket };
+    const possible_duplicates = await TicketsModel.findPotentialDuplicates({
+      title: value.title,
+      description: value.description,
+      excludeTicketId: ticket.ticket_id,
+    });
+
+    return { ticket, possible_duplicates };
   },
 
   async listTickets({ query, user }) {
@@ -222,7 +255,18 @@ const TicketsService = {
       filters.user_id = user.user_id;
     } else if (user.role === 'it_agent') {
       filters.assigned_to = user.user_id;
-    } else if (user.role === 'it_manager' || user.role === 'system_admin') {
+    } else if (user.role === 'it_manager') {
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (assigned_to) {
+        filters.assigned_to = assigned_to;
+      } else if (teamIds.length) {
+        const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+        filters.assigned_team_ids = teamIds;
+        if (memberIds.length) filters.assigned_to_in = memberIds;
+      } else {
+        return { tickets: [], pagination: { page: parseInt(page, 10), limit: parseInt(limit, 10), total: 0 } };
+      }
+    } else if (user.role === 'system_admin') {
       if (assigned_to) filters.assigned_to = assigned_to;
     } else {
       filters.user_id = user.user_id;
@@ -241,8 +285,26 @@ const TicketsService = {
     const ticket = await TicketsModel.getTicketById(ticketId);
     if (!ticket) throw new Error('Ticket not found');
     if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
-    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
-      throw new Error('Forbidden');
+    if (user.role === 'it_agent') {
+      if (ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+        throw new Error('Forbidden');
+      }
+    }
+    if (user.role === 'it_manager') {
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (teamIds.length) {
+        const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+        const inTeam = teamIds.includes(ticket.assigned_team);
+        const assignedToMember = ticket.assigned_to && memberIds.includes(ticket.assigned_to);
+        if (!inTeam && !assignedToMember && ticket.assigned_to !== user.user_id) {
+          throw new Error('Forbidden');
+        }
+      } else if (ticket.assigned_to !== user.user_id) {
+        throw new Error('Forbidden');
+      }
+    }
+    if (user.role === 'system_admin') {
+      // full access
     }
     const slaRuleMap = await getSlaRuleMap();
     const sla_status = computeSlaStatus(ticket, slaRuleMap[ticket.priority]);
@@ -264,6 +326,10 @@ const TicketsService = {
 
     const existing = await TicketsModel.getTicketById(ticketId);
     if (!existing) throw new Error('Ticket not found');
+
+    const statusChanged = value.status && value.status !== existing.status;
+    const statusReason = value.status_change_reason;
+    delete value.status_change_reason;
 
     if (user.role === 'end_user') {
       if (existing.user_id !== user.user_id) throw new Error('Forbidden');
@@ -314,7 +380,47 @@ const TicketsService = {
       throw new Error('Forbidden');
     }
 
+    const assignedChanged = Object.prototype.hasOwnProperty.call(value, 'assigned_to')
+      && value.assigned_to !== (existing.assigned_to || null);
+    if (assignedChanged) {
+      value.assigned_at = value.assigned_to ? new Date() : null;
+      value.assigned_by = user.user_id;
+    }
+
+    if (statusChanged && ['Resolved', 'Closed'].includes(value.status)) {
+      if (!value.resolution_summary || !value.resolution_category || !value.root_cause) {
+        throw new Error('Resolution summary, category, and root cause are required');
+      }
+      if (existing.assigned_to !== user.user_id) {
+        throw new Error('Forbidden');
+      }
+    }
+
+    if (statusChanged && value.status === 'Resolved') {
+      value.resolved_at = new Date();
+      value.resolved_by = user.user_id;
+    }
+
+    if (statusChanged && value.status === 'Closed') {
+      value.closed_at = new Date();
+      value.closed_by = user.user_id;
+    }
+
+    if (statusChanged && value.status === 'Reopened') {
+      value.reopened_count = (existing.reopened_count || 0) + 1;
+    }
+
     const updated = await TicketsModel.updateTicket(ticketId, value);
+
+    if (statusChanged) {
+      await TicketsModel.createStatusHistory({
+        ticket_id: ticketId,
+        old_status: existing.status,
+        new_status: value.status,
+        changed_by: user.user_id,
+        change_reason: statusReason,
+      });
+    }
 
     await TicketsModel.createAuditLog({
       ticket_id: ticketId,
@@ -346,6 +452,10 @@ const TicketsService = {
 
     if (user.role === 'end_user' && value.is_internal) {
       throw new Error('Forbidden');
+    }
+
+    if (['it_agent', 'it_manager', 'system_admin'].includes(user.role) && !ticket.first_response_at) {
+      await TicketsModel.updateTicket(ticketId, { first_response_at: new Date() });
     }
 
     const comment = await TicketsModel.createComment({
@@ -418,6 +528,77 @@ const TicketsService = {
     if (!ticket) throw new Error('Ticket not found');
     const audit_logs = await TicketsModel.getAuditLogs(ticketId);
     return { audit_logs };
+  },
+
+  async getStatusHistory({ ticketId, user }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+    const history = await TicketsModel.listStatusHistory(ticketId);
+    return { history };
+  },
+
+  async listEscalations({ ticketId, user }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+    const escalations = await TicketsModel.listEscalations(ticketId);
+    return { escalations };
+  },
+
+  async createEscalation({ ticketId, payload, user, meta }) {
+    const schema = Joi.object({
+      reason: Joi.string().min(5).required(),
+      severity: Joi.string().valid('low', 'medium', 'high', 'critical').default('medium'),
+    });
+    const { error, value } = schema.validate(payload, { abortEarly: false });
+    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new Error('Ticket not found');
+
+    if (['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
+      if (ticket.assigned_to !== user.user_id) throw new Error('Forbidden');
+    } else {
+      throw new Error('Forbidden');
+    }
+
+    const escalation = await TicketsModel.createEscalation({
+      ticket_id: ticketId,
+      reason: value.reason,
+      severity: value.severity,
+      escalated_by: user.user_id,
+    });
+
+    const requester = await UserModel.findById(ticket.user_id);
+    const assignee = ticket.assigned_to ? await UserModel.findById(ticket.assigned_to) : null;
+    await NotificationService.sendEscalationNotice({
+      ticket,
+      escalation,
+      requester,
+      assignee,
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'escalated',
+      entity_type: 'ticket_escalation',
+      entity_id: escalation.escalation_id,
+      new_value: JSON.stringify(escalation),
+      description: 'Ticket escalated',
+      ip_address: meta.ip,
+      user_agent: meta.userAgent,
+      session_id: meta.sessionId,
+    });
+
+    return { escalation };
   },
 
   async listPriorityOverrideRequests({ ticketId, user }) {
@@ -541,6 +722,64 @@ const TicketsService = {
     }
 
     return { request: updatedRequest };
+  },
+
+  async runSlaEscalations({ thresholdPercent, statuses }) {
+    const candidates = await TicketsModel.listSlaEscalationCandidates({
+      thresholdPercent,
+      statuses,
+    });
+
+    const results = [];
+    for (const ticket of candidates) {
+      const alreadyEscalated = await TicketsModel.hasSlaEscalation(ticket.ticket_id);
+      if (alreadyEscalated) continue;
+
+      const escalation = await TicketsModel.createEscalation({
+        ticket_id: ticket.ticket_id,
+        reason: `SLA threshold ${thresholdPercent}% reached`,
+        severity: mapPriorityToSeverity(ticket.priority),
+        escalated_by: null,
+      });
+
+      const assignee = ticket.assigned_to
+        ? await UserModel.findById(ticket.assigned_to)
+        : null;
+
+      let leadIds = [];
+      if (ticket.assigned_team) {
+        const leadId = await TicketsModel.getTeamLeadIdByTeamId(ticket.assigned_team);
+        if (leadId) leadIds = [leadId];
+      } else if (ticket.assigned_to) {
+        leadIds = await TicketsModel.listTeamLeadIdsForAssignee(ticket.assigned_to);
+      }
+
+      const leads = await UserModel.listByIds(leadIds);
+
+      await NotificationService.sendSlaEscalationNotice({
+        ticket,
+        escalation,
+        assignee,
+        leads,
+      });
+
+      await TicketsModel.createAuditLog({
+        ticket_id: ticket.ticket_id,
+        user_id: null,
+        action_type: 'sla_auto_escalated',
+        entity_type: 'ticket_escalation',
+        entity_id: escalation.escalation_id,
+        new_value: JSON.stringify(escalation),
+        description: 'Ticket auto-escalated based on SLA threshold',
+        ip_address: null,
+        user_agent: 'system',
+        session_id: null,
+      });
+
+      results.push({ ticket_id: ticket.ticket_id, escalation_id: escalation.escalation_id });
+    }
+
+    return { escalated: results.length, items: results };
   },
 };
 

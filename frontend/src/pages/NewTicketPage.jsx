@@ -33,6 +33,7 @@ const NewTicketPage = ({ onCreated }) => {
   const [success, setSuccess] = useState("");
   const [assets, setAssets] = useState([]);
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [duplicates, setDuplicates] = useState([]);
   const [form, setForm] = useState({
     title: "",
     category: "",
@@ -106,6 +107,7 @@ const NewTicketPage = ({ onCreated }) => {
     try {
       const res = await apiClient.post("/tickets", form);
       const ticket = res.data.data.ticket;
+      setDuplicates(res.data.data.possible_duplicates || []);
 
       if (files.length) {
         const formData = new FormData();
@@ -172,7 +174,22 @@ const NewTicketPage = ({ onCreated }) => {
       </div>
 
       {error && <div className="panel error">{error}</div>}
-      {success && <div className="panel success">{success}</div>}
+      {success && (
+        <div className="panel success">
+          {success}
+          {duplicates.length > 0 && (
+            <div className="attachment-list" style={{ marginTop: 12 }}>
+              <strong>Possible duplicates:</strong>
+              {duplicates.map((dup) => (
+                <div key={dup.ticket_id} className="attachment-item">
+                  <span>{dup.ticket_number}</span>
+                  <span>{dup.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {step === 0 && (
         <div className="form-grid">

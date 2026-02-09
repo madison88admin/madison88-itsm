@@ -9,6 +9,7 @@ const app = require('./app');
 const http = require('http');
 const socketIo = require('socket.io');
 const logger = require('./utils/logger');
+const TicketsService = require('./services/tickets.service');
 
 const PORT = process.env.PORT || 3001;
 const server = http.createServer(app);
@@ -47,6 +48,32 @@ server.listen(PORT, () => {
   logger.info(`🚀 Madison88 ITSM Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+let slaJobRunning = false;
+const SLA_ESCALATION_INTERVAL_MINUTES = Number(process.env.SLA_ESCALATION_INTERVAL_MINUTES || 5);
+const SLA_ESCALATION_THRESHOLD_PERCENT = Number(process.env.SLA_ESCALATION_THRESHOLD_PERCENT || 90);
+const SLA_ESCALATION_STATUSES = ['New', 'In Progress', 'Pending'];
+
+async function runSlaEscalationJob() {
+  if (slaJobRunning) return;
+  slaJobRunning = true;
+  try {
+    const result = await TicketsService.runSlaEscalations({
+      thresholdPercent: SLA_ESCALATION_THRESHOLD_PERCENT,
+      statuses: SLA_ESCALATION_STATUSES,
+    });
+    if (result.escalated) {
+      logger.info(`SLA auto-escalations created: ${result.escalated}`);
+    }
+  } catch (err) {
+    logger.error('SLA auto-escalation job failed', { error: err.message });
+  } finally {
+    slaJobRunning = false;
+  }
+}
+
+setInterval(runSlaEscalationJob, SLA_ESCALATION_INTERVAL_MINUTES * 60 * 1000);
+runSlaEscalationJob();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

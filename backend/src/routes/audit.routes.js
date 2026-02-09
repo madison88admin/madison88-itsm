@@ -63,7 +63,16 @@ router.get('/export', authenticate, authorize(['it_manager', 'system_admin']), a
     );
 
     if (format === 'json') {
-      return res.json({ status: 'success', data: { audit_logs: result.rows } });
+      const sanitized = result.rows.map((row) => ({
+        ticket_id: row.ticket_id,
+        ticket_number: row.ticket_number,
+        full_name: row.full_name,
+        action_type: row.action_type,
+        entity_type: row.entity_type,
+        description: row.description,
+        timestamp: row.timestamp,
+      }));
+      return res.json({ status: 'success', data: { audit_logs: sanitized } });
     }
 
     if (format === 'pdf') {
@@ -86,10 +95,9 @@ router.get('/export', authenticate, authorize(['it_manager', 'system_admin']), a
         'Entity',
         'Description',
         'User',
-        'IP',
       ];
 
-      const columnWidths = [90, 90, 80, 80, 260, 120, 80];
+      const columnWidths = [100, 100, 90, 90, 280, 120];
       const rowHeight = 16;
       const startX = doc.x;
       let y = doc.y;
@@ -113,8 +121,7 @@ router.get('/export', authenticate, authorize(['it_manager', 'system_admin']), a
           row.action_type || '',
           row.entity_type || '',
           row.description || '',
-          row.full_name || row.user_id || '',
-          row.ip_address || '',
+          row.full_name || '',
         ];
 
         if (y + rowHeight > doc.page.height - doc.page.margins.bottom) {
@@ -140,32 +147,22 @@ router.get('/export', authenticate, authorize(['it_manager', 'system_admin']), a
     res.setHeader('Content-Disposition', 'attachment; filename=audit-export.csv');
 
     const header = [
-      'log_id',
       'ticket_id',
       'ticket_number',
-      'user_id',
       'full_name',
       'action_type',
       'entity_type',
-      'entity_id',
       'description',
-      'ip_address',
-      'user_agent',
       'timestamp',
     ].join(',');
 
     const rows = result.rows.map((row) => [
-      escapeCsv(row.log_id),
       escapeCsv(row.ticket_id),
       escapeCsv(row.ticket_number),
-      escapeCsv(row.user_id),
       escapeCsv(row.full_name),
       escapeCsv(row.action_type),
       escapeCsv(row.entity_type),
-      escapeCsv(row.entity_id),
       escapeCsv(row.description),
-      escapeCsv(row.ip_address),
-      escapeCsv(row.user_agent),
       escapeCsv(row.timestamp),
     ].join(','));
 

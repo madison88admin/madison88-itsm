@@ -61,6 +61,12 @@ router.get('/', authenticate, TicketsController.listTickets);
 router.get('/:id', authenticate, TicketsController.getTicket);
 
 /**
+ * @route GET /api/tickets/:id/status-history
+ * @desc Get ticket status history
+ */
+router.get('/:id/status-history', authenticate, TicketsController.getStatusHistory);
+
+/**
  * @route GET /api/tickets/:id/priority-override-requests
  * @desc List priority override requests
  */
@@ -95,6 +101,18 @@ router.post('/:id/comments', authenticate, TicketsController.addComment);
  * @desc Upload attachment to ticket
  */
 router.post('/:id/attachments', authenticate, upload.array('files', 5), TicketsController.addAttachments);
+
+/**
+ * @route GET /api/tickets/:id/escalations
+ * @desc List ticket escalations
+ */
+router.get('/:id/escalations', authenticate, TicketsController.listEscalations);
+
+/**
+ * @route POST /api/tickets/:id/escalations
+ * @desc Create ticket escalation
+ */
+router.post('/:id/escalations', authenticate, TicketsController.createEscalation);
 
 /**
  * @route GET /api/tickets/:id/audit-log

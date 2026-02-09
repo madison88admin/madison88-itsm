@@ -31,6 +31,15 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const [priorityRequestPriority, setPriorityRequestPriority] = useState("P3");
   const [priorityRequestReason, setPriorityRequestReason] = useState("");
   const [priorityRequests, setPriorityRequests] = useState([]);
+  const [statusHistory, setStatusHistory] = useState([]);
+  const [resolutionSummary, setResolutionSummary] = useState("");
+  const [resolutionCategory, setResolutionCategory] = useState("");
+  const [rootCause, setRootCause] = useState("");
+  const [statusChangeReason, setStatusChangeReason] = useState("");
+  const [escalations, setEscalations] = useState([]);
+  const [escalationReason, setEscalationReason] = useState("");
+  const [escalationSeverity, setEscalationSeverity] = useState("medium");
+  const [escalationNotice, setEscalationNotice] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [agents, setAgents] = useState([]);
@@ -48,6 +57,9 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const canAssign = isManager || isAdmin;
   const canOverridePriority = isAdmin;
   const canRequestPriorityOverride = isManager;
+  const isAssignedToUser = ticket?.assigned_to && ticket.assigned_to === user?.user_id;
+  const canComment = isEndUser ? ticket?.user_id === user?.user_id : isAssignedToUser;
+  const canEscalate = !!isAssignedToUser;
 
   useEffect(() => {
     if (!ticketId) return;
@@ -60,6 +72,12 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         const auditRes = canSeeAudit
           ? await apiClient.get(`/tickets/${ticketId}/audit-log`)
           : { data: { data: { audit_logs: [] } } };
+        const historyRes = await apiClient.get(
+          `/tickets/${ticketId}/status-history`,
+        );
+        const escalationRes = await apiClient.get(
+          `/tickets/${ticketId}/escalations`,
+        );
         let overrideRequests = [];
         if (isAdmin || isManager) {
           try {
@@ -86,8 +104,14 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         setEditTitle(payload.ticket?.title || "");
         setEditDescription(payload.ticket?.description || "");
         setEditImpact(payload.ticket?.business_impact || "");
+        setResolutionSummary(payload.ticket?.resolution_summary || "");
+        setResolutionCategory(payload.ticket?.resolution_category || "");
+        setRootCause(payload.ticket?.root_cause || "");
+        setStatusChangeReason("");
         setAudit(auditRes.data.data.audit_logs || []);
         setPriorityRequests(overrideRequests);
+        setStatusHistory(historyRes.data.data.history || []);
+        setEscalations(escalationRes.data.data.escalations || []);
       } catch (err) {
         setError(
           err.response?.data?.message || "Failed to load ticket details",
@@ -163,6 +187,10 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
     }
     if (assignedTo !== (ticket.assigned_to || ""))
       payload.assigned_to = assignedTo || "";
+    if (resolutionSummary) payload.resolution_summary = resolutionSummary;
+    if (resolutionCategory) payload.resolution_category = resolutionCategory;
+    if (rootCause) payload.root_cause = rootCause;
+    if (statusChangeReason) payload.status_change_reason = statusChangeReason;
     if (Object.keys(payload).length === 0) return;
     setSaving(true);
     try {
@@ -173,10 +201,49 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
       setPriority(ticketRes.data.data.ticket?.priority || "");
       setAssignedTo(ticketRes.data.data.ticket?.assigned_to || "");
       setPriorityOverrideReason("");
+      setResolutionSummary(
+        ticketRes.data.data.ticket?.resolution_summary || "",
+      );
+      setResolutionCategory(
+        ticketRes.data.data.ticket?.resolution_category || "",
+      );
+      setRootCause(ticketRes.data.data.ticket?.root_cause || "");
+      setStatusChangeReason("");
       setAttachments(ticketRes.data.data.attachments || []);
+      const historyRes = await apiClient.get(
+        `/tickets/${ticketId}/status-history`,
+      );
+      setStatusHistory(historyRes.data.data.history || []);
       if (onUpdated) onUpdated();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update ticket");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!escalationReason.trim()) {
+      setError("Escalation reason required");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setEscalationNotice("");
+    try {
+      await apiClient.post(`/tickets/${ticketId}/escalations`, {
+        reason: escalationReason.trim(),
+        severity: escalationSeverity,
+      });
+      setEscalationReason("");
+      setEscalationNotice("Escalation submitted.");
+      const escalationRes = await apiClient.get(
+        `/tickets/${ticketId}/escalations`,
+      );
+      setEscalations(escalationRes.data.data.escalations || []);
+      if (onUpdated) onUpdated();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to escalate ticket");
     } finally {
       setSaving(false);
     }
@@ -462,6 +529,43 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
               </select>
             </label>
           )}
+          <label className="field">
+            <span>Status Change Reason (optional)</span>
+            <input
+              value={statusChangeReason}
+              onChange={(e) => setStatusChangeReason(e.target.value)}
+              placeholder="Why did this status change?"
+            />
+          </label>
+          {(status === "Resolved" || status === "Closed") && (
+            <>
+              <label className="field">
+                <span>Resolution Summary</span>
+                <textarea
+                  rows={3}
+                  value={resolutionSummary}
+                  onChange={(e) => setResolutionSummary(e.target.value)}
+                  placeholder="Describe how the issue was resolved."
+                />
+              </label>
+              <label className="field">
+                <span>Resolution Category</span>
+                <input
+                  value={resolutionCategory}
+                  onChange={(e) => setResolutionCategory(e.target.value)}
+                  placeholder="Example: Configuration, Hardware, Access"
+                />
+              </label>
+              <label className="field">
+                <span>Root Cause</span>
+                <input
+                  value={rootCause}
+                  onChange={(e) => setRootCause(e.target.value)}
+                  placeholder="Root cause of the issue"
+                />
+              </label>
+            </>
+          )}
           <button
             className="btn primary"
             onClick={handleTicketUpdate}
@@ -562,6 +666,18 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         <p>{ticket.business_impact}</p>
       </div>
 
+      {(ticket.resolution_summary || ticket.resolution_category || ticket.root_cause) && (
+        <div className="detail-section">
+          <h3>Resolution</h3>
+          <p>{ticket.resolution_summary || "No resolution summary."}</p>
+          <div className="ticket-meta">
+            <span>{ticket.resolution_category || "Uncategorized"}</span>
+            <span>•</span>
+            <span>{ticket.root_cause || "Root cause not set"}</span>
+          </div>
+        </div>
+      )}
+
       <div className="detail-section">
         <h3>Attachments</h3>
         {attachments.length ? (
@@ -615,6 +731,71 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
       </div>
 
       <div className="detail-section">
+        <h3>Status History</h3>
+        <div className="audit-list">
+          {statusHistory.length === 0 && (
+            <p className="muted">No status changes yet.</p>
+          )}
+          {statusHistory.map((entry) => (
+            <div key={entry.status_id} className="audit-item">
+              <div>
+                <strong>
+                  {entry.old_status ? `${entry.old_status} → ` : ""}
+                  {entry.new_status}
+                </strong>
+                <span>{new Date(entry.changed_at).toLocaleString()}</span>
+              </div>
+              <p>{entry.change_reason || "Status updated"}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="detail-section">
+        <h3>Escalations</h3>
+        {escalationNotice && <p className="muted">{escalationNotice}</p>}
+        <div className="audit-list">
+          {escalations.length === 0 && (
+            <p className="muted">No escalations logged.</p>
+          )}
+          {escalations.map((entry) => (
+            <div key={entry.escalation_id} className="audit-item">
+              <div>
+                <strong>{entry.severity}</strong>
+                <span>{new Date(entry.escalated_at).toLocaleString()}</span>
+              </div>
+              <p>{entry.reason}</p>
+            </div>
+          ))}
+        </div>
+        {canEscalate && (
+          <div className="comment-form">
+            <select
+              value={escalationSeverity}
+              onChange={(e) => setEscalationSeverity(e.target.value)}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+            <input
+              value={escalationReason}
+              onChange={(e) => setEscalationReason(e.target.value)}
+              placeholder="Reason for escalation"
+            />
+            <button
+              className="btn ghost"
+              onClick={handleEscalate}
+              disabled={saving}
+            >
+              Escalate Ticket
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="detail-section">
         <h3>Comments</h3>
         <div className="comment-list">
           {comments.length === 0 && <p className="muted">No comments yet.</p>}
@@ -633,7 +814,12 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
             rows={3}
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Add a comment for the IT team"
+            placeholder={
+              canComment
+                ? "Add a comment for the IT team"
+                : "Only the assigned agent can add resolution comments."
+            }
+            disabled={!canComment}
           />
           {canAddInternal && (
             <label className="inline-check">
@@ -641,14 +827,20 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
                 type="checkbox"
                 checked={isInternal}
                 onChange={(e) => setIsInternal(e.target.checked)}
+                disabled={!canComment}
               />
               Internal note (visible to IT only)
             </label>
           )}
+          {!canComment && !isEndUser && (
+            <p className="muted">
+              This ticket is assigned to someone else.
+            </p>
+          )}
           <button
             className="btn primary"
             onClick={handleAddComment}
-            disabled={saving}
+            disabled={saving || !canComment}
           >
             Add Comment
           </button>

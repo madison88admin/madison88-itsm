@@ -36,41 +36,105 @@ const AdminDashboard = () => {
     load();
   }, []);
 
+  const totalTickets =
+    (statusSummary.open || 0) +
+    (statusSummary.in_progress || 0) +
+    (statusSummary.pending || 0) +
+    (statusSummary.resolved || 0) +
+    (statusSummary.closed || 0);
+  const activeTickets =
+    (statusSummary.open || 0) +
+    (statusSummary.in_progress || 0) +
+    (statusSummary.pending || 0);
+  const resolvedTotal =
+    (statusSummary.resolved || 0) + (statusSummary.closed || 0);
+  const formatPercent = (value, total) =>
+    total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
+  const activePercent = formatPercent(activeTickets, totalTickets);
+  const resolvedPercent = formatPercent(resolvedTotal, totalTickets);
+  const breachPercent = formatPercent(slaSummary.total_breached || 0, totalTickets);
+
+  const statusCards = [
+    { label: "Open", value: statusSummary.open || 0 },
+    { label: "In Progress", value: statusSummary.in_progress || 0 },
+    { label: "Pending", value: statusSummary.pending || 0 },
+    { label: "Resolved", value: statusSummary.resolved || 0 },
+    { label: "Closed", value: statusSummary.closed || 0 },
+  ];
+
   return (
-    <div className="dashboard-grid">
+    <div className="admin-dashboard">
       {error && <div className="panel error">{error}</div>}
-      <div className="panel stat-card">
-        <h3>Total Users</h3>
-        <strong>{users}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Open Tickets</h3>
-        <strong>{statusSummary.open || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>In Progress</h3>
-        <strong>{statusSummary.in_progress || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Pending</h3>
-        <strong>{statusSummary.pending || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Resolved</h3>
-        <strong>{statusSummary.resolved || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Closed</h3>
-        <strong>{statusSummary.closed || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Critical SLA Breach</h3>
-        <strong>{slaSummary.critical_breached || 0}</strong>
-      </div>
-      <div className="panel stat-card">
-        <h3>Total SLA Breached</h3>
-        <strong>{slaSummary.total_breached || 0}</strong>
-      </div>
+
+      <section className="panel admin-hero">
+        <div className="admin-hero-main">
+          <span className="admin-label">Admin Overview</span>
+          <h3>Service Desk Health</h3>
+          <p className="admin-subtext">
+            Monitor workload, resolution pace, and SLA exposure in real time.
+          </p>
+          <div className="admin-hero-metrics">
+            <div className="admin-kpi">
+              <span>Total Users</span>
+              <strong>{users}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span>Total Tickets</span>
+              <strong>{totalTickets}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span>Active Work</span>
+              <strong>{activeTickets}</strong>
+              <em>{activePercent} of total</em>
+            </div>
+          </div>
+        </div>
+        <div className="admin-hero-side">
+          <div className="admin-alert">
+            <span>SLA Watch</span>
+            <strong>{slaSummary.critical_breached || 0}</strong>
+            <em>critical breaches</em>
+            <div className="admin-progress">
+              <div className="admin-progress-bar">
+                <div
+                  className="admin-progress-fill danger"
+                  style={{ width: breachPercent }}
+                />
+              </div>
+              <span>{breachPercent} breached</span>
+            </div>
+          </div>
+          <div className="admin-alert muted">
+            <span>Resolution Pace</span>
+            <strong>{resolvedTotal}</strong>
+            <em>{resolvedPercent} resolved</em>
+            <div className="admin-progress">
+              <div className="admin-progress-bar">
+                <div
+                  className="admin-progress-fill success"
+                  style={{ width: resolvedPercent }}
+                />
+              </div>
+              <span>{resolvedPercent} closed</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-grid">
+        {statusCards.map((card) => (
+          <div key={card.label} className="panel admin-status-card">
+            <span className="status-pill">{card.label}</span>
+            <strong>{card.value}</strong>
+            <em>{formatPercent(card.value, totalTickets)} of total</em>
+          </div>
+        ))}
+        <div className="panel admin-status-card emphasis">
+          <span className="status-pill">Total SLA Breached</span>
+          <strong>{slaSummary.total_breached || 0}</strong>
+          <em>{breachPercent} of total</em>
+        </div>
+      </section>
     </div>
   );
 };

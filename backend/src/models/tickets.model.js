@@ -121,6 +121,24 @@ const TicketsModel = {
       values.push(filters.assigned_to);
       where.push(`assigned_to = $${values.length}`);
     }
+    const hasTeamIds = filters.assigned_team_ids && filters.assigned_team_ids.length;
+    const hasMemberIds = filters.assigned_to_in && filters.assigned_to_in.length;
+    if (hasTeamIds && hasMemberIds) {
+      values.push(filters.assigned_team_ids);
+      const teamIdx = values.length;
+      values.push(filters.assigned_to_in);
+      const memberIdx = values.length;
+      where.push(`(assigned_team = ANY($${teamIdx}) OR assigned_to = ANY($${memberIdx}))`);
+    } else {
+      if (hasTeamIds) {
+        values.push(filters.assigned_team_ids);
+        where.push(`assigned_team = ANY($${values.length})`);
+      }
+      if (hasMemberIds) {
+        values.push(filters.assigned_to_in);
+        where.push(`assigned_to = ANY($${values.length})`);
+      }
+    }
     if (filters.user_id) {
       values.push(filters.user_id);
       where.push(`user_id = $${values.length}`);
@@ -147,6 +165,75 @@ const TicketsModel = {
   async getTicketById(ticketId) {
     const result = await db.query('SELECT * FROM tickets WHERE ticket_id = $1', [ticketId]);
     return result.rows[0];
+  },
+
+  async listTeamIdsForUser(userId) {
+    const result = await db.query(
+      `SELECT team_id FROM teams WHERE team_lead_id = $1
+       UNION
+       SELECT team_id FROM team_members WHERE user_id = $1 AND is_active = true`,
+      [userId]
+    );
+    return result.rows.map((row) => row.team_id);
+  },
+
+  async listTeamMemberIdsForTeams(teamIds) {
+    if (!teamIds || !teamIds.length) return [];
+    const result = await db.query(
+      `SELECT user_id FROM team_members WHERE team_id = ANY($1) AND is_active = true
+       UNION
+       SELECT team_lead_id AS user_id FROM teams WHERE team_id = ANY($1)`,
+      [teamIds]
+    );
+    return result.rows.map((row) => row.user_id);
+  },
+
+  async getTeamLeadIdByTeamId(teamId) {
+    if (!teamId) return null;
+    const result = await db.query(
+      'SELECT team_lead_id FROM teams WHERE team_id = $1',
+      [teamId]
+    );
+    return result.rows[0]?.team_lead_id || null;
+  },
+
+  async listTeamLeadIdsForAssignee(userId) {
+    if (!userId) return [];
+    const result = await db.query(
+      `SELECT t.team_lead_id
+       FROM teams t
+       JOIN team_members tm ON tm.team_id = t.team_id
+       WHERE tm.user_id = $1 AND tm.is_active = true`,
+      [userId]
+    );
+    return result.rows.map((row) => row.team_lead_id).filter(Boolean);
+  },
+
+  async listSlaEscalationCandidates({ thresholdPercent, statuses }) {
+    const result = await db.query(
+      `SELECT *
+       FROM tickets
+       WHERE status = ANY($1)
+         AND sla_due_date IS NOT NULL
+         AND created_at IS NOT NULL
+         AND sla_due_date > created_at
+         AND (
+           EXTRACT(EPOCH FROM (NOW() - created_at))
+           / NULLIF(EXTRACT(EPOCH FROM (sla_due_date - created_at)), 0)
+         ) * 100 >= $2`,
+      [statuses, thresholdPercent]
+    );
+    return result.rows;
+  },
+
+  async hasSlaEscalation(ticketId) {
+    const result = await db.query(
+      `SELECT 1 FROM ticket_escalations
+       WHERE ticket_id = $1 AND reason ILIKE 'SLA threshold%'
+       LIMIT 1`,
+      [ticketId]
+    );
+    return result.rows.length > 0;
   },
 
   async updateTicket(ticketId, updates) {
@@ -230,6 +317,66 @@ const TicketsModel = {
        WHERE a.ticket_id = $1
        ORDER BY a.timestamp DESC`,
       [ticketId]
+    );
+    return result.rows;
+  },
+
+  async createStatusHistory({ ticket_id, old_status, new_status, changed_by, change_reason }) {
+    const result = await db.query(
+      `INSERT INTO ticket_status_history
+        (ticket_id, old_status, new_status, changed_by, change_reason)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [ticket_id, old_status || null, new_status, changed_by || null, change_reason || null]
+    );
+    return result.rows[0];
+  },
+
+  async listStatusHistory(ticketId) {
+    const result = await db.query(
+      `SELECT h.*, u.full_name, u.role
+       FROM ticket_status_history h
+       LEFT JOIN users u ON u.user_id = h.changed_by
+       WHERE h.ticket_id = $1
+       ORDER BY h.changed_at DESC`,
+      [ticketId]
+    );
+    return result.rows;
+  },
+
+  async createEscalation({ ticket_id, reason, severity, escalated_by }) {
+    const result = await db.query(
+      `INSERT INTO ticket_escalations
+        (ticket_id, reason, severity, escalated_by)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [ticket_id, reason, severity || 'medium', escalated_by || null]
+    );
+    return result.rows[0];
+  },
+
+  async listEscalations(ticketId) {
+    const result = await db.query(
+      `SELECT e.*, u.full_name AS escalated_by_name
+       FROM ticket_escalations e
+       LEFT JOIN users u ON u.user_id = e.escalated_by
+       WHERE e.ticket_id = $1
+       ORDER BY e.escalated_at DESC`,
+      [ticketId]
+    );
+    return result.rows;
+  },
+
+  async findPotentialDuplicates({ title, description, excludeTicketId }) {
+    const needle = `%${title || description || ''}%`;
+    const result = await db.query(
+      `SELECT ticket_id, ticket_number, title, status, created_at
+       FROM tickets
+       WHERE ($1::uuid IS NULL OR ticket_id <> $1)
+         AND (title ILIKE $2 OR description ILIKE $2)
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [excludeTicketId || null, needle]
     );
     return result.rows;
   },
