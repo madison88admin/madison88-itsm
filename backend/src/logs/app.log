@@ -1074,3 +1074,118 @@
 {"timestamp":"2026-02-10T01:50:57.324Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-10T01:55:57.326Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-10T02:00:57.340Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:30:48.337Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T03:30:48.340Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T03:30:48.762Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:30:48.771Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:30:48.784Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:30:48.887Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-10T03:30:48.941Z"}}
+{"timestamp":"2026-02-10T03:31:21.536Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:31:21.561Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:31:22.173Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:31:22.187Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:31:22.200Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:31:22.214Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:32:27.890Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:33:06.283Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:33:06.286Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:35:49.073Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:40:49.046Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:45:49.126Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:50:49.093Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T03:55:49.083Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:00:49.042Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:05:49.084Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:10:49.086Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:15:49.092Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:20:49.159Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:25:49.100Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:30:49.028Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:30:49.081Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:35:49.155Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:35:49.564Z","level":"ERROR","message":"SLA auto-escalation job failed","data":{"error":"null value in column \"user_id\" of relation \"audit_logs\" violates not-null constraint"}}
+{"timestamp":"2026-02-10T04:40:49.148Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:45:49.167Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:50:49.175Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T04:55:49.173Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:00:49.168Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:05:49.234Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:10:49.220Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:15:49.244Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:20:49.236Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:25:49.204Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:30:49.031Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:30:49.060Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:35:49.242Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:39:30.828Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:39:33.440Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:39:33.793Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:39:44.223Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T05:40:49.257Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:45:49.257Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:50:30.196Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:50:40.590Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T05:51:58.878Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:52:05.452Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T05:54:18.975Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-10T05:54:19.047Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-10T05:54:32.013Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T05:54:32.018Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T05:54:32.059Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-10T05:54:32.455Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:54:32.494Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:54:51.373Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T05:55:19.578Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:55:19.615Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:56:42.059Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:56:43.620Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:56:43.636Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:56:43.651Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:56:43.656Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:58:07.238Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:58:07.241Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:58:07.245Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:59:32.726Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:59:41.256Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:59:55.979Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:59:55.985Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T05:59:56.112Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:01:26.204Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:02:25.917Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:04:32.748Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:06:58.138Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:09:33.376Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:14:44.620Z","level":"ERROR","message":"SLA auto-escalation job failed","data":{"error":"Connection terminated due to connection timeout"}}
+{"timestamp":"2026-02-10T06:19:34.744Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:24:34.521Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:29:34.485Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:34:34.572Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:39:34.564Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:44:34.532Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:46:04.158Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:46:06.152Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:46:06.175Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:46:13.256Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T06:46:28.072Z","level":"ERROR","message":"Failed to log email audit","data":{"error":"db is not defined"}}
+{"timestamp":"2026-02-10T06:46:31.470Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:47:26.281Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:48:03.131Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:48:08.612Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:49:34.601Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:54:32.804Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T06:59:34.526Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:04:34.556Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:09:34.598Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:14:34.558Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:19:34.618Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:24:34.617Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:29:34.635Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:34:34.628Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:39:34.638Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:44:33.994Z","level":"ERROR","message":"SLA auto-escalation job failed","data":{"error":"getaddrinfo ENOTFOUND aws-1-ap-south-1.pooler.supabase.com"}}
+{"timestamp":"2026-02-10T07:49:34.677Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:54:32.746Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T07:59:34.668Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T08:04:34.690Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T08:09:34.681Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T08:14:34.696Z","level":"INFO","message":"Database connection established"}
