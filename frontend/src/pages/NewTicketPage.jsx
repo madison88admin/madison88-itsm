@@ -2,6 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/client";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import {
+  hasMaxLength,
+  hasMinLength,
+  isBlank,
+  stripHtml,
+} from "../utils/validation";
 
 const steps = ["Issue Details", "Impact", "Attachments"];
 
@@ -97,13 +103,29 @@ const NewTicketPage = ({ onCreated }) => {
     }));
   }, [selectedTemplateId, templates]);
 
+  const validateIssueDetails = () => {
+    const title = form.title.trim();
+    const descriptionText = stripHtml(form.description);
+    if (!hasMinLength(title, 5)) return "Ticket title must be at least 5 characters.";
+    if (!hasMaxLength(title, 255)) return "Ticket title must be 255 characters or less.";
+    if (isBlank(form.category)) return "Category is required.";
+    if (isBlank(form.location)) return "Location is required.";
+    if (!hasMinLength(descriptionText, 10)) {
+      return "Description must be at least 10 characters.";
+    }
+    return "";
+  };
+
+  const validateImpact = () => {
+    if (!hasMinLength(form.business_impact, 10)) {
+      return "Business impact must be at least 10 characters.";
+    }
+    return "";
+  };
+
   const validateStep = () => {
-    if (step === 0) {
-      return form.title && form.category && form.location && form.description;
-    }
-    if (step === 1) {
-      return form.business_impact;
-    }
+    if (step === 0) return !validateIssueDetails();
+    if (step === 1) return !validateImpact();
     return true;
   };
 
@@ -139,6 +161,12 @@ const NewTicketPage = ({ onCreated }) => {
   };
 
   const handleSubmit = async () => {
+    const issueError = validateIssueDetails();
+    const impactError = validateImpact();
+    if (issueError || impactError) {
+      setError(issueError || impactError);
+      return;
+    }
     setLoading(true);
     setError("");
     setSuccess("");
@@ -422,7 +450,16 @@ const NewTicketPage = ({ onCreated }) => {
             className="btn primary"
             type="button"
             disabled={!validateStep()}
-            onClick={() => setStep(step + 1)}
+            onClick={() => {
+              const validationMessage =
+                step === 0 ? validateIssueDetails() : validateImpact();
+              if (validationMessage) {
+                setError(validationMessage);
+                return;
+              }
+              setError("");
+              setStep(step + 1);
+            }}
           >
             Next
           </button>

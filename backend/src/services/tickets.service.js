@@ -6,6 +6,7 @@ const SlaModel = require('../models/sla.model');
 const PriorityOverrideModel = require('../models/priority-override.model');
 const UserModel = require('../models/user.model');
 const NotificationService = require('./notification.service');
+const NotificationsModel = require('../models/notifications.model');
 
 const createSchema = Joi.object({
   title: Joi.string().min(5).max(255).required(),
@@ -272,6 +273,32 @@ const TicketsService = {
       excludeTicketId: ticket.ticket_id,
     });
 
+    const adminUsers = await UserModel.listUsers({ role: 'system_admin' });
+    const adminEmailOverride = process.env.ADMIN_NOTIFICATION_EMAIL;
+    const requester = await UserModel.findById(user.user_id);
+    const adminEmailRecipients = adminEmailOverride
+      ? [{ email: adminEmailOverride }]
+      : adminUsers;
+
+    await NotificationService.sendNewTicketNotice({
+      ticket,
+      requester,
+      recipients: adminEmailRecipients,
+    });
+
+    if (adminUsers.length) {
+      const message = `${ticket.ticket_number}: ${ticket.title}`;
+      for (const admin of adminUsers) {
+        await NotificationsModel.createNotification({
+          user_id: admin.user_id,
+          ticket_id: ticket.ticket_id,
+          type: 'ticket_created',
+          title: 'New ticket',
+          message,
+        });
+      }
+    }
+
     return { ticket, possible_duplicates };
   },
 
@@ -457,6 +484,39 @@ const TicketsService = {
 
     const updated = await TicketsModel.updateTicket(ticketId, value);
 
+    if (assignedChanged && value.assigned_to) {
+      const assignee = await UserModel.findById(value.assigned_to);
+      let leadIds = [];
+      if (updated.assigned_team) {
+        const leadId = await TicketsModel.getTeamLeadIdByTeamId(updated.assigned_team);
+        if (leadId) leadIds = [leadId];
+      } else {
+        leadIds = await TicketsModel.listTeamLeadIdsForAssignee(value.assigned_to);
+      }
+      const leads = await UserModel.listByIds(leadIds);
+
+      await NotificationService.sendTicketAssignedNotice({
+        ticket: updated,
+        assignee,
+        leads,
+      });
+
+      const recipients = [assignee, ...leads].filter(Boolean);
+      const uniqueRecipientIds = Array.from(new Set(recipients.map((r) => r.user_id).filter(Boolean)));
+      if (uniqueRecipientIds.length) {
+        const message = `${updated.ticket_number}: ${updated.title}`;
+        for (const recipientId of uniqueRecipientIds) {
+          await NotificationsModel.createNotification({
+            user_id: recipientId,
+            ticket_id: updated.ticket_id,
+            type: 'ticket_assigned',
+            title: 'Ticket assigned',
+            message,
+          });
+        }
+      }
+    }
+
     if (statusChanged) {
       await TicketsModel.createStatusHistory({
         ticket_id: ticketId,
@@ -467,12 +527,36 @@ const TicketsService = {
       });
     }
 
-    if (statusChanged && value.status === 'Resolved') {
+    if (statusChanged && ['Resolved', 'Closed'].includes(value.status)) {
       const requester = await UserModel.findById(existing.user_id);
-      await NotificationService.sendTicketResolvedNotice({
-        ticket: updated,
-        requester,
+      if (value.status === 'Resolved') {
+        await NotificationService.sendTicketResolvedNotice({
+          ticket: updated,
+          requester,
+        });
+      }
+
+      const titlePrefix = value.status === 'Resolved'
+        ? 'Ticket resolved'
+        : 'Ticket closed';
+      const message = `${updated.ticket_number}: ${updated.title}`;
+      await NotificationsModel.createNotification({
+        user_id: existing.user_id,
+        ticket_id: updated.ticket_id,
+        type: value.status === 'Resolved' ? 'ticket_resolved' : 'ticket_closed',
+        title: titlePrefix,
+        message,
       });
+
+      if (existing.assigned_to && existing.assigned_to !== existing.user_id) {
+        await NotificationsModel.createNotification({
+          user_id: existing.assigned_to,
+          ticket_id: updated.ticket_id,
+          type: value.status === 'Resolved' ? 'ticket_resolved' : 'ticket_closed',
+          title: titlePrefix,
+          message,
+        });
+      }
     }
 
     await TicketsModel.createAuditLog({
@@ -825,6 +909,39 @@ const TicketsService = {
         user_agent: meta.userAgent,
         session_id: meta.sessionId,
       });
+
+      if (ticket.assigned_to) {
+        const assignee = await UserModel.findById(ticket.assigned_to);
+        let leadIds = [];
+        if (ticket.assigned_team) {
+          const leadId = await TicketsModel.getTeamLeadIdByTeamId(ticket.assigned_team);
+          if (leadId) leadIds = [leadId];
+        } else {
+          leadIds = await TicketsModel.listTeamLeadIdsForAssignee(ticket.assigned_to);
+        }
+        const leads = await UserModel.listByIds(leadIds);
+
+        await NotificationService.sendTicketAssignedNotice({
+          ticket,
+          assignee,
+          leads,
+        });
+
+        const recipients = [assignee, ...leads].filter(Boolean);
+        const uniqueRecipientIds = Array.from(new Set(recipients.map((r) => r.user_id).filter(Boolean)));
+        if (uniqueRecipientIds.length) {
+          const message = `${ticket.ticket_number}: ${ticket.title}`;
+          for (const recipientId of uniqueRecipientIds) {
+            await NotificationsModel.createNotification({
+              user_id: recipientId,
+              ticket_id: ticket.ticket_id,
+              type: 'ticket_assigned',
+              title: 'Ticket assigned',
+              message,
+            });
+          }
+        }
+      }
     }
 
     return { tickets: updatedTickets };

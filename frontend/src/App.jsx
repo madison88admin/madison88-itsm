@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import brandLogo from "./assets/Madison-88-Logo-250.png";
+import apiClient from "./api/client";
 import LoginPage from "./pages/LoginPage";
 import TicketsPage from "./pages/TicketsPage";
 import NewTicketPage from "./pages/NewTicketPage";
@@ -24,6 +25,13 @@ function App() {
   const [viewMode, setViewMode] = useState("my");
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [browserPermission, setBrowserPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "default",
+  );
+  const recentNotificationRef = useRef(new Map());
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -49,9 +57,88 @@ function App() {
     localStorage.setItem("user", JSON.stringify(userInfo));
   };
 
-  if (!token) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
+  const shouldNotify = (ticket, statusValue) => {
+    const key = `${ticket.ticket_id}-${statusValue}`;
+    const now = Date.now();
+    const last = recentNotificationRef.current.get(key);
+    if (last && now - last < 120000) {
+      return false;
+    }
+    recentNotificationRef.current.set(key, now);
+    if (recentNotificationRef.current.size > 200) {
+      recentNotificationRef.current.clear();
+    }
+    return true;
+  };
+
+  const pushToast = (notification) => {
+    setToasts((prev) => [...prev, notification]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== notification.id));
+    }, 5000);
+  };
+
+  const mapNotification = (item) => ({
+    id: item.notification_id,
+    ticketId: item.ticket_id,
+    ticketNumber: item.ticket_number,
+    title: item.ticket_title || item.title || "",
+    message: item.message || "",
+    type: item.type,
+    createdAt: item.created_at,
+    read: item.is_read,
+  });
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await apiClient.get("/notifications");
+      const rows = res.data.data.notifications || [];
+      setNotifications(rows.map(mapNotification));
+    } catch (err) {
+      // Silent fail to avoid blocking UI.
+    }
+  };
+
+  const isAssignedToUser = (ticket, currentUser) => {
+    if (!currentUser?.user_id) return false;
+    if (currentUser.role === "end_user") {
+      return `${ticket?.user_id}` === `${currentUser.user_id}`;
+    }
+    if (!ticket?.assigned_to) return false;
+    return `${ticket.assigned_to}` === `${currentUser.user_id}`;
+  };
+
+  const addResolvedNotification = (ticket) => {
+    if (!ticket) return;
+    if (!isAssignedToUser(ticket, user)) return;
+    const statusValue = ticket.status || "Resolved";
+    if (!shouldNotify(ticket, statusValue)) return;
+    const notification = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      ticketId: ticket.ticket_id,
+      ticketNumber: ticket.ticket_number,
+      title: ticket.title,
+      status: statusValue,
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+    pushToast(notification);
+    fetchNotifications();
+    if (
+      typeof Notification !== "undefined" &&
+      Notification.permission === "granted"
+    ) {
+      const label = statusValue === "Closed" ? "Ticket closed" : "Ticket resolved";
+      new Notification(label, {
+        body: `${notification.ticketNumber || "Ticket"}: ${notification.title}`,
+      });
+    }
+  };
+
+  const handleResolvedTickets = (resolvedTickets) => {
+    if (!Array.isArray(resolvedTickets)) return;
+    resolvedTickets.forEach((ticket) => addResolvedNotification(ticket));
+  };
 
   const isAgent = user?.role === "it_agent";
   const isManager = user?.role === "it_manager";
@@ -102,6 +189,55 @@ function App() {
     assets: "Asset Tracking",
     "admin-users": "User Management",
     "sla-standards": "SLA Standards",
+  };
+
+  const unreadCount = notifications.filter((item) => !item.read).length;
+
+  useEffect(() => {
+    if (!token) return;
+    fetchNotifications();
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [token, user?.user_id]);
+
+  if (!token) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  const handleNotificationToggle = () => {
+    setIsNotificationsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        apiClient.patch("/notifications/read-all").catch(() => null);
+        setNotifications((items) =>
+          items.map((item) => ({ ...item, read: true })),
+        );
+      }
+      return next;
+    });
+  };
+
+  const handleRequestBrowserPermission = async () => {
+    if (typeof Notification === "undefined") return;
+    const permission = await Notification.requestPermission();
+    setBrowserPermission(permission);
+  };
+
+  const handleNotificationClick = (notification) => {
+    apiClient
+      .patch(`/notifications/${notification.id}/read`)
+      .catch(() => null);
+    setActiveTab("tickets");
+    setSelectedTicketId(notification.ticketId);
+    setIsNotificationsOpen(false);
+    setNotifications((items) =>
+      items.map((item) =>
+        item.id === notification.id ? { ...item, read: true } : item,
+      ),
+    );
   };
 
   return (
@@ -157,6 +293,67 @@ function App() {
             <h2>{headerTitle[activeTab] || "Dashboard"}</h2>
             <p>Prioritize, track, and resolve requests across regions.</p>
           </div>
+          <div className="topbar-actions">
+            <button
+              className="notification-button"
+              onClick={handleNotificationToggle}
+              aria-label="Notifications"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                role="img"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 22a2.5 2.5 0 0 0 2.4-1.8h-4.8A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Z" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="notification-count">{unreadCount}</span>
+              )}
+            </button>
+            {isNotificationsOpen && (
+              <div className="notification-popover">
+                <div className="notification-header">Notifications</div>
+                {typeof Notification !== "undefined" &&
+                  browserPermission !== "granted" && (
+                    <div className="notification-permission">
+                      <p className="muted">
+                        Enable browser notifications for resolved tickets.
+                      </p>
+                      <button
+                        className="btn ghost small"
+                        onClick={handleRequestBrowserPermission}
+                      >
+                        Enable notifications
+                      </button>
+                    </div>
+                  )}
+                {notifications.length === 0 ? (
+                  <p className="muted">No notifications yet.</p>
+                ) : (
+                  <div className="notification-list">
+                    {notifications.map((item) => (
+                      <button
+                        key={item.id}
+                        className="notification-item"
+                        onClick={() => handleNotificationClick(item)}
+                      >
+                        <div>
+                          <strong>
+                            {item.ticketNumber || "Ticket"}
+                          </strong>
+                          <span>{item.message || item.title}</span>
+                        </div>
+                        <time>
+                          {new Date(item.createdAt).toLocaleTimeString()}
+                        </time>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </header>
         {activeTab === "dashboard" && renderDashboard()}
         {(activeTab === "tickets" || activeTab === "team") && (
@@ -168,12 +365,14 @@ function App() {
               onViewModeChange={setViewMode}
               selectedId={selectedTicketId}
               onSelectTicket={setSelectedTicketId}
+              onResolvedTickets={handleResolvedTickets}
             />
             <TicketDetailPage
               ticketId={selectedTicketId}
               user={user}
               onClose={() => setSelectedTicketId(null)}
               onUpdated={() => setRefreshKey((prev) => prev + 1)}
+              onResolved={addResolvedNotification}
             />
           </div>
         )}
@@ -196,6 +395,20 @@ function App() {
         {activeTab === "assets" && <AssetsPage user={user} />}
         {activeTab === "admin-users" && <AdminUsersPage />}
         {activeTab === "sla-standards" && <AdminSlaPage />}
+        {toasts.length > 0 && (
+          <div className="toast-stack" aria-live="polite">
+            {toasts.map((toast) => (
+              <div key={toast.id} className="toast">
+                <div>
+                  <strong>
+                    {toast.ticketNumber || "Ticket"}
+                  </strong>
+                  <span>{toast.title}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

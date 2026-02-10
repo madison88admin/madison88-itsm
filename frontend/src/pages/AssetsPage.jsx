@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/client";
+import { hasMinLength, isUuid } from "../utils/validation";
 
 const assetTypes = [
   "laptop",
@@ -75,6 +76,18 @@ const AssetsPage = ({ user }) => {
     event.preventDefault();
     setError("");
     setMessage("");
+    if (!hasMinLength(form.asset_tag, 3)) {
+      setError("Asset tag must be at least 3 characters.");
+      return;
+    }
+    if (form.assigned_user_id && !isUuid(form.assigned_user_id)) {
+      setError("Assigned user must be a valid UUID.");
+      return;
+    }
+    if (form.cost && Number(form.cost) < 0) {
+      setError("Cost must be a positive number.");
+      return;
+    }
     try {
       await apiClient.post("/assets", {
         ...form,
@@ -107,6 +120,10 @@ const AssetsPage = ({ user }) => {
     if (!selected) return;
     setError("");
     setMessage("");
+    if (selected.assigned_user_id && !isUuid(selected.assigned_user_id)) {
+      setError("Assigned user must be a valid UUID.");
+      return;
+    }
     try {
       await apiClient.patch(`/assets/${selected.asset_id}`, {
         status: selected.status,
@@ -125,6 +142,10 @@ const AssetsPage = ({ user }) => {
   const handleLinkTicket = async () => {
     if (!selected || !linkTicketId) return;
     setError("");
+    if (!isUuid(linkTicketId)) {
+      setError("Ticket ID must be a valid UUID.");
+      return;
+    }
     try {
       await apiClient.post(`/assets/${selected.asset_id}/link-ticket`, {
         ticket_id: linkTicketId,

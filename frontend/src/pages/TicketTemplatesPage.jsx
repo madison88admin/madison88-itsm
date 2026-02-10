@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/client";
+import { hasMaxLength, hasMinLength, isBlank } from "../utils/validation";
 
 const categories = [
   "Hardware",
@@ -75,6 +76,34 @@ const TicketTemplatesPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!hasMinLength(form.name, 3)) {
+      setError("Name must be at least 3 characters.");
+      return;
+    }
+    if (!hasMaxLength(form.name, 120)) {
+      setError("Name must be 120 characters or less.");
+      return;
+    }
+    if (!hasMinLength(form.title, 5)) {
+      setError("Title must be at least 5 characters.");
+      return;
+    }
+    if (!hasMaxLength(form.title, 255)) {
+      setError("Title must be 255 characters or less.");
+      return;
+    }
+    if (isBlank(form.category)) {
+      setError("Category is required.");
+      return;
+    }
+    if (!hasMinLength(form.description, 10)) {
+      setError("Description must be at least 10 characters.");
+      return;
+    }
+    if (!hasMinLength(form.business_impact, 10)) {
+      setError("Business impact must be at least 10 characters.");
+      return;
+    }
     setSaving(true);
     setError("");
     setMessage("");

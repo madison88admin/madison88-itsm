@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/client";
+import { hasMinLength, isBlank } from "../utils/validation";
 
 const KnowledgeBasePage = ({ user }) => {
   const [articles, setArticles] = useState([]);
@@ -110,6 +111,21 @@ const KnowledgeBasePage = ({ user }) => {
     if (!selectedArticle) return;
     setSaving(true);
     setDetailError("");
+    if (!hasMinLength(editForm.title, 5)) {
+      setDetailError("Title must be at least 5 characters.");
+      setSaving(false);
+      return;
+    }
+    if (isBlank(editForm.category) || !hasMinLength(editForm.category, 2)) {
+      setDetailError("Category must be at least 2 characters.");
+      setSaving(false);
+      return;
+    }
+    if (!hasMinLength(editForm.content, 20)) {
+      setDetailError("Content must be at least 20 characters.");
+      setSaving(false);
+      return;
+    }
     try {
       const payload = {
         title: editForm.title,

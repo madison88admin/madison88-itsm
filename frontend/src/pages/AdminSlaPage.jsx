@@ -51,17 +51,28 @@ const AdminSlaPage = () => {
   };
 
   const saveRule = async (rule) => {
-    if (!rule.response_time_hours || !rule.resolution_time_hours) {
+    const responseHours = Number(rule.response_time_hours);
+    const resolutionHours = Number(rule.resolution_time_hours);
+    const escalationPercent = Number(rule.escalation_threshold_percent);
+    if (!responseHours || !resolutionHours) {
       setError("Response and resolution hours are required.");
+      return;
+    }
+    if (responseHours < 1 || resolutionHours < 1) {
+      setError("Hours must be 1 or greater.");
+      return;
+    }
+    if (escalationPercent < 1 || escalationPercent > 100) {
+      setError("Escalation percent must be between 1 and 100.");
       return;
     }
     setSaving(rule.priority);
     setError("");
     try {
       await apiClient.put(`/sla-rules/${rule.priority}`, {
-        response_time_hours: Number(rule.response_time_hours),
-        resolution_time_hours: Number(rule.resolution_time_hours),
-        escalation_threshold_percent: Number(rule.escalation_threshold_percent),
+        response_time_hours: responseHours,
+        resolution_time_hours: resolutionHours,
+        escalation_threshold_percent: escalationPercent,
         is_active: rule.is_active,
       });
       await load();

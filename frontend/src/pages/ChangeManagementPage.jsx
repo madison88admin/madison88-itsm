@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../api/client";
+import { hasMinLength, isDateRangeValid } from "../utils/validation";
 
 const changeTypes = ["standard", "normal", "emergency"];
 const riskLevels = ["low", "medium", "high", "critical"];
@@ -72,6 +73,28 @@ const ChangeManagementPage = ({ user }) => {
     event.preventDefault();
     setError("");
     setMessage("");
+    if (!hasMinLength(form.title, 5)) {
+      setError("Title must be at least 5 characters.");
+      return;
+    }
+    if (!hasMinLength(form.description, 10)) {
+      setError("Description must be at least 10 characters.");
+      return;
+    }
+    if (!isDateRangeValid(form.change_window_start, form.change_window_end)) {
+      setError("Change window end must be after start.");
+      return;
+    }
+    if (form.change_type === "emergency") {
+      if (!hasMinLength(form.rollback_plan, 10)) {
+        setError("Emergency changes require a rollback plan (min 10 chars).");
+        return;
+      }
+      if (!["high", "critical"].includes(form.risk_assessment)) {
+        setError("Emergency changes require high or critical risk assessment.");
+        return;
+      }
+    }
     try {
       await apiClient.post("/changes", {
         ...form,

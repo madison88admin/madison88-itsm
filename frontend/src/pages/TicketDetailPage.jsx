@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../api/client";
+import { hasMaxLength, hasMinLength, isBlank } from "../utils/validation";
 
 const statusOptions = [
   "New",
@@ -12,7 +13,13 @@ const statusOptions = [
 
 const priorityOptions = ["P1", "P2", "P3", "P4"];
 
-const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
+const TicketDetailPage = ({
+  ticketId,
+  user,
+  onClose,
+  onUpdated,
+  onResolved,
+}) => {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [comments, setComments] = useState([]);
@@ -153,7 +160,12 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   }, [canAssign]);
 
   const handleAddComment = async () => {
-    if (!commentText.trim()) return;
+    const trimmed = commentText.trim();
+    if (isBlank(trimmed)) return;
+    if (!hasMinLength(trimmed, 2)) {
+      setError("Comment must be at least 2 characters.");
+      return;
+    }
     setSaving(true);
     try {
       await apiClient.post(`/tickets/${ticketId}/comments`, {
@@ -177,10 +189,23 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
     if (!ticket) return;
     const payload = {};
     const isStatusChange = status && status !== ticket.status;
-    const isResolving = isStatusChange && ["Resolved", "Closed"].includes(status);
+    const isResolving =
+      isStatusChange && ["Resolved", "Closed"].includes(status);
     if (isResolving) {
       if (!resolutionSummary.trim() || !resolutionCategory.trim() || !rootCause.trim()) {
         setError("Resolution summary, category, and root cause are required before resolving.");
+        return;
+      }
+      if (!hasMinLength(resolutionSummary, 5)) {
+        setError("Resolution summary must be at least 5 characters.");
+        return;
+      }
+      if (!hasMinLength(resolutionCategory, 3)) {
+        setError("Resolution category must be at least 3 characters.");
+        return;
+      }
+      if (!hasMinLength(rootCause, 3)) {
+        setError("Root cause must be at least 3 characters.");
         return;
       }
     }
@@ -190,8 +215,16 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         setError("Priority override reason required");
         return;
       }
+      if (!hasMinLength(priorityOverrideReason, 5)) {
+        setError("Priority override reason must be at least 5 characters.");
+        return;
+      }
       payload.priority = priority;
       payload.priority_override_reason = priorityOverrideReason.trim();
+    }
+    if (statusChangeReason && !hasMaxLength(statusChangeReason, 255)) {
+      setError("Status change reason must be 255 characters or less.");
+      return;
     }
     if (assignedTo !== (ticket.assigned_to || ""))
       payload.assigned_to = assignedTo || "";
@@ -201,6 +234,7 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
     if (statusChangeReason) payload.status_change_reason = statusChangeReason;
     if (Object.keys(payload).length === 0) return;
     setSaving(true);
+    const nextStatus = status;
     try {
       await apiClient.patch(`/tickets/${ticketId}`, payload);
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
@@ -222,6 +256,9 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
         `/tickets/${ticketId}/status-history`,
       );
       setStatusHistory(historyRes.data.data.history || []);
+      if (isResolving && onResolved) {
+        onResolved({ ...ticketRes.data.data.ticket, status: nextStatus });
+      }
       if (onUpdated) onUpdated();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update ticket");
@@ -233,6 +270,10 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const handleEscalate = async () => {
     if (!escalationReason.trim()) {
       setError("Escalation reason required");
+      return;
+    }
+    if (!hasMinLength(escalationReason, 5)) {
+      setError("Escalation reason must be at least 5 characters.");
       return;
     }
     setSaving(true);
@@ -260,6 +301,10 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
   const handlePriorityOverrideRequest = async () => {
     if (!priorityRequestReason.trim()) {
       setError("Priority override reason required");
+      return;
+    }
+    if (!hasMinLength(priorityRequestReason, 5)) {
+      setError("Priority override reason must be at least 5 characters.");
       return;
     }
     setSaving(true);
@@ -309,6 +354,22 @@ const TicketDetailPage = ({ ticketId, user, onClose, onUpdated }) => {
 
   const handleEndUserUpdate = async () => {
     if (!ticket) return;
+    if (isBlank(editTitle) || !hasMinLength(editTitle, 5)) {
+      setError("Title must be at least 5 characters.");
+      return;
+    }
+    if (!hasMaxLength(editTitle, 255)) {
+      setError("Title must be 255 characters or less.");
+      return;
+    }
+    if (isBlank(editDescription) || !hasMinLength(editDescription, 10)) {
+      setError("Description must be at least 10 characters.");
+      return;
+    }
+    if (isBlank(editImpact) || !hasMinLength(editImpact, 10)) {
+      setError("Business impact must be at least 10 characters.");
+      return;
+    }
     const payload = {};
     if (editTitle && editTitle !== ticket.title) payload.title = editTitle;
     if (editDescription && editDescription !== ticket.description) {

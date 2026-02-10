@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import brandLogo from "../assets/Madison-88-Logo-250.png";
+import { isBlank, isEmail } from "../utils/validation";
 
 const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -11,6 +12,18 @@ const LoginPage = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isBlank(email)) {
+      setError("Email is required.");
+      return;
+    }
+    if (!isEmail(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (isBlank(password)) {
+      setError("Password is required.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {

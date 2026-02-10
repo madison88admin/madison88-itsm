@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import apiClient from "../api/client";
 
 const statusColor = {
@@ -44,6 +44,7 @@ const TicketsPage = ({
   user,
   viewMode,
   onViewModeChange,
+  onResolvedTickets,
 }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,8 @@ const TicketsPage = ({
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkRefresh, setBulkRefresh] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [pollKey, setPollKey] = useState(0);
+  const previousStatusRef = useRef(new Map());
   const isManager = user?.role === "it_manager";
   const isAdmin = user?.role === "system_admin";
   const canBulkAssign = isManager || isAdmin;
@@ -91,7 +94,29 @@ const TicketsPage = ({
         if (dateFrom) params.date_from = dateFrom;
         if (dateTo) params.date_to = dateTo;
         const res = await apiClient.get("/tickets", { params });
-        setTickets(res.data.data.tickets || []);
+        const nextTickets = res.data.data.tickets || [];
+        if (onResolvedTickets) {
+          const resolvedUpdates = [];
+          nextTickets.forEach((ticket) => {
+            const prevStatus = previousStatusRef.current.get(ticket.ticket_id);
+            if (
+              prevStatus &&
+              prevStatus !== ticket.status &&
+              ["Resolved", "Closed"].includes(ticket.status)
+            ) {
+              resolvedUpdates.push(ticket);
+            }
+          });
+          if (resolvedUpdates.length > 0) {
+            onResolvedTickets(resolvedUpdates);
+          }
+        }
+        const nextStatusMap = new Map();
+        nextTickets.forEach((ticket) => {
+          nextStatusMap.set(ticket.ticket_id, ticket.status);
+        });
+        previousStatusRef.current = nextStatusMap;
+        setTickets(nextTickets);
       } catch (err) {
         setError(err.response?.data?.message || "Failed to load tickets");
       } finally {
@@ -115,7 +140,16 @@ const TicketsPage = ({
     dateFrom,
     dateTo,
     bulkRefresh,
+    pollKey,
   ]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      setPollKey((prev) => prev + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!canBulkAssign) return;

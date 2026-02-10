@@ -121,6 +121,27 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
     return false;
   }
 
+  // Audit log for sent email
+  try {
+    await db.query(
+      `INSERT INTO audit_logs (user_id, action_type, entity_type, entity_id, old_value, new_value, description, ip_address, user_agent, session_id, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+      [
+        null,
+        'email_sent',
+        'notification',
+        null,
+        null,
+        JSON.stringify({ to: finalTo, subject, text }),
+        `Email sent to ${finalTo} with subject '${subject}'`,
+        null,
+        'mailer',
+        null,
+      ]
+    );
+  } catch (auditErr) {
+    logger.error('Failed to log email audit', { error: auditErr.message });
+  }
   const from = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
   try {
@@ -198,9 +219,50 @@ async function sendTicketResolvedNotice({ ticket, requester }) {
   });
 }
 
+function collectRecipientEmails(recipients = []) {
+  const emails = recipients.map((recipient) => recipient?.email).filter(Boolean);
+  return Array.from(new Set(emails));
+}
+
+async function sendNewTicketNotice({ ticket, requester, recipients }) {
+  const uniqueRecipients = collectRecipientEmails(recipients);
+  if (!uniqueRecipients.length) return false;
+
+  const subject = `New Ticket: ${ticket.ticket_number}`;
+  const text = [
+    `A new ticket has been created: ${ticket.ticket_number}.`,
+    `Title: ${ticket.title}`,
+    `Priority: ${ticket.priority}`,
+    `Category: ${ticket.category}`,
+    requester?.full_name ? `Requester: ${requester.full_name}` : null,
+    requester?.email ? `Requester Email: ${requester.email}` : null,
+  ].filter(Boolean).join('\n');
+
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+}
+
+async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
+  const recipients = [assignee, ...leads];
+  const uniqueRecipients = collectRecipientEmails(recipients);
+  if (!uniqueRecipients.length) return false;
+
+  const subject = `Ticket Assigned: ${ticket.ticket_number}`;
+  const text = [
+    `Ticket ${ticket.ticket_number} has been assigned.`,
+    `Title: ${ticket.title}`,
+    `Priority: ${ticket.priority}`,
+    assignee?.full_name ? `Assignee: ${assignee.full_name}` : null,
+    assignee?.email ? `Assignee Email: ${assignee.email}` : null,
+  ].filter(Boolean).join('\n');
+
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+}
+
 module.exports = {
   sendEmail,
   sendEscalationNotice,
   sendSlaEscalationNotice,
   sendTicketResolvedNotice,
+  sendNewTicketNotice,
+  sendTicketAssignedNotice,
 };

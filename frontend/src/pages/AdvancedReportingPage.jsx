@@ -11,6 +11,7 @@ import {
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
 import apiClient from "../api/client";
+import { hasMaxLength, isDateRangeValid } from "../utils/validation";
 
 ChartJS.register(
   CategoryScale,
@@ -302,6 +303,14 @@ const AdvancedReportingPage = () => {
   }, []);
 
   const handleAuditDownload = async () => {
+    if (!isDateRangeValid(exportStart, exportEnd)) {
+      setError("End date must be after start date.");
+      return;
+    }
+    if (!hasMaxLength(exportAction, 50)) {
+      setError("Action type must be 50 characters or less.");
+      return;
+    }
     setExporting(true);
     setError("");
     try {

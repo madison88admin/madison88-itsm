@@ -955,3 +955,122 @@
 {"timestamp":"2026-02-09T08:45:17.211Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-09T08:45:17.697Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-09T08:45:18.023Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T08:48:59.836Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T08:53:59.745Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:24:50.845Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-09T23:24:50.850Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-09T23:24:50.873Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-09T23:24:51.276Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:24:51.282Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:25:09.803Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:25:09.813Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:25:09.837Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:28:47.221Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:29:02.868Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:29:51.624Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:30:42.550Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:30:42.566Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:30:52.624Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:31:12.283Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 6a1803df08f44-8953bf3814csm86037596d6.2 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-09T23:34:31.742Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:39:51.582Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:44:51.555Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:45:10.895Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:45:38.076Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:45:50.805Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 6a1803df08f44-8953c057799sm86273046d6.42 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-09T23:47:20.742Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials d75a77b69052e-5063913ba7asm85079721cf.3 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-09T23:47:25.222Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:47:25.225Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:48:28.127Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:48:33.341Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:48:33.357Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:48:53.277Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials af79cd13be357-8caf9a15a4dsm895716085a.25 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-09T23:49:51.593Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:50:13.985Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:50:14.017Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:50:31.606Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials af79cd13be357-8caf77f6ee8sm906265385a.8 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-09T23:53:08.658Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:54:51.607Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:57:10.355Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:59:36.177Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:59:37.901Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-09T23:59:37.906Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:00:28.532Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials d75a77b69052e-506484ca043sm66656311cf.1 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0004"}}
+{"timestamp":"2026-02-10T00:00:40.711Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:00:40.730Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:01:15.867Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 6a1803df08f44-89547d4fd53sm70011976d6.29 - gsmtp","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0001"}}
+{"timestamp":"2026-02-10T00:04:51.578Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:09:51.684Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:14:51.704Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:19:51.716Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:24:51.562Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:24:51.600Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:29:51.732Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:34:51.698Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:36:50.460Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-10T00:36:50.521Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-10T00:37:03.055Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T00:37:03.065Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T00:37:03.140Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-10T00:37:03.526Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:37:03.531Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:37:15.153Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:37:15.185Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:37:33.010Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [MN0P220CA0004.NAMP220.PROD.OUTLOOK.COM 2026-02-10T00:37:26.573Z 08DE678DC69D4BF9]","to":"usermadison88@gmail.com","subject":"Ticket Resolved: TKT-2026-0002"}}
+{"timestamp":"2026-02-10T00:42:03.763Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:45:47.850Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:45:47.870Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:46:05.600Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-10T00:46:05.608Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-10T00:47:06.222Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T00:47:06.231Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T00:47:06.286Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-10T00:47:06.679Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:47:06.693Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:47:10.810Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:47:10.843Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:48:11.008Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:48:26.754Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:52:07.348Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:54:09.480Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-10T00:54:09.494Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-10T00:54:19.062Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T00:54:19.066Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T00:54:19.124Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-10T00:54:19.512Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:54:19.537Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:55:39.277Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:55:39.322Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:56:08.781Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [BLAPR03CA0148.namprd03.prod.outlook.com 2026-02-10T00:56:03.630Z 08DE67907A4BDAB5]","to":"jc.madison88@outlook.com","subject":"New Ticket: TKT-2026-0006"}}
+{"timestamp":"2026-02-10T00:56:09.760Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:58:09.623Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:58:09.704Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:58:50.100Z","level":"ERROR","message":"Failed to send email","data":{"error":"Invalid login: 535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Mailbox. Visit https://aka.ms/smtp_auth_disabled for more information. [BL1P221CA0041.NAMP221.PROD.OUTLOOK.COM 2026-02-10T00:58:50.304Z 08DE67AD5BBDDBE7]","to":"jc.madison88@outlook.com","subject":"New Ticket: TKT-2026-0007"}}
+{"timestamp":"2026-02-10T00:58:51.166Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T00:58:51.185Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:04:19.854Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:09:19.818Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:14:19.805Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:19:18.781Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:24:18.733Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:25:46.823Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-10T01:25:46.836Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-10T01:25:56.606Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-10T01:25:56.615Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-10T01:25:56.636Z","level":"ERROR","message":"Database connection test failed:","data":{}}
+{"timestamp":"2026-02-10T01:25:57.140Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:25:57.157Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:26:28.360Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:27:03.799Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:27:03.802Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:27:03.834Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:28:48.816Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:28:48.836Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:28:48.845Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:30:57.314Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:35:57.304Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:40:57.306Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:45:57.381Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:50:57.324Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T01:55:57.326Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-10T02:00:57.340Z","level":"INFO","message":"Database connection established"}

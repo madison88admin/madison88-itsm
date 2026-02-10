@@ -1,202 +1,284 @@
-# Madison88 ITSM - User Manual
+
+# Madison88 ITSM Platform
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Getting Started](#getting-started)
-3. [End User Guide](#end-user-guide)
-4. [IT Agent Guide](#it-agent-guide)
-5. [IT Manager Guide](#it-manager-guide)
-6. [Common Tasks](#common-tasks)
-7. [FAQ](#faq)
+- Introduction
+- Getting Started
+- End User Guide
+- IT Agent Guide
+- IT Manager Guide
+- Common Tasks
+- Frequently Asked Questions (FAQ)
+- Support
 
 ---
 
-## Introduction
+## 1. Introduction
 
-The Madison88 IT Service Management (ITSM) Platform is a centralized system for managing IT support tickets, service requests, and knowledge base articles across the organization. This guide covers all major features and how to use them effectively.
+The Madison88 IT Service Management (ITSM) Platform is a centralized system for managing IT support tickets, service requests, change requests, and knowledge base articles across the organization. It provides transparency, accountability, and faster resolution of IT issues.
+
+This user manual explains the platform’s core features and provides step-by-step instructions for end users, IT agents, and IT managers.
 
 ### Key Benefits
 
-- **Centralized Ticketing**: No more scattered emails
-- **SLA Management**: Automatic tracking of response and resolution times
-- **Knowledge Base**: Self-service problem resolution
-- **Real-time Updates**: Instant notifications
-- **Mobile Friendly**: Access from any device
-- **Comprehensive Reporting**: Visibility into IT operations
+- Centralized Ticketing – One platform for all IT requests
+- SLA Management – Automatic tracking of response and resolution times
+- Knowledge Base – Self-service solutions for common issues
+- Real-Time Updates – Notifications and live status tracking
+- Mobile-Friendly – Accessible from desktop, tablet, and mobile devices
+- Comprehensive Reporting – Clear visibility into IT performance
 
 ---
 
-## Getting Started
+## 2. Getting Started
 
-### Logging In
+### 2.1 Logging In
 
-1. Navigate to `https://itsm.madison88.com`
+1. Open your browser and go to https://itsm.madison88.com
 2. Enter your Madison88 email address
 3. Enter your password
-4. Click "Login"
+4. Click Login
 
-### First-Time Setup
+### 2.2 First-Time Setup
 
-**For New Users:**
+**For All Users:**
 
-1. Update your profile with phone number and location
-2. Set your notification preferences
-3. Bookmark the platform for quick access
+- Update your profile information (phone number and location)
+- Configure notification preferences
+- Bookmark the platform for quick access
 
 **For IT Agents:**
 
-1. Review team assignments
-2. Set up your queue preferences
-3. Configure email notification rules
+- Review your team and role assignments
+- Configure personal queue filters
+- Set up email or in-app notification rules
 
 ---
 
-## End User Guide
+## 3. End User Guide
 
-### Creating a Ticket
+### 3.1 Creating a Ticket
 
-1. Open the left menu and click **"New Ticket"**
-2. (Optional) Select a **Template** to prefill common fields
-3. Fill in the required fields:
-   - **Category**: Hardware, Software, Access Request, Account Creation, Network, or Other
-   - **Title**: Brief summary of the issue
-   - **Description**: Detailed explanation of the problem
-   - **Business Impact**: How this affects your work
-   - **Location**: Philippines, US, Indonesia, or Other
-   - **Priority (optional)**: Leave as Auto if unsure
-   - **Attachments**: Add screenshots or files (optional)
+1. Open the left navigation menu
+2. Click New Ticket
+3. (Optional) Select a Ticket Template to prefill common fields
+4. Complete the required information:
+   - Category: Hardware, Software, Access Request, Account Creation, Network, or Other
+   - Title: Short summary of the issue
+   - Description: Detailed explanation of the problem
+   - Business Impact: How the issue affects your work
+   - Location: Philippines, US, Indonesia, or Other
+   - Priority (optional): Leave as Auto if unsure
+   - Attachments (optional): Screenshots or supporting files
+5. Click Submit
 
-4. Click **"Submit"**
+**Note:** If priority is left as Auto, the system calculates it based on impact and urgency.
 
-**Note:** If Priority is left blank, the system automatically calculates it.
+### 3.2 Tracking Your Tickets
 
-### Tracking Your Tickets
+1. Click Tickets from the menu
+2. View ticket status, assigned agent, and SLA countdown
+3. Click a ticket to open its detailed view
 
-1. Click **"Tickets"** from the menu
-2. View ticket status, assignee, and SLA countdown
-3. Click a ticket to see details
+### 3.3 Communicating on Tickets
 
-### Communicating on Tickets
+1. Open the ticket
+2. Scroll to the Comments section
+3. Enter your message
+4. Click Post Comment
 
-1. Open your ticket
-2. Scroll to the **"Comments"** section
-3. Type your message in the text box
-4. Click **"Post Comment"**
+**Tip:** Check your ticket regularly for agent updates or requests for information.
 
-**Tip:** Check the ticket details page regularly for agent responses.
+### 3.4 Uploading Attachments
 
-### Uploading Attachments
+1. Open the ticket detail page
+2. Locate the Attachments section
+3. Click Add Attachment
+4. Select a file (maximum 10 MB per file, 50 MB total)
+5. Supported file types: PDF, PNG, JPG, XLSX, DOCX, MSG
+6. Click Upload
 
-1. In the ticket detail view, find the **"Attachments"** section
-2. Click **"Add Attachment"**
-3. Select a file (max 10MB per file, 50MB total)
-4. Supported types: PDF, PNG, JPG, XLSX, DOCX, MSG
-5. Click **"Upload"**
+### 3.5 Using the Knowledge Base
 
-### Searching the Knowledge Base
-
-1. Click **"Knowledge Base"** from the menu
-2. Use the search box to find articles
-3. Filter by category if needed
-4. Click on an article to read
-
----
-
-## SLA Countdown and Alerts
-
-- **SLA Countdown** appears on each ticket card and detail view
-- **Warning** badge shows when the ticket is close to breach
-- **Breached** badge shows when the SLA time has passed
-- If configured, the system can auto-escalate near breach
+1. Click Knowledge Base from the menu
+2. Use the search bar to find relevant articles
+3. Apply category filters if needed
+4. Open an article to view the solution
 
 ---
 
-## IT Agent Guide
+## 4. SLA Countdown and Alerts
 
-### Viewing Your Queue
+- SLA countdown timers appear on ticket cards and detail pages
+- Warning indicators appear when a ticket is close to breaching SLA
+- Breached indicators appear when SLA time is exceeded
+- Automatic escalation may occur if configured
 
-1. Click **"Tickets"** to see tickets assigned to you
-2. Filter by status (New, In Progress, Pending, etc.)
-3. Sort by priority, date, or SLA due date
+---
 
-### Accepting & Assigning Tickets
+## 5. IT Agent Guide
 
-1. Go to **"Team Queue"** to view unassigned tickets
-2. Click a ticket to review details
-3. Managers/Admins can assign tickets to agents
+### 5.1 Viewing Your Ticket Queue
+
+1. Click Tickets to view tickets assigned to you
+2. Filter by status (New, In Progress, Pending, Resolved)
+3. Sort by priority, creation date, or SLA due time
+
+### 5.2 Accepting and Assigning Tickets
+
+1. Open Team Queue to view unassigned tickets
+2. Select a ticket to review details
+3. Managers or Admins assign tickets to agents
 
 **SLA Indicators:**
 
-- 🟢 Green: On track (< 80% time used)
-- 🟡 Yellow: Warning (80-100% time used)
-- 🔴 Red: Breached (time exceeded)
+- 🟢 Green – On track (less than 80% of SLA used)
+- 🟡 Yellow – Warning (80–100% of SLA used)
+- 🔴 Red – Breached (SLA exceeded)
 
-### Updating Ticket Status
-
-1. Open the ticket
-2. Click the **"Status"** dropdown
-3. Select new status:
-   - **New**: Initial state
-   - **In Progress**: Currently working on it
-   - **Pending**: Waiting for user response
-   - **Resolved**: Issue is fixed, awaiting user confirmation
-   - **Closed**: Ticket complete
-
-4. Click **"Save"**
-
-**Resolution Requirement:**
-
-When setting **Resolved** or **Closed**, fill in:
-- **Resolution Summary**
-- **Resolution Category**
-- **Root Cause**
-
-### Adding Internal Notes
+### 5.3 Updating Ticket Status
 
 1. Open the ticket
-2. Scroll to **"Comments"** section
-3. Check **"Internal Only"** checkbox
-4. Type your note
-5. Click **"Post Comment"**
+2. Select a new value from the Status dropdown:
+   - New – Ticket just created
+   - In Progress – Actively being worked on
+   - Pending – Waiting for user or third-party input
+   - Resolved – Issue fixed, awaiting confirmation
+   - Closed – Ticket fully completed
+3. Click Save
 
-**Note:** Internal notes are not visible to end users.
+**Required When Resolving or Closing:**
 
-### Adding Public Comments
+- Resolution Summary
+- Resolution Category
+- Root Cause
 
-1. Open the ticket
-2. Scroll to **"Comments"** section
-3. Leave **"Internal Only"** unchecked
-4. Type your response
-5. Click **"Post Comment"**
+### 5.4 Internal vs Public Comments
 
-The end user will be notified of your response.
-
-### Priority Changes
-
-- **Agents cannot change priority directly.**
-- Managers can **request a priority override**.
-- Admins can **approve and apply** priority overrides.
-
-### Escalating Tickets
-
-1. Click **"Escalate"** button
-2. Select escalation reason
-3. Add notes
-4. Click **"Escalate to Manager"**
-
-Your manager will be notified and can take over the ticket.
-
-### Converting to Change Request
+**Internal Notes:**
 
 1. Open the ticket
-2. Click **"Create Change Request"** button
-3. Fill in change details
-4. Click **"Create"**
+2. In the Comments section, check Internal Only
+3. Add notes for internal use
 
-The change request will require approval before implementation.
+**Public Comments:**
 
-### SLA Tracking
+1. Leave Internal Only unchecked
+2. End users will be notified of your response
+
+### 5.5 Priority Changes and Escalation
+
+- Agents cannot directly change ticket priority
+- Managers may request priority overrides
+- Admins approve and apply priority changes
+
+**Escalating a Ticket:**
+
+1. Click Escalate
+2. Select the escalation reason
+3. Add supporting notes
+4. Click Escalate to Manager
+
+### 5.6 Change Requests
+
+1. Open the ticket
+2. Click Create Change Request
+3. Enter change details
+4. Submit for approval
+
+---
+
+## 6. IT Manager Guide
+
+### 6.1 Dashboard Overview
+
+The Dashboard provides visibility into:
+
+- SLA compliance
+- Ticket volume and trends
+- Agent performance
+- Aging tickets (7, 14, and 30+ days)
+
+### 6.2 Ticket and Team Management
+
+1. View all tickets using Tickets or Team Queue
+2. Filter by status, priority, category, location, or date range
+3. Use bulk assignment to assign multiple tickets at once
+
+### 6.3 Change Management
+
+1. Click Changes
+2. Review pending change requests
+3. Approve or request changes
+4. Monitor approved changes during implementation
+
+### 6.4 SLA Rule Management
+
+1. Navigate to Admin → SLA Rules
+2. Review response and resolution timelines
+3. Adjust escalation thresholds if required
+4. Save changes
+
+### 6.5 Reporting and Exporting
+
+**Available Reports:**
+
+- SLA Compliance
+- Ticket Volume
+- Team Performance
+- Aging Tickets
+
+**Export Options:**
+
+1. Open a report or dashboard
+2. Click Export
+3. Choose CSV or JSON
+4. Select a date range
+5. Download the file
+
+### 6.6 User Administration
+
+1. Go to Admin → Users
+2. View and edit user profiles
+3. Assign roles: End User, IT Agent, IT Manager, Admin
+4. Update department, location, or active status
+
+---
+
+## 7. Common Tasks
+
+**Task 1: Handling a Critical System Outage (P1)**
+
+- Ticket auto-classified as P1
+- SLA: 1-hour response, 4-hour resolution
+- Immediate routing and escalation
+- Real-time updates to stakeholders
+
+**Task 2: Bulk Assigning Tickets**
+
+1. Open Team Queue
+2. Filter for unassigned tickets
+3. Select multiple tickets
+4. Assign to an agent using bulk actions
+
+**Task 3: Preventing SLA Breaches**
+
+- Monitor SLA warnings
+- Update ticket progress regularly
+- Escalate blockers early
+
+**Task 4: Knowledge Base Self-Service**
+
+1. Search for solutions
+2. Follow step-by-step articles
+3. Resolve issues without creating tickets
+
+---
+
+## 8. Frequently Asked Questions (FAQ)
+
+Detailed answers to common questions about ticket status, priorities, attachments, SLAs, and mobile access.
 
 **Understanding SLA:**
 

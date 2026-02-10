@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import apiClient from "../api/client";
+import { hasMinLength, isBlank } from "../utils/validation";
 
 const KnowledgeBaseEditor = () => {
   const [form, setForm] = useState({
@@ -16,6 +17,18 @@ const KnowledgeBaseEditor = () => {
     event.preventDefault();
     setMessage("");
     setError("");
+    if (!hasMinLength(form.title, 5)) {
+      setError("Title must be at least 5 characters.");
+      return;
+    }
+    if (isBlank(form.category) || !hasMinLength(form.category, 2)) {
+      setError("Category must be at least 2 characters.");
+      return;
+    }
+    if (!hasMinLength(form.content, 20)) {
+      setError("Content must be at least 20 characters.");
+      return;
+    }
     try {
       const res = await apiClient.post("/kb/articles", form);
       if (res.data.status === "success") {
