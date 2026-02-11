@@ -161,8 +161,8 @@ const TicketsModel = {
     values.push(pagination.limit, offset);
     const orderBy = [
       "(EXISTS (SELECT 1 FROM ticket_escalations e WHERE e.ticket_id = tickets.ticket_id) OR (tickets.sla_due_date IS NOT NULL AND tickets.created_at IS NOT NULL AND tickets.status NOT IN ('Resolved','Closed') AND (EXTRACT(EPOCH FROM (NOW() - tickets.created_at)) / NULLIF(EXTRACT(EPOCH FROM (tickets.sla_due_date - tickets.created_at)), 0) * 100) >= 80)) DESC NULLS LAST",
-      "CASE tickets.priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END ASC",
       "(tickets.sla_breached = true OR (tickets.sla_due_date IS NOT NULL AND tickets.sla_due_date < NOW() AND tickets.status NOT IN ('Resolved','Closed'))) DESC NULLS LAST",
+      "CASE tickets.priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 WHEN 'P3' THEN 3 WHEN 'P4' THEN 4 ELSE 5 END ASC",
       'tickets.created_at DESC',
     ].join(', ');
     const result = await db.query(

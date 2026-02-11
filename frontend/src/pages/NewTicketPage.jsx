@@ -48,6 +48,7 @@ const NewTicketPage = ({ onCreated }) => {
   const [duplicateConflict, setDuplicateConflict] = useState(null);
   const confirmDuplicateRef = useRef(false);
   const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [form, setForm] = useState({
     title: "",
@@ -77,11 +78,14 @@ const NewTicketPage = ({ onCreated }) => {
     };
 
     const loadTemplates = async () => {
+      setTemplatesLoading(true);
       try {
         const res = await apiClient.get("/ticket-templates");
-        setTemplates(res.data.data.templates || []);
+        setTemplates(res.data.data?.templates || []);
       } catch (err) {
         setTemplates([]);
+      } finally {
+        setTemplatesLoading(false);
       }
     };
 
@@ -89,31 +93,61 @@ const NewTicketPage = ({ onCreated }) => {
     loadTemplates();
   }, []);
 
-  useEffect(() => {
-    if (!selectedTemplateId) return;
-    const template = templates.find(
-      (item) => item.template_id === selectedTemplateId,
-    );
+  const applyTemplate = React.useCallback((template) => {
     if (!template) return;
+    // Apply ALL template values IMMEDIATELY - use functional update to preserve other fields
     setForm((prev) => ({
       ...prev,
-      title: template.title || prev.title,
-      category: template.category || prev.category,
-      description: template.description || prev.description,
-      business_impact: template.business_impact || prev.business_impact,
-      priority: template.priority || prev.priority,
+      title: template.title || "",
+      category: template.category || "",
+      description: template.description || "",
+      business_impact: template.business_impact || "",
+      priority: template.priority || "",
     }));
-  }, [selectedTemplateId, templates]);
+    
+    // Show instant success feedback
+    const filledFields = [];
+    if (template.title) filledFields.push("Title");
+    if (template.category) filledFields.push("Category");
+    if (template.priority) filledFields.push("Priority");
+    if (template.description) filledFields.push("Description");
+    if (template.business_impact) filledFields.push("Business Impact");
+    
+    if (filledFields.length > 0) {
+      setSuccess(`✓ Template "${template.name}" applied! Fields filled: ${filledFields.join(", ")}`);
+      setTimeout(() => setSuccess(""), 3000);
+    }
+  }, []);
+
+  // Safety net: Apply template when templates load if one was already selected
+  // (Edge case: user selects template before templates finish loading)
+  useEffect(() => {
+    if (!selectedTemplateId || templates.length === 0) return;
+    const template = templates.find(
+      (item) => String(item.template_id) === String(selectedTemplateId),
+    );
+    if (template) {
+      // Only apply if form doesn't match template (templates just loaded)
+      const needsApply = 
+        form.title !== (template.title || "") || 
+        form.category !== (template.category || "");
+      if (needsApply) {
+        applyTemplate(template);
+      }
+    }
+  }, [templates]); // Trigger when templates array is populated
 
   const validateIssueDetails = () => {
     const title = form.title.trim();
     const descriptionText = stripHtml(form.description);
-    if (!hasMinLength(title, 5)) return "Ticket title must be at least 5 characters.";
+    const missing = [];
+    if (!hasMinLength(title, 5)) missing.push("Ticket title (at least 5 characters)");
     if (!hasMaxLength(title, 255)) return "Ticket title must be 255 characters or less.";
-    if (isBlank(form.category)) return "Category is required.";
-    if (isBlank(form.location)) return "Location is required.";
-    if (!hasMinLength(descriptionText, 10)) {
-      return "Description must be at least 10 characters.";
+    if (isBlank(form.category)) missing.push("Category");
+    if (isBlank(form.location)) missing.push("Location");
+    if (!hasMinLength(descriptionText, 10)) missing.push("Description (at least 10 characters)");
+    if (missing.length > 0) {
+      return `Please fill in: ${missing.join(", ")}`;
     }
     return "";
   };
@@ -293,6 +327,23 @@ const NewTicketPage = ({ onCreated }) => {
           )}
         </div>
       )}
+      {step === 0 && selectedTemplateId && !validateStep() && (
+        <div className="panel" style={{ background: "#1a3a5c", border: "1px solid #3a5a7a", padding: "12px", borderRadius: "4px", marginBottom: "16px" }}>
+          <strong style={{ color: "#ffd700" }}>⚠ Missing required fields:</strong>
+          <div style={{ marginTop: "8px", fontSize: "14px" }}>
+            {(() => {
+              const validationMsg = validateIssueDetails();
+              if (validationMsg) {
+                return <span style={{ color: "#ffd700" }}>{validationMsg}</span>;
+              }
+              return null;
+            })()}
+          </div>
+          <div style={{ marginTop: "8px", fontSize: "12px", color: "#a0c0e0" }}>
+            Template applied. Please fill in the missing fields above to continue.
+          </div>
+        </div>
+      )}
       {success && (
         <div className="panel success">
           {success}
@@ -316,15 +367,57 @@ const NewTicketPage = ({ onCreated }) => {
             <span>Template (optional)</span>
             <select
               value={selectedTemplateId}
-              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedTemplateId(id);
+                setError(""); // Clear any previous errors
+                
+                // Apply template IMMEDIATELY when selected
+                if (id) {
+                  const template = templates.find(
+                    (t) => String(t.template_id) === String(id),
+                  );
+                  if (template) {
+                    // Apply template synchronously - no delay
+                    applyTemplate(template);
+                  } else {
+                    setError("Template not found. Please refresh the page.");
+                  }
+                } else {
+                  // Clear success message when deselected
+                  setSuccess("");
+                }
+              }}
+              disabled={templatesLoading}
             >
-              <option value="">Select template</option>
+              <option value="">
+                {templatesLoading ? "Loading templates..." : "Select template"}
+              </option>
               {templates.map((template) => (
                 <option key={template.template_id} value={template.template_id}>
                   {template.name}
+                  {template.category ? ` (${template.category})` : ""}
                 </option>
               ))}
             </select>
+            {selectedTemplateId && (() => {
+              const selectedTemplate = templates.find(
+                (t) => String(t.template_id) === String(selectedTemplateId),
+              );
+              if (!selectedTemplate) return null;
+              const filled = [];
+              if (selectedTemplate.title) filled.push("Title");
+              if (selectedTemplate.category) filled.push("Category");
+              if (selectedTemplate.priority) filled.push("Priority");
+              if (selectedTemplate.description) filled.push("Description");
+              if (selectedTemplate.business_impact) filled.push("Business Impact");
+              return (
+                <small className="muted" style={{ color: "#4ade80", fontWeight: "500" }}>
+                  ✓ Template applied: {filled.length > 0 ? filled.join(", ") : "No fields to fill"} 
+                  {filled.length > 0 && " - You can edit any field"}
+                </small>
+              );
+            })()}
           </label>
           <label className="field">
             <span>Ticket Title</span>
@@ -499,7 +592,6 @@ const NewTicketPage = ({ onCreated }) => {
           <button
             className="btn primary"
             type="button"
-            disabled={!validateStep()}
             onClick={() => {
               const validationMessage =
                 step === 0 ? validateIssueDetails() : validateImpact();
@@ -510,6 +602,11 @@ const NewTicketPage = ({ onCreated }) => {
               setError("");
               setStep(step + 1);
             }}
+            style={{
+              opacity: !validateStep() ? 0.6 : 1,
+              cursor: !validateStep() ? "not-allowed" : "pointer",
+            }}
+            title={!validateStep() ? (step === 0 ? validateIssueDetails() || "Please fill all required fields" : validateImpact() || "Please fill all required fields") : ""}
           >
             Next
           </button>

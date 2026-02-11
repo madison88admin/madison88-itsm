@@ -136,6 +136,14 @@ const AssetsModel = {
     );
     return result.rows[0];
   },
+
+  async touchAsset(assetId) {
+    const result = await db.query(
+      'UPDATE it_assets SET updated_at = NOW() WHERE asset_id = $1 RETURNING asset_id',
+      [assetId]
+    );
+    return result.rows[0];
+  },
 };
 
 module.exports = AssetsModel;

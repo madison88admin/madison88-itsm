@@ -376,7 +376,7 @@ const TicketsPage = ({
         />
       </div>
       <div className="pagination-info">
-        Showing {displayedTickets.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + displayedTickets.length} of {total} tickets (by priority: Escalated → P1 → P2 → P3 → P4, then SLA breach, then newest).
+        Showing {displayedTickets.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + displayedTickets.length} of {total} tickets (order: Escalated → SLA Breached → P1 → P2 → P3 → P4 → Newest).
       </div>
       {canBulkAssign && (
         <div className="bulk-assign-bar">

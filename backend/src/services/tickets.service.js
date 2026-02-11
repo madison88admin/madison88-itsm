@@ -297,7 +297,7 @@ const TicketsService = {
       });
     }
 
-    const possible_duplicates = await TicketsModel.findPotentialDuplicates({
+    const similarTickets = await TicketsModel.findPotentialDuplicates({
       title: value.title,
       description: value.description,
       excludeTicketId: ticket.ticket_id,
@@ -329,7 +329,7 @@ const TicketsService = {
       }
     }
 
-    return { ticket, possible_duplicates };
+    return { ticket, possible_duplicates: similarTickets };
   },
 
   async createTicketWithAttachments({ payload, files, user, meta }) {
@@ -474,7 +474,7 @@ const TicketsService = {
       }
     }
 
-    const possible_duplicates = await TicketsModel.findPotentialDuplicates({
+    const similarTickets = await TicketsModel.findPotentialDuplicates({
       title: value.title,
       description: value.description,
       excludeTicketId: ticket.ticket_id,
@@ -506,7 +506,7 @@ const TicketsService = {
       }
     }
 
-    return { ticket, possible_duplicates };
+    return { ticket, possible_duplicates: similarTickets };
   },
 
   async listTickets({ query, user }) {
@@ -696,6 +696,17 @@ const TicketsService = {
     }
 
     const updated = await TicketsModel.updateTicket(ticketId, value);
+
+    if (statusChanged && ['Resolved', 'Closed'].includes(value.status)) {
+      try {
+        const linkedAssets = await AssetsModel.listTicketAssets(ticketId);
+        for (const asset of linkedAssets) {
+          await AssetsModel.touchAsset(asset.asset_id);
+        }
+      } catch (err) {
+        // non-fatal: ticket is already updated
+      }
+    }
 
     if (assignedChanged && value.assigned_to) {
       const assignee = await UserModel.findById(value.assigned_to);
@@ -964,20 +975,20 @@ const TicketsService = {
   },
 
   async listPriorityOverrideRequests({ ticketId, user }) {
-    if (!['it_manager', 'system_admin'].includes(user.role)) throw new Error('Forbidden');
+    if (!['it_manager', 'system_admin'].includes(user.role)) throw new AppError('Forbidden', 403);
     return PriorityOverrideModel.listByTicket(ticketId);
   },
 
   async requestPriorityOverride({ ticketId, payload, user, meta }) {
-    if (!['it_manager', 'system_admin'].includes(user.role)) throw new Error('Forbidden');
+    if (!['it_manager', 'system_admin'].includes(user.role)) throw new AppError('Forbidden', 403);
     const { error, value } = priorityOverrideSchema.validate(payload, { abortEarly: false });
-    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+    if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
 
     const ticket = await TicketsModel.getTicketById(ticketId);
-    if (!ticket) throw new Error('Ticket not found');
+    if (!ticket) throw new AppError('Ticket not found', 404);
 
     const pending = await PriorityOverrideModel.getPendingByTicket(ticketId);
-    if (pending) throw new Error('Pending priority override request already exists');
+    if (pending) throw new AppError('Pending priority override request already exists', 409);
 
     const request = await PriorityOverrideModel.createRequest({
       ticket_id: ticketId,
@@ -1029,17 +1040,17 @@ const TicketsService = {
   },
 
   async reviewPriorityOverride({ ticketId, requestId, payload, user, meta }) {
-    if (user.role !== 'system_admin') throw new Error('Forbidden');
+    if (user.role !== 'system_admin') throw new AppError('Forbidden', 403);
     const schema = Joi.object({ status: Joi.string().valid('approved', 'rejected').required() });
     const { error, value } = schema.validate(payload, { abortEarly: false });
-    if (error) throw new Error(error.details.map((d) => d.message).join(', '));
+    if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
 
     const ticket = await TicketsModel.getTicketById(ticketId);
-    if (!ticket) throw new Error('Ticket not found');
+    if (!ticket) throw new AppError('Ticket not found', 404);
 
     const request = await PriorityOverrideModel.getRequestById(requestId);
-    if (!request || request.ticket_id !== ticketId) throw new Error('Request not found');
-    if (request.status !== 'pending') throw new Error('Request already processed');
+    if (!request || request.ticket_id !== ticketId) throw new AppError('Request not found', 404);
+    if (request.status !== 'pending') throw new AppError('Request already processed', 409);
 
     const updatedRequest = await PriorityOverrideModel.updateRequest(requestId, {
       status: value.status,
@@ -1221,6 +1232,14 @@ const TicketsService = {
         user_agent: 'system',
         session_id: null,
       });
+
+      const now = new Date();
+      const breachUpdates = {};
+      if (ticket.sla_response_due && new Date(ticket.sla_response_due) < now) breachUpdates.sla_response_breached = true;
+      if (ticket.sla_due_date && new Date(ticket.sla_due_date) < now) breachUpdates.sla_breached = true;
+      if (Object.keys(breachUpdates).length) {
+        await TicketsModel.updateTicket(ticket.ticket_id, breachUpdates);
+      }
 
       results.push({ ticket_id: ticket.ticket_id, escalation_id: escalation.escalation_id });
     }
