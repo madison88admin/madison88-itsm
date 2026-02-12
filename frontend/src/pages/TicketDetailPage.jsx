@@ -53,6 +53,7 @@ const TicketDetailPage = ({
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editImpact, setEditImpact] = useState("");
+  const [resolutionPhoto, setResolutionPhoto] = useState(null);
 
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
@@ -61,6 +62,7 @@ const TicketDetailPage = ({
   const canAddInternal = ["it_agent", "it_manager", "system_admin"].includes(
     user?.role,
   );
+  const canAttachResolutionPhoto = canAddInternal;
   const canAssign = isManager || isAdmin;
   const canOverridePriority = isAdmin;
   const canRequestPriorityOverride = isManager;
@@ -235,8 +237,14 @@ const TicketDetailPage = ({
     if (Object.keys(payload).length === 0) return;
     setSaving(true);
     const nextStatus = status;
+    const photoToUpload = resolutionPhoto;
     try {
       await apiClient.patch(`/tickets/${ticketId}`, payload);
+      if (isResolving && photoToUpload) {
+        const formData = new FormData();
+        formData.append("files", photoToUpload);
+        await apiClient.post(`/tickets/${ticketId}/attachments`, formData);
+      }
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
       setTicket(ticketRes.data.data.ticket);
       setStatus(ticketRes.data.data.ticket?.status || "");
@@ -251,6 +259,7 @@ const TicketDetailPage = ({
       );
       setRootCause(ticketRes.data.data.ticket?.root_cause || "");
       setStatusChangeReason("");
+      setResolutionPhoto(null);
       setAttachments(ticketRes.data.data.attachments || []);
       const historyRes = await apiClient.get(
         `/tickets/${ticketId}/status-history`,
@@ -650,6 +659,40 @@ const TicketDetailPage = ({
                   placeholder="Root cause of the issue"
                 />
               </label>
+              {canAttachResolutionPhoto && (
+                <label className="field">
+                  <span>Resolution Attachment (optional, max 10MB)</span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && file.size > 10 * 1024 * 1024) {
+                        setError("File must be 10MB or less.");
+                        setResolutionPhoto(null);
+                        e.target.value = "";
+                        return;
+                      }
+                      setError("");
+                      setResolutionPhoto(file || null);
+                    }}
+                  />
+                  {resolutionPhoto && (
+                    <div className="attachment-actions" style={{ marginTop: 6 }}>
+                      <span className="muted">
+                        {resolutionPhoto.name} ({(resolutionPhoto.size / 1024).toFixed(1)} KB)
+                      </span>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ marginLeft: 8, padding: "2px 8px" }}
+                        onClick={() => setResolutionPhoto(null)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </label>
+              )}
             </>
           )}
           <button

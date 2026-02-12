@@ -27,16 +27,6 @@ const ticketTypes = [
   { value: "request", label: "Request" },
 ];
 
-const allowedExtensions = [
-  ".pdf",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".xlsx",
-  ".docx",
-  ".msg",
-];
-
 const NewTicketPage = ({ onCreated }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -169,11 +159,6 @@ const NewTicketPage = ({ onCreated }) => {
     const selected = Array.from(event.target.files || []);
     const valid = [];
     for (const file of selected) {
-      const ext = `.${file.name.split(".").pop()}`.toLowerCase();
-      if (!allowedExtensions.includes(ext)) {
-        setError(`Unsupported file type: ${file.name}`);
-        continue;
-      }
       if (file.size > 10 * 1024 * 1024) {
         setError(`File too large (10MB max): ${file.name}`);
         continue;
@@ -547,8 +532,7 @@ const NewTicketPage = ({ onCreated }) => {
             <span>Attachments (optional)</span>
             <input type="file" multiple onChange={handleFileChange} />
             <small>
-              Max 10MB each, 50MB total. Supported:{" "}
-              {allowedExtensions.join(", ")}
+              Any file type. Max 10MB each, 50MB total.
             </small>
           </label>
           <div className="attachment-list">
