@@ -116,6 +116,47 @@ const ChangeModel = {
     );
     return result.rows;
   },
+
+  async listChangesOverlapping({ from, to }) {
+    const result = await db.query(
+      `SELECT change_id, change_number, title, description, change_window_start, change_window_end
+       FROM change_requests
+       WHERE status = 'scheduled'
+         AND change_window_start IS NOT NULL
+         AND change_window_end IS NOT NULL
+         AND change_window_start < $2
+         AND change_window_end > $1
+       ORDER BY change_window_start ASC`,
+      [from, to]
+    );
+    return result.rows;
+  },
+
+  async findConflictingChanges({ from, to, affectedSystemsStr, excludeChangeId }) {
+    const values = [from, to];
+    if (excludeChangeId) values.push(excludeChangeId);
+    const result = await db.query(
+      `SELECT change_id, change_number, title, affected_systems, change_window_start, change_window_end
+       FROM change_requests
+       WHERE status IN ('scheduled', 'approved', 'submitted')
+         AND change_window_start IS NOT NULL
+         AND change_window_end IS NOT NULL
+         AND (change_window_start < $2 AND change_window_end > $1)
+         ${excludeChangeId ? 'AND change_id != $3' : ''}`,
+      values
+    );
+    const normalize = (str) =>
+      (str || '')
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+    const ourSystems = new Set(normalize(affectedSystemsStr));
+    if (ourSystems.size === 0) return [];
+    return result.rows.filter((row) => {
+      const theirSystems = normalize(row.affected_systems);
+      return theirSystems.some((s) => ourSystems.has(s));
+    });
+  },
 };
 
 module.exports = ChangeModel;

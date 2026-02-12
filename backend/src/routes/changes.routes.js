@@ -52,6 +52,24 @@ router.get('/', authenticate, authorize(['it_manager', 'system_admin', 'it_agent
   }
 });
 
+router.get('/check-conflicts', authenticate, authorize(['it_manager', 'system_admin', 'it_agent']), async (req, res, next) => {
+  try {
+    const { from, to, affected_systems, exclude_change_id } = req.query;
+    if (!from || !to || !affected_systems) {
+      return res.json({ status: 'success', data: { conflicts: [] } });
+    }
+    const conflicts = await ChangeModel.findConflictingChanges({
+      from,
+      to,
+      affectedSystemsStr: affected_systems,
+      excludeChangeId: exclude_change_id || null,
+    });
+    res.json({ status: 'success', data: { conflicts } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', authenticate, authorize(['it_manager', 'system_admin', 'it_agent']), async (req, res, next) => {
   try {
     const change = await ChangeModel.getChangeById(req.params.id);
@@ -163,7 +181,9 @@ router.get('/:id/approvers', authenticate, authorize(['it_manager', 'system_admi
 router.get('/calendar/upcoming', authenticate, authorize(['it_manager', 'system_admin', 'it_agent']), async (req, res, next) => {
   try {
     const { from, to } = req.query;
-    const changes = await ChangeModel.listChanges({ status: 'scheduled', from, to });
+    const changes = from && to
+      ? await ChangeModel.listChangesOverlapping({ from, to })
+      : await ChangeModel.listChanges({ status: 'scheduled' });
     res.json({ status: 'success', data: { changes } });
   } catch (err) {
     next(err);

@@ -1,6 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import apiClient from "../api/client";
 import { hasMinLength, isDateRangeValid } from "../utils/validation";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  addMonths,
+  subMonths,
+  isSameMonth,
+  parseISO,
+  isWithinInterval,
+} from "date-fns";
 
 const changeTypes = ["standard", "normal", "emergency"];
 const riskLevels = ["low", "medium", "high", "critical"];
@@ -14,6 +27,42 @@ const statusOptions = [
   "rejected",
 ];
 
+const CHANGE_TEMPLATES = [
+  {
+    id: "security-patch",
+    name: "Security Patch",
+    change_type: "standard",
+    risk_assessment: "medium",
+    implementation_plan:
+      "1. Review patch release notes\n2. Test in staging environment\n3. Schedule maintenance window\n4. Apply patch\n5. Verify services",
+    rollback_plan:
+      "1. Revert patch via package manager\n2. Restart affected services\n3. Verify rollback success",
+    affected_systems: "",
+  },
+  {
+    id: "server-upgrade",
+    name: "Server Upgrade",
+    change_type: "normal",
+    risk_assessment: "high",
+    implementation_plan:
+      "1. Backup current configuration and data\n2. Schedule downtime window\n3. Perform upgrade\n4. Run post-upgrade validation\n5. Restore services",
+    rollback_plan:
+      "1. Restore from backup\n2. Revert to previous version\n3. Re-run validation tests",
+    affected_systems: "",
+  },
+  {
+    id: "config-change",
+    name: "Config Change",
+    change_type: "standard",
+    risk_assessment: "low",
+    implementation_plan:
+      "1. Document current config\n2. Apply configuration change\n3. Verify application of change\n4. Monitor for issues",
+    rollback_plan:
+      "1. Restore previous configuration from backup\n2. Restart affected service if needed",
+    affected_systems: "",
+  },
+];
+
 const ChangeManagementPage = ({ user }) => {
   const [changes, setChanges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +70,13 @@ const ChangeManagementPage = ({ user }) => {
   const [message, setMessage] = useState("");
   const [approversByChange, setApproversByChange] = useState({});
   const [approvalComments, setApprovalComments] = useState({});
+  const [expandedChangeId, setExpandedChangeId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [conflicts, setConflicts] = useState([]);
+  const [confirmSubmitWithConflict, setConfirmSubmitWithConflict] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [calendarChanges, setCalendarChanges] = useState([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -41,7 +97,8 @@ const ChangeManagementPage = ({ user }) => {
     setLoading(true);
     setError("");
     try {
-      const res = await apiClient.get("/changes");
+      const params = statusFilter ? { status: statusFilter } : {};
+      const res = await apiClient.get("/changes", { params });
       setChanges(res.data.data.changes || []);
       if (canManage) {
         const approvals = await Promise.all(
@@ -67,7 +124,74 @@ const ChangeManagementPage = ({ user }) => {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [statusFilter]);
+
+  const loadCalendarChanges = useCallback(async () => {
+    try {
+      const from = startOfMonth(calendarMonth).toISOString();
+      const to = endOfMonth(calendarMonth).toISOString();
+      const res = await apiClient.get("/changes/calendar/upcoming", {
+        params: { from, to },
+      });
+      setCalendarChanges(res.data.data.changes || []);
+    } catch (err) {
+      setCalendarChanges([]);
+    }
+  }, [calendarMonth]);
+
+  useEffect(() => {
+    loadCalendarChanges();
+  }, [loadCalendarChanges]);
+
+  useEffect(() => {
+    if (
+      !form.change_window_start ||
+      !form.change_window_end ||
+      !form.affected_systems?.trim()
+    ) {
+      setConflicts([]);
+      setConfirmSubmitWithConflict(false);
+      return;
+    }
+    if (!isDateRangeValid(form.change_window_start, form.change_window_end)) {
+      setConflicts([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get("/changes/check-conflicts", {
+          params: {
+            from: form.change_window_start,
+            to: form.change_window_end,
+            affected_systems: form.affected_systems,
+          },
+        });
+        setConflicts(res.data.data.conflicts || []);
+        setConfirmSubmitWithConflict(false);
+      } catch (err) {
+        setConflicts([]);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    form.change_window_start,
+    form.change_window_end,
+    form.affected_systems,
+  ]);
+
+  const applyTemplate = (templateId) => {
+    const template = CHANGE_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    setSelectedTemplate(templateId);
+    setForm((prev) => ({
+      ...prev,
+      change_type: template.change_type,
+      risk_assessment: template.risk_assessment,
+      implementation_plan: template.implementation_plan,
+      rollback_plan: template.rollback_plan,
+      affected_systems: template.affected_systems || prev.affected_systems,
+    }));
+  };
 
   const handleCreate = async (event) => {
     event.preventDefault();
@@ -83,6 +207,12 @@ const ChangeManagementPage = ({ user }) => {
     }
     if (!isDateRangeValid(form.change_window_start, form.change_window_end)) {
       setError("Change window end must be after start.");
+      return;
+    }
+    if (conflicts.length > 0 && !confirmSubmitWithConflict) {
+      setError(
+        "Scheduling conflict detected. Review overlapping changes below and confirm to submit anyway."
+      );
       return;
     }
     if (form.change_type === "emergency") {
@@ -113,7 +243,11 @@ const ChangeManagementPage = ({ user }) => {
         change_window_start: "",
         change_window_end: "",
       });
+      setSelectedTemplate("");
+      setConflicts([]);
+      setConfirmSubmitWithConflict(false);
       load();
+      loadCalendarChanges();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create change");
     }
@@ -163,6 +297,24 @@ const ChangeManagementPage = ({ user }) => {
         {message && <div className="panel success">{message}</div>}
         {error && <div className="panel error">{error}</div>}
         <form className="form-grid" onSubmit={handleCreate}>
+          <label className="field full">
+            <span>Use Template (optional)</span>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedTemplate(val);
+                applyTemplate(val);
+              }}
+            >
+              <option value="">— Select a template —</option>
+              {CHANGE_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="field full">
             <span>Title</span>
             <input
@@ -264,6 +416,36 @@ const ChangeManagementPage = ({ user }) => {
               placeholder="Rollback steps if the change fails."
             />
           </label>
+          {conflicts.length > 0 && (
+            <div className="field full change-conflicts">
+              <div className="panel error conflict-warning">
+                <strong>Scheduling conflict</strong>
+                <p>
+                  The following changes overlap with your window and affect the
+                  same systems:
+                </p>
+                <ul>
+                  {conflicts.map((c) => (
+                    <li key={c.change_id}>
+                      {c.change_number}: {c.title}
+                      {c.change_window_start &&
+                        ` (${format(parseISO(c.change_window_start), "MMM d, HH:mm")} – ${c.change_window_end ? format(parseISO(c.change_window_end), "MMM d, HH:mm") : "TBD"})`}
+                    </li>
+                  ))}
+                </ul>
+                <label className="inline-check">
+                  <input
+                    type="checkbox"
+                    checked={confirmSubmitWithConflict}
+                    onChange={(e) =>
+                      setConfirmSubmitWithConflict(e.target.checked)
+                    }
+                  />
+                  I acknowledge the conflict and want to submit anyway
+                </label>
+              </div>
+            </div>
+          )}
           <div className="field full">
             <button className="btn primary" type="submit">
               Submit Change
@@ -278,78 +460,160 @@ const ChangeManagementPage = ({ user }) => {
             <h2>Change Requests</h2>
             <p>Review submitted changes and manage approvals.</p>
           </div>
+          {canManage && (
+            <div className="change-filter">
+              <label>
+                <span className="sr-only">Filter by status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="change-status-select"
+                  title="Filter changes by status"
+                >
+                  <option value="">All statuses</option>
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
         </div>
         <div className="user-table">
           {changes.length === 0 && (
             <div className="empty-state">No change requests yet.</div>
           )}
           {changes.map((change) => (
-            <div key={change.change_id} className="user-row">
-              <div>
-                <strong>{change.title}</strong>
-                <p>
-                  {change.change_number} · {change.change_type} ·{" "}
-                  {change.risk_assessment}
-                </p>
-                {approversByChange[change.change_id]?.length > 0 && (
-                  <p className="muted">
-                    Approvals:{" "}
-                    {approversByChange[change.change_id]
-                      .map(
-                        (approver) =>
-                          `${approver.full_name || approver.user_id} (${approver.approval_status})`,
-                      )
-                      .join(", ")}
+            <div key={change.change_id} className="change-row">
+              <div
+                className={`user-row change-row-header ${expandedChangeId === change.change_id ? "expanded" : ""}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setExpandedChangeId(
+                  expandedChangeId === change.change_id ? null : change.change_id
+                )}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpandedChangeId(
+                      expandedChangeId === change.change_id ? null : change.change_id
+                    );
+                  }
+                }}
+                aria-expanded={expandedChangeId === change.change_id}
+                aria-label="Click to view details"
+              >
+                <div>
+                  <strong>{change.title}</strong>
+                  <p>
+                    {change.change_number} · {change.change_type} ·{" "}
+                    {change.risk_assessment}
                   </p>
-                )}
+                  {approversByChange[change.change_id]?.length > 0 && (
+                    <p className="muted">
+                      Approvals:{" "}
+                      {approversByChange[change.change_id]
+                        .map(
+                          (approver) =>
+                            `${approver.full_name || approver.user_id} (${approver.approval_status})`,
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
+                </div>
+                <div className="user-actions" onClick={(e) => e.stopPropagation()}>
+                  {canManage && change.status === "submitted" && (
+                    <>
+                      <input
+                        value={approvalComments[change.change_id] || ""}
+                        onChange={(e) =>
+                          setApprovalComments((prev) => ({
+                            ...prev,
+                            [change.change_id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Approval comment (optional)"
+                      />
+                      <button
+                        className="btn ghost"
+                        onClick={() =>
+                          handleApprove(change.change_id, "approved")
+                        }
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="btn ghost"
+                        onClick={() =>
+                          handleApprove(change.change_id, "rejected")
+                        }
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {canManage && change.status !== "rejected" ? (
+                    <label className="change-status-label">
+                      <span className="muted">Status:</span>
+                      <select
+                        value={change.status}
+                        onChange={(e) =>
+                          handleStatusUpdate(change.change_id, e.target.value)
+                        }
+                        className="change-status-select"
+                        title="Click to change status — advance workflow (scheduled → implemented → closed)"
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <span className={`badge badge-${change.status}`}>
+                      {change.status}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="user-actions">
-                <span className="badge">{change.status}</span>
-                {canManage && change.status === "submitted" && (
-                  <>
-                    <input
-                      value={approvalComments[change.change_id] || ""}
-                      onChange={(e) =>
-                        setApprovalComments((prev) => ({
-                          ...prev,
-                          [change.change_id]: e.target.value,
-                        }))
-                      }
-                      placeholder="Approval comment (optional)"
-                    />
-                    <button
-                      className="btn ghost"
-                      onClick={() =>
-                        handleApprove(change.change_id, "approved")
-                      }
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="btn ghost"
-                      onClick={() =>
-                        handleApprove(change.change_id, "rejected")
-                      }
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-                {canManage && change.status !== "rejected" && (
-                  <select
-                    value={change.status}
-                    onChange={(e) =>
-                      handleStatusUpdate(change.change_id, e.target.value)
-                    }
-                  >
-                    {statusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              {expandedChangeId === change.change_id && (
+                <div className="change-details">
+                  <div className="change-detail-section">
+                    <h4>Description</h4>
+                    <p>{change.description || "—"}</p>
+                  </div>
+                  {change.affected_systems && (
+                    <div className="change-detail-section">
+                      <h4>Affected Systems</h4>
+                      <p>{change.affected_systems}</p>
+                    </div>
+                  )}
+                  {change.implementation_plan && (
+                    <div className="change-detail-section">
+                      <h4>Implementation Plan</h4>
+                      <p>{change.implementation_plan}</p>
+                    </div>
+                  )}
+                  {change.rollback_plan && (
+                    <div className="change-detail-section">
+                      <h4>Rollback Plan</h4>
+                      <p>{change.rollback_plan}</p>
+                    </div>
+                  )}
+                  {change.change_window_start && (
+                    <div className="change-detail-section">
+                      <h4>Change Window</h4>
+                      <p>
+                        {new Date(change.change_window_start).toLocaleString()} –{" "}
+                        {change.change_window_end
+                          ? new Date(change.change_window_end).toLocaleString()
+                          : "TBD"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -361,33 +625,137 @@ const ChangeManagementPage = ({ user }) => {
             <h2>Change Calendar</h2>
             <p>Scheduled change windows for upcoming work.</p>
           </div>
+          <div className="calendar-nav">
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
+              aria-label="Previous month"
+            >
+              ←
+            </button>
+            <span className="calendar-month-label">
+              {format(calendarMonth, "MMMM yyyy")}
+            </span>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+              aria-label="Next month"
+            >
+              →
+            </button>
+          </div>
         </div>
-        <div className="user-table">
-          {changes.filter((c) => c.status === "scheduled").length === 0 && (
-            <div className="empty-state">No scheduled changes.</div>
-          )}
-          {changes
-            .filter((change) => change.status === "scheduled")
-            .map((change) => (
-              <div key={change.change_id} className="user-row">
-                <div>
-                  <strong>{change.title}</strong>
-                  <p>
-                    {change.change_window_start
-                      ? new Date(change.change_window_start).toLocaleString()
-                      : "TBD"}{" "}
-                    ·{" "}
-                    {change.change_window_end
-                      ? new Date(change.change_window_end).toLocaleString()
-                      : "TBD"}
-                  </p>
+        <div className="calendar-wrapper">
+        <div className="change-calendar-grid">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} className="calendar-weekday">
+              {d}
+            </div>
+          ))}
+          {(() => {
+            const monthStart = startOfMonth(calendarMonth);
+            const monthEnd = endOfMonth(calendarMonth);
+            const start = startOfWeek(monthStart);
+            const end = endOfWeek(monthEnd);
+            const days = [];
+            let day = start;
+            while (day <= end) {
+              days.push(day);
+              day = addDays(day, 1);
+            }
+            const getChangesForDay = (d) =>
+              calendarChanges.filter((c) => {
+                if (!c.change_window_start || !c.change_window_end) return false;
+                const startDate = parseISO(c.change_window_start);
+                const endDate = parseISO(c.change_window_end);
+                return isWithinInterval(d, {
+                  start: startDate,
+                  end: endDate,
+                });
+              });
+            return days.map((d) => {
+              const dayChanges = getChangesForDay(d);
+              const isCurrentMonth = isSameMonth(d, calendarMonth);
+              return (
+                <div
+                  key={d.toISOString()}
+                  className={`calendar-day ${!isCurrentMonth ? "other-month" : ""}`}
+                >
+                  <span className="calendar-day-num">{format(d, "d")}</span>
+                  <div className="calendar-day-events">
+                    {dayChanges.slice(0, 3).map((c) => (
+                      <div
+                        key={c.change_id}
+                        className="calendar-event"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          setExpandedChangeId(
+                            expandedChangeId === c.change_id ? null : c.change_id
+                          )
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setExpandedChangeId(
+                              expandedChangeId === c.change_id ? null : c.change_id
+                            );
+                          }
+                        }}
+                      title={`${c.change_number}: ${c.title}`}
+                      >
+                        {c.change_number}: {c.title}
+                      </div>
+                    ))}
+                    {dayChanges.length > 3 && (
+                      <div className="calendar-event-more">
+                        +{dayChanges.length - 3} more
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="user-actions">
-                  <span className="badge">{change.change_number}</span>
-                </div>
-              </div>
-            ))}
+              );
+            });
+          })()}
         </div>
+        </div>
+        {expandedChangeId && (
+          <div className="calendar-expanded-change">
+            {(() => {
+              const change = calendarChanges.find(
+                (c) => c.change_id === expandedChangeId
+              );
+              if (!change) return null;
+              return (
+                <div className="change-details">
+                  <h4>{change.title}</h4>
+                  <p className="muted">{change.change_number}</p>
+                  {change.change_window_start && (
+                    <p>
+                      {format(parseISO(change.change_window_start), "PPpp")} –{" "}
+                      {change.change_window_end
+                        ? format(parseISO(change.change_window_end), "PPpp")
+                        : "TBD"}
+                    </p>
+                  )}
+                  {change.description && <p>{change.description}</p>}
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => setExpandedChangeId(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        {calendarChanges.length === 0 && (
+          <div className="empty-state">No scheduled changes for this month.</div>
+        )}
       </div>
     </div>
   );
