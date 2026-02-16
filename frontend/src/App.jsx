@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import brandLogo from "./assets/Madison-88-Logo-250.png";
 import apiClient from "./api/client";
 import { getSocket } from "./api/socket";
@@ -20,6 +21,7 @@ import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 
 function App() {
+  const { logout: auth0Logout } = useAuth0();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -330,6 +332,8 @@ function App() {
               setUser(null);
               localStorage.removeItem("token");
               localStorage.removeItem("user");
+              // Also logout from Auth0
+              auth0Logout({ logoutParams: { returnTo: window.location.origin } });
             }}
           >
             Logout

@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../models/user.model');
 
@@ -50,6 +51,53 @@ const AuthService = {
 
   verifyToken(token) {
     return jwt.verify(token, JWT_SECRET);
+  },
+
+  async loginWithAuth0({ email, name, sub }) {
+    // Find or create user based on Auth0 email
+    let user = await UserModel.findByEmail(email);
+    
+    if (!user) {
+      // Auto-create user if doesn't exist (you may want to change this behavior)
+      const nameParts = name ? name.split(' ') : ['User', 'Account'];
+      const first_name = nameParts[0] || 'User';
+      const last_name = nameParts.slice(1).join(' ') || 'Account';
+      const full_name = name || `${first_name} ${last_name}`;
+
+      // Users table requires PASSWORD_HASH NOT NULL, so generate an unreachable random password hash
+      const randomSecret = crypto.randomBytes(32).toString('hex') + (sub ? `:${sub}` : '');
+      const passwordHash = await bcrypt.hash(randomSecret, 10);
+      
+      user = await UserModel.create({
+        email,
+        first_name,
+        last_name,
+        full_name,
+        passwordHash,
+        // Employee default role (can be updated by admin later)
+        role: process.env.AUTH0_DEFAULT_ROLE || 'end_user',
+        department: null,
+        location: null,
+        phone: null,
+      });
+    } else if (!user.is_active) {
+      throw new Error('Account is inactive');
+    } else if (user.role !== 'end_user') {
+      // Force privileged roles to use local login as requested
+      throw new Error('This account must use Email/Password login');
+    }
+
+    // Update last login
+    await UserModel.updateLastLogin(user.user_id);
+
+    // Generate our system JWT token
+    const token = jwt.sign(
+      { user_id: user.user_id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    return { token, user };
   },
 };
 

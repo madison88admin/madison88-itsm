@@ -23,6 +23,12 @@ router.post('/register', AuthController.register);
 router.post('/login', AuthController.login);
 
 /**
+ * @route POST /api/auth/auth0-login
+ * @desc Exchange Auth0 token for system JWT token
+ */
+router.post('/auth0-login', AuthController.loginWithAuth0);
+
+/**
  * @route POST /api/auth/logout
  * @desc Logout user
  */
