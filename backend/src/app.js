@@ -89,6 +89,10 @@ app.use('/api/assets', require('./routes/assets.routes'));
 
 // 404 Handler
 app.use((req, res) => {
+  // Log 404s for debugging
+  if (req.originalUrl.includes('confirm-resolution') || req.originalUrl.includes('reopen')) {
+    console.log('404 on ticket route:', req.method, req.originalUrl);
+  }
   res.status(404).json({
     status: 'error',
     message: 'Route not found',

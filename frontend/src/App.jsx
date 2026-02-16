@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import brandLogo from "./assets/Madison-88-Logo-250.png";
 import apiClient from "./api/client";
+import { getSocket } from "./api/socket";
 import LoginPage from "./pages/LoginPage";
 import TicketsPage from "./pages/TicketsPage";
 import NewTicketPage from "./pages/NewTicketPage";
@@ -202,6 +203,54 @@ function App() {
     }, 30000);
     return () => clearInterval(interval);
   }, [token, user?.user_id]);
+
+  useEffect(() => {
+    if (!token || !user) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleTicketReopened = (payload) => {
+      if (!payload?.ticket) return;
+      const ticket = payload.ticket;
+      
+      // Only notify if user is assigned to or created the ticket
+      const isRelevant = 
+        (user.role === 'end_user' && ticket.user_id === user.user_id) ||
+        (['it_agent', 'it_manager', 'system_admin'].includes(user.role) && 
+         (ticket.assigned_to === user.user_id || ticket.user_id === user.user_id));
+      
+      if (!isRelevant) return;
+
+      const notification = {
+        id: `reopened-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        ticketId: ticket.ticket_id,
+        ticketNumber: ticket.ticket_number,
+        title: ticket.title,
+        message: 'Ticket has been reopened',
+        type: 'ticket_reopened',
+        createdAt: new Date().toISOString(),
+        read: false,
+      };
+      
+      pushToast(notification);
+      fetchNotifications();
+      
+      if (
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('Ticket Reopened', {
+          body: `${ticket.ticket_number || 'Ticket'}: ${ticket.title}`,
+          icon: '/favicon.ico',
+        });
+      }
+    };
+
+    socket.on('ticket-reopened', handleTicketReopened);
+    return () => {
+      socket.off('ticket-reopened', handleTicketReopened);
+    };
+  }, [token, user]);
 
   if (!token) {
     return <LoginPage onLogin={handleLogin} />;

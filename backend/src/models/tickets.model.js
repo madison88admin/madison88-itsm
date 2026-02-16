@@ -130,8 +130,14 @@ const TicketsModel = {
       where.push('assigned_to IS NULL');
     }
     if (filters.exclude_archived) {
-      where.push('(is_archived IS NULL OR is_archived = false)');
-      where.push("status NOT IN ('Resolved', 'Closed')");
+      if (filters.include_resolved_closed) {
+        // For IT staff: exclude archived active tickets, but include resolved/closed even if archived
+        where.push("((is_archived IS NULL OR is_archived = false) AND status NOT IN ('Resolved', 'Closed')) OR (status IN ('Resolved', 'Closed'))");
+      } else {
+        // Default: exclude archived and exclude Resolved/Closed
+        where.push('(is_archived IS NULL OR is_archived = false)');
+        where.push("status NOT IN ('Resolved', 'Closed')");
+      }
     }
     const hasTeamIds = filters.assigned_team_ids && filters.assigned_team_ids.length;
     const hasMemberIds = filters.assigned_to_in && filters.assigned_to_in.length;
@@ -192,6 +198,17 @@ const TicketsModel = {
          AND resolved_at IS NOT NULL
          AND closed_at IS NULL
          AND (is_archived IS NULL OR is_archived = false)`
+    );
+    return result.rows;
+  },
+
+  async listTicketsPendingUserConfirmation() {
+    const result = await db.query(
+      `SELECT * FROM tickets
+       WHERE status IN ('Resolved', 'Closed')
+         AND resolution_pending_confirmation_at IS NOT NULL
+         AND user_confirmed_resolution = FALSE
+         AND closed_at IS NULL`
     );
     return result.rows;
   },

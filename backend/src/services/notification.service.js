@@ -258,6 +258,28 @@ async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
   return sendEmail({ to: uniqueRecipients.join(','), subject, text });
 }
 
+async function sendTicketReopenedNotice({ ticket, requester, assignee, reopenedBy }) {
+  const recipients = [];
+  if (requester?.email && requester.user_id !== reopenedBy?.user_id) {
+    recipients.push(requester.email);
+  }
+  if (assignee?.email) {
+    recipients.push(assignee.email);
+  }
+  const uniqueRecipients = Array.from(new Set(recipients));
+  if (!uniqueRecipients.length) return false;
+
+  const subject = `Ticket Reopened: ${ticket.ticket_number}`;
+  const text = [
+    `Ticket ${ticket.ticket_number} has been reopened.`,
+    `Title: ${ticket.title}`,
+    `Reopened by: ${reopenedBy?.full_name || reopenedBy?.email || 'User'}`,
+    `Please review the ticket and provide a resolution.`,
+  ].join('\n');
+
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+}
+
 module.exports = {
   sendEmail,
   sendEscalationNotice,
@@ -265,4 +287,5 @@ module.exports = {
   sendTicketResolvedNotice,
   sendNewTicketNotice,
   sendTicketAssignedNotice,
+  sendTicketReopenedNotice,
 };

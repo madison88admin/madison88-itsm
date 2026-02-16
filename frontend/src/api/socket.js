@@ -36,10 +36,14 @@ export function subscribeTicket(ticketId, onUpdate) {
   s.on("ticket-updated", handler);
   s.on("ticket-created", handler);
   s.on("ticket-comment", handler);
+  s.on("ticket-reopened", handler);
+  s.on("ticket-confirmed", handler);
   return () => {
     s.emit("unsubscribe-ticket", ticketId);
     s.off("ticket-updated", handler);
     s.off("ticket-created", handler);
     s.off("ticket-comment", handler);
+    s.off("ticket-reopened", handler);
+    s.off("ticket-confirmed", handler);
   };
 }

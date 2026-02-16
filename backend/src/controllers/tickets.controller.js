@@ -165,6 +165,18 @@ const TicketsController = {
     }
   },
 
+  async getComments(req, res, next) {
+    try {
+      const result = await TicketsService.getComments({
+        ticketId: req.params.id,
+        user: req.user,
+      });
+      res.json({ status: 'success', data: { comments: result.comments } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async addComment(req, res, next) {
     try {
       const result = await TicketsService.addComment({
@@ -317,6 +329,35 @@ const TicketsController = {
           sessionId: req.headers['x-session-id'] || null,
         },
       });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async confirmResolution(req, res, next) {
+    try {
+      const result = await TicketsService.confirmTicketResolution({
+        ticketId: req.params.id,
+        user: req.user,
+      });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-confirmed', { ticket: result.ticket });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async reopenTicket(req, res, next) {
+    try {
+      const result = await TicketsService.reopenTicket({
+        ticketId: req.params.id,
+        user: req.user,
+        reason: req.body.reason,
+      });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-reopened', { ticket: result.ticket });
       res.json({ status: 'success', data: result });
     } catch (err) {
       next(err);

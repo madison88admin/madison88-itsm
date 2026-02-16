@@ -54,6 +54,7 @@ const TicketDetailPage = ({
   const [editDescription, setEditDescription] = useState("");
   const [editImpact, setEditImpact] = useState("");
   const [resolutionPhoto, setResolutionPhoto] = useState(null);
+  const [reopenReason, setReopenReason] = useState("");
 
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
@@ -804,6 +805,183 @@ const TicketDetailPage = ({
             <span>•</span>
             <span>{ticket.root_cause || "Root cause not set"}</span>
           </div>
+          {isEndUser && ["Resolved", "Closed"].includes(ticket.status) && (
+            <div style={{ marginTop: "16px" }}>
+              {ticket.user_confirmed_resolution ? (
+                <div className="muted" style={{ padding: "12px", backgroundColor: "#e8f5e9", borderRadius: "4px" }}>
+                  ✓ You have confirmed this resolution on{" "}
+                  {ticket.user_confirmed_at
+                    ? new Date(ticket.user_confirmed_at).toLocaleString()
+                    : "N/A"}
+                </div>
+              ) : (
+                <div style={{ padding: "12px", backgroundColor: "rgba(10, 22, 53, 0.7)", border: "1px solid rgba(255, 181, 71, 0.3)", borderRadius: "4px", marginBottom: "12px" }}>
+                  <p style={{ margin: "0 0 12px 0", fontWeight: "bold" }}>
+                    Please confirm if the issue has been resolved:
+                  </p>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                    <button
+                      className="btn primary"
+                      onClick={async () => {
+                        setSaving(true);
+                        setError("");
+                        setNotice("");
+                        try {
+                          const response = await apiClient.post(`/tickets/${ticketId}/confirm-resolution`);
+                          if (response.data?.status === 'success') {
+                            setNotice("Resolution confirmed. Thank you!");
+                            // Refresh ticket data
+                            const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
+                            const updatedTicket = ticketRes.data.data.ticket;
+                            setTicket(updatedTicket);
+                            setStatus(updatedTicket?.status || "");
+                            if (onUpdated) onUpdated();
+                          }
+                        } catch (err) {
+                          console.error('Confirm resolution error:', err);
+                          const errorMsg = err.response?.data?.message || err.message || "Failed to confirm resolution";
+                          setError(errorMsg);
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving}
+                    >
+                      ✓ Confirm Resolution Works
+                    </button>
+                    <button
+                      className="btn ghost"
+                      onClick={async () => {
+                        if (!reopenReason.trim()) {
+                          setError("Please provide a reason for reopening");
+                          return;
+                        }
+                        setSaving(true);
+                        setError("");
+                        setNotice("");
+                        try {
+                          const response = await apiClient.post(`/tickets/${ticketId}/reopen`, {
+                            reason: reopenReason.trim(),
+                          });
+                          if (response.data?.status === 'success') {
+                            setNotice("Ticket reopened successfully");
+                            setReopenReason("");
+                            // Refresh ticket data
+                            const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
+                            const updatedTicket = ticketRes.data.data.ticket;
+                            setTicket(updatedTicket);
+                            setStatus(updatedTicket?.status || "");
+                            setPriority(updatedTicket?.priority || "");
+                            setAssignedTo(updatedTicket?.assigned_to || "");
+                          // Comments are already included in ticket details, but refresh them separately if needed
+                          try {
+                            const commentsRes = await apiClient.get(`/tickets/${ticketId}/comments`);
+                            if (commentsRes.data?.data?.comments) {
+                              setComments(commentsRes.data.data.comments);
+                            }
+                          } catch (commentsErr) {
+                            // Comments are already in ticket details, so this is not critical
+                            console.warn('Could not refresh comments separately:', commentsErr);
+                          }
+                            if (onUpdated) onUpdated();
+                          }
+                        } catch (err) {
+                          console.error('Reopen ticket error:', err);
+                          const errorMsg = err.response?.data?.message || err.message || "Failed to reopen ticket";
+                          setError(errorMsg);
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving || !reopenReason.trim()}
+                    >
+                      Reopen Ticket
+                    </button>
+                  </div>
+                  <div style={{ marginTop: "12px" }}>
+                    <label className="field">
+                      <span>Reason for reopening (if issue not resolved)</span>
+                      <textarea
+                        rows={2}
+                        value={reopenReason}
+                        onChange={(e) => setReopenReason(e.target.value)}
+                        placeholder="Explain why the resolution didn't work..."
+                      />
+                    </label>
+                  </div>
+                  <p className="muted" style={{ marginTop: "8px", fontSize: "12px" }}>
+                    If you don't respond within 2 days, this ticket will be automatically closed.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          {isEndUser && ticket.status === "Closed" && !ticket.user_confirmed_resolution && (
+            <div style={{ marginTop: "16px", padding: "12px", backgroundColor: "rgba(248, 215, 218, 0.2)", border: "1px solid rgba(255, 93, 108, 0.3)", borderRadius: "4px" }}>
+              <p style={{ margin: "0 0 12px 0", fontWeight: "bold" }}>
+                This ticket was closed automatically. You can reopen it if the issue persists.
+              </p>
+              <div style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
+                <label className="field">
+                  <span>Reason for reopening</span>
+                  <textarea
+                    rows={2}
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value)}
+                    placeholder="Explain why you need to reopen this ticket..."
+                  />
+                </label>
+                <button
+                  className="btn primary"
+                  onClick={async () => {
+                    if (!reopenReason.trim()) {
+                      setError("Please provide a reason for reopening");
+                      return;
+                    }
+                    setSaving(true);
+                    setError("");
+                    setNotice("");
+                    try {
+                      const response = await apiClient.post(`/tickets/${ticketId}/reopen`, {
+                        reason: reopenReason.trim(),
+                      });
+                      if (response.data?.status === 'success') {
+                        setNotice("Ticket reopened successfully");
+                        setReopenReason("");
+                        // Refresh ticket data
+                        const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
+                        const updatedTicket = ticketRes.data.data.ticket;
+                        setTicket(updatedTicket);
+                        setStatus(updatedTicket?.status || "");
+                        setPriority(updatedTicket?.priority || "");
+                        setAssignedTo(updatedTicket?.assigned_to || "");
+                          // Comments are already included in ticket details, but refresh them separately if needed
+                          try {
+                            const commentsRes = await apiClient.get(`/tickets/${ticketId}/comments`);
+                            if (commentsRes.data?.data?.comments) {
+                              setComments(commentsRes.data.data.comments);
+                            }
+                          } catch (commentsErr) {
+                            // Comments are already in ticket details, so this is not critical
+                            console.warn('Could not refresh comments separately:', commentsErr);
+                          }
+                        if (onUpdated) onUpdated();
+                      }
+                    } catch (err) {
+                      console.error('Reopen ticket error:', err);
+                      const errorMsg = err.response?.data?.message || err.message || "Failed to reopen ticket";
+                      setError(errorMsg);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving || !reopenReason.trim()}
+                >
+                  Reopen Ticket
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

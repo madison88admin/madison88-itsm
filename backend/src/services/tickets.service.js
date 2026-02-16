@@ -87,6 +87,18 @@ function computeSlaStatus(ticket, rule) {
   const responseDue = ticket.sla_response_due ? new Date(ticket.sla_response_due) : null;
   const resolutionDue = new Date(ticket.sla_due_date);
 
+  // If SLA is paused (ticket is Resolved/Closed), don't count remaining time
+  // The due dates are already adjusted when reopening, so this handles paused state
+  if (ticket.sla_paused_at && ['Resolved', 'Closed'].includes(ticket.status)) {
+    return {
+      response_remaining_minutes: null,
+      resolution_remaining_minutes: null,
+      response_breached: false,
+      resolution_breached: false,
+      escalated: false,
+    };
+  }
+
   const responseRemaining = responseDue ? Math.ceil((responseDue - now) / 60000) : null;
   const resolutionRemaining = Math.ceil((resolutionDue - now) / 60000);
 
@@ -515,8 +527,24 @@ const TicketsService = {
       ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
       : [];
     const filters = { status, priority, category, location, q, tags: parsedTags, date_from, date_to };
-    if (include_archived !== 'true' && !['Resolved', 'Closed'].includes(status)) {
-      filters.exclude_archived = true;
+    
+    // For admin, manager, and IT agent: always show resolved/closed tickets even if archived
+    // For end users: only exclude archived if not specifically looking for Resolved/Closed
+    if (include_archived !== 'true') {
+      if (['Resolved', 'Closed'].includes(status)) {
+        // If specifically looking for Resolved/Closed, show them even if archived
+        filters.exclude_archived = false;
+      } else if (['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
+        // For IT staff: exclude archived active tickets, but always include resolved/closed even if archived
+        filters.exclude_archived = true;
+        filters.include_resolved_closed = true;
+      } else {
+        // For end users: exclude archived unless looking for Resolved/Closed
+        filters.exclude_archived = true;
+      }
+    } else {
+      // If include_archived is true, show everything
+      filters.exclude_archived = false;
     }
 
     if (user.role === 'end_user') {
@@ -676,23 +704,70 @@ const TicketsService = {
     }
 
     if (statusChanged && value.status === 'Resolved') {
-      value.resolved_at = new Date();
+      const now = new Date();
+      value.resolved_at = now;
       value.resolved_by = user.user_id;
       value.is_archived = true;
-      value.archived_at = new Date();
+      value.archived_at = now;
+      // Set pending confirmation and pause SLA
+      value.resolution_pending_confirmation_at = now;
+      value.user_confirmed_resolution = false;
+      value.user_confirmed_at = null;
+      // Pause SLA - store when it was paused
+      if (existing.sla_due_date && !existing.sla_paused_at) {
+        value.sla_paused_at = now;
+      }
     }
 
     if (statusChanged && value.status === 'Closed') {
-      value.closed_at = new Date();
+      const now = new Date();
+      value.closed_at = now;
       value.closed_by = user.user_id;
       value.is_archived = true;
-      value.archived_at = new Date();
+      value.archived_at = now;
+      // If closing without user confirmation, mark as confirmed
+      if (!existing.user_confirmed_resolution) {
+        value.user_confirmed_resolution = true;
+        value.user_confirmed_at = now;
+      }
+      // Ensure SLA is paused
+      if (existing.sla_due_date && !existing.sla_paused_at) {
+        value.sla_paused_at = now;
+      }
     }
 
     if (statusChanged && value.status === 'Reopened') {
+      const now = new Date();
       value.reopened_count = (existing.reopened_count || 0) + 1;
       value.is_archived = false;
       value.archived_at = null;
+      // Reset confirmation fields
+      value.user_confirmed_resolution = false;
+      value.user_confirmed_at = null;
+      value.resolution_pending_confirmation_at = null;
+      // Resume SLA - adjust due dates by adding paused duration
+      // Note: This logic is also in reopenTicket method, but we keep it here
+      // in case status is changed to Reopened via updateTicket
+      if (existing.sla_paused_at && existing.sla_due_date) {
+        const pausedAt = new Date(existing.sla_paused_at);
+        const pausedDurationMs = now - pausedAt;
+        const pausedDurationMinutes = Math.floor(pausedDurationMs / 60000);
+        const totalPausedMinutes = (existing.sla_paused_duration_minutes || 0) + pausedDurationMinutes;
+        value.sla_paused_duration_minutes = totalPausedMinutes;
+        
+        // Adjust SLA due dates by adding the paused duration
+        const originalDueDate = new Date(existing.sla_due_date);
+        const adjustedDueDate = new Date(originalDueDate.getTime() + pausedDurationMs);
+        value.sla_due_date = adjustedDueDate;
+        
+        if (existing.sla_response_due) {
+          const originalResponseDue = new Date(existing.sla_response_due);
+          const adjustedResponseDue = new Date(originalResponseDue.getTime() + pausedDurationMs);
+          value.sla_response_due = adjustedResponseDue;
+        }
+        
+        value.sla_paused_at = null;
+      }
     }
 
     const updated = await TicketsModel.updateTicket(ticketId, value);
@@ -798,6 +873,41 @@ const TicketsService = {
     });
 
     return { ticket: updated };
+  },
+
+  async getComments({ ticketId, user }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+    
+    // Check permissions
+    if (user.role === 'end_user' && ticket.user_id !== user.user_id) {
+      throw new AppError('Forbidden', 403);
+    }
+    if (user.role === 'it_agent') {
+      if (ticket.assigned_to !== user.user_id && ticket.user_id !== user.user_id) {
+        throw new AppError('Forbidden', 403);
+      }
+    }
+    if (user.role === 'it_manager') {
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (teamIds.length) {
+        const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+        const inTeam = teamIds.includes(ticket.assigned_team);
+        const assignedToMember = ticket.assigned_to && memberIds.includes(ticket.assigned_to);
+        if (!inTeam && !assignedToMember && ticket.assigned_to !== user.user_id) {
+          throw new AppError('Forbidden', 403);
+        }
+      } else if (ticket.assigned_to !== user.user_id) {
+        throw new AppError('Forbidden', 403);
+      }
+    }
+    
+    const comments = await TicketsModel.getComments(ticketId);
+    const visibleComments = user.role === 'end_user'
+      ? comments.filter((comment) => !comment.is_internal)
+      : comments;
+    
+    return { comments: visibleComments };
   },
 
   async addComment({ ticketId, payload, user, meta }) {
@@ -1293,6 +1403,224 @@ const TicketsService = {
     }
 
     return { closed: results.length, items: results };
+  },
+
+  async runAutoClosePendingConfirmation({ days = 2 }) {
+    const candidates = await TicketsModel.listTicketsPendingUserConfirmation();
+    const now = new Date();
+    const results = [];
+
+    for (const ticket of candidates) {
+      const pendingAt = ticket.resolution_pending_confirmation_at 
+        ? new Date(ticket.resolution_pending_confirmation_at) 
+        : null;
+      if (!pendingAt || Number.isNaN(pendingAt.getTime())) continue;
+      
+      // Check if 2 days (48 hours) have passed
+      const daysSincePending = (now - pendingAt) / (1000 * 60 * 60 * 24);
+      if (daysSincePending < days) continue;
+
+      const updateData = {
+        status: 'Closed',
+        closed_at: now,
+        closed_by: ticket.assigned_to || ticket.user_id,
+        is_archived: true,
+        archived_at: now,
+        user_confirmed_resolution: false,
+        user_confirmed_at: null,
+        tags: appendTag(ticket.tags, 'auto-closed-no-confirmation'),
+      };
+      
+      // Ensure SLA is paused if it wasn't already
+      if (ticket.sla_due_date && !ticket.sla_paused_at) {
+        updateData.sla_paused_at = now;
+      }
+      
+      const updated = await TicketsModel.updateTicket(ticket.ticket_id, updateData);
+
+      await TicketsModel.createStatusHistory({
+        ticket_id: ticket.ticket_id,
+        old_status: ticket.status,
+        new_status: 'Closed',
+        changed_by: ticket.assigned_to || ticket.user_id,
+        change_reason: `Auto-closed after ${days} days without user confirmation`,
+      });
+
+      await TicketsModel.createAuditLog({
+        ticket_id: ticket.ticket_id,
+        user_id: ticket.assigned_to || ticket.user_id,
+        action_type: 'auto_closed',
+        entity_type: 'ticket',
+        entity_id: ticket.ticket_id,
+        old_value: JSON.stringify(ticket),
+        new_value: JSON.stringify(updated),
+        description: `Ticket auto-closed after ${days} days without user confirmation`,
+        ip_address: null,
+        user_agent: 'system',
+        session_id: null,
+      });
+
+      results.push({ ticket_id: ticket.ticket_id });
+    }
+
+    return { closed: results.length, items: results };
+  },
+
+  async confirmTicketResolution({ ticketId, user }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+    
+    if (ticket.user_id !== user.user_id) {
+      throw new AppError('Only the ticket requester can confirm resolution', 403);
+    }
+    
+    if (!['Resolved', 'Closed'].includes(ticket.status)) {
+      throw new AppError('Ticket must be Resolved or Closed to confirm', 400);
+    }
+    
+    if (ticket.user_confirmed_resolution) {
+      throw new AppError('Ticket resolution already confirmed', 400);
+    }
+
+    const now = new Date();
+    const updated = await TicketsModel.updateTicket(ticketId, {
+      user_confirmed_resolution: true,
+      user_confirmed_at: now,
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'user_confirmed_resolution',
+      entity_type: 'ticket',
+      entity_id: ticketId,
+      old_value: JSON.stringify(ticket),
+      new_value: JSON.stringify(updated),
+      description: 'User confirmed ticket resolution',
+      ip_address: null,
+      user_agent: null,
+      session_id: null,
+    });
+
+    // Send notification to assigned agent if exists
+    if (updated.assigned_to && updated.assigned_to !== ticket.user_id) {
+      await NotificationsModel.createNotification({
+        user_id: updated.assigned_to,
+        ticket_id: ticketId,
+        type: 'ticket_confirmed',
+        title: 'Ticket resolution confirmed',
+        message: `${updated.ticket_number}: ${updated.title}`,
+      });
+    }
+
+    return { ticket: updated };
+  },
+
+  async reopenTicket({ ticketId, user, reason }) {
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+    
+    if (ticket.user_id !== user.user_id && !['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
+      throw new AppError('Forbidden', 403);
+    }
+    
+    if (!['Resolved', 'Closed'].includes(ticket.status)) {
+      throw new AppError('Ticket must be Resolved or Closed to reopen', 400);
+    }
+
+    if (!reason || !reason.trim()) {
+      throw new AppError('Reason is required for reopening a ticket', 400);
+    }
+
+    const now = new Date();
+    const updates = {
+      status: 'Reopened',
+      reopened_count: (ticket.reopened_count || 0) + 1,
+      is_archived: false,
+      archived_at: null,
+      user_confirmed_resolution: false,
+      user_confirmed_at: null,
+      resolution_pending_confirmation_at: null,
+    };
+
+    // Resume SLA - adjust due dates by adding paused duration
+    if (ticket.sla_paused_at && ticket.sla_due_date) {
+      const pausedAt = new Date(ticket.sla_paused_at);
+      const pausedDurationMs = now - pausedAt;
+      const pausedDurationMinutes = Math.floor(pausedDurationMs / 60000);
+      const totalPausedMinutes = (ticket.sla_paused_duration_minutes || 0) + pausedDurationMinutes;
+      updates.sla_paused_duration_minutes = totalPausedMinutes;
+      
+      // Adjust SLA due dates by adding the paused duration
+      const originalDueDate = new Date(ticket.sla_due_date);
+      const adjustedDueDate = new Date(originalDueDate.getTime() + pausedDurationMs);
+      updates.sla_due_date = adjustedDueDate;
+      
+      if (ticket.sla_response_due) {
+        const originalResponseDue = new Date(ticket.sla_response_due);
+        const adjustedResponseDue = new Date(originalResponseDue.getTime() + pausedDurationMs);
+        updates.sla_response_due = adjustedResponseDue;
+      }
+      
+      updates.sla_paused_at = null;
+    }
+
+    const updated = await TicketsModel.updateTicket(ticketId, updates);
+
+    await TicketsModel.createStatusHistory({
+      ticket_id: ticketId,
+      old_status: ticket.status,
+      new_status: 'Reopened',
+      changed_by: user.user_id,
+      change_reason: reason || 'Ticket reopened by user',
+    });
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'reopened',
+      entity_type: 'ticket',
+      entity_id: ticketId,
+      old_value: JSON.stringify(ticket),
+      new_value: JSON.stringify(updated),
+      description: reason || 'Ticket reopened',
+      ip_address: null,
+      user_agent: null,
+      session_id: null,
+    });
+
+    // Send notifications
+    const requester = await UserModel.findById(ticket.user_id);
+    const assignee = ticket.assigned_to ? await UserModel.findById(ticket.assigned_to) : null;
+    
+    await NotificationService.sendTicketReopenedNotice({
+      ticket: updated,
+      requester,
+      assignee,
+      reopenedBy: user,
+    });
+
+    // Create in-app notifications
+    const message = `${updated.ticket_number}: ${updated.title}`;
+    await NotificationsModel.createNotification({
+      user_id: ticket.user_id,
+      ticket_id: ticketId,
+      type: 'ticket_reopened',
+      title: 'Ticket reopened',
+      message,
+    });
+
+    if (assignee && assignee.user_id !== ticket.user_id) {
+      await NotificationsModel.createNotification({
+        user_id: assignee.user_id,
+        ticket_id: ticketId,
+        type: 'ticket_reopened',
+        title: 'Ticket reopened',
+        message,
+      });
+    }
+
+    return { ticket: updated };
   },
 };
 

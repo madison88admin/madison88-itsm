@@ -82,11 +82,20 @@ async function runAutoCloseJob() {
   if (autoCloseJobRunning) return;
   autoCloseJobRunning = true;
   try {
+    // First, auto-close tickets pending user confirmation (2 days)
+    const confirmationResult = await TicketsService.runAutoClosePendingConfirmation({
+      days: 2,
+    });
+    if (confirmationResult.closed) {
+      logger.info(`Auto-closed tickets (no user confirmation): ${confirmationResult.closed}`);
+    }
+    
+    // Then, run the original auto-close for resolved tickets (business days)
     const result = await TicketsService.runAutoCloseResolvedTickets({
       businessDays: AUTO_CLOSE_BUSINESS_DAYS,
     });
     if (result.closed) {
-      logger.info(`Auto-closed tickets: ${result.closed}`);
+      logger.info(`Auto-closed resolved tickets: ${result.closed}`);
     }
   } catch (err) {
     logger.error('Auto-close job failed', { error: err.message });

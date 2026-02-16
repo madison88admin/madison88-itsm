@@ -59,10 +59,16 @@ router.get('/', authenticate, TicketsController.listTickets);
 router.post('/bulk-assign', authenticate, TicketsController.bulkAssign);
 
 /**
- * @route GET /api/tickets/:id
- * @desc Get single ticket details
+ * @route POST /api/tickets/:id/confirm-resolution
+ * @desc User confirms ticket resolution
  */
-router.get('/:id', authenticate, TicketsController.getTicket);
+router.post('/:id/confirm-resolution', authenticate, TicketsController.confirmResolution);
+
+/**
+ * @route POST /api/tickets/:id/reopen
+ * @desc Reopen a resolved/closed ticket
+ */
+router.post('/:id/reopen', authenticate, TicketsController.reopenTicket);
 
 /**
  * @route GET /api/tickets/:id/status-history
@@ -89,10 +95,10 @@ router.post('/:id/priority-override-requests', authenticate, TicketsController.r
 router.patch('/:id/priority-override-requests/:requestId', authenticate, TicketsController.reviewPriorityOverride);
 
 /**
- * @route PATCH /api/tickets/:id
- * @desc Update ticket
+ * @route GET /api/tickets/:id/comments
+ * @desc Get ticket comments
  */
-router.patch('/:id', authenticate, TicketsController.updateTicket);
+router.get('/:id/comments', authenticate, TicketsController.getComments);
 
 /**
  * @route POST /api/tickets/:id/comments
@@ -123,5 +129,17 @@ router.post('/:id/escalations', authenticate, TicketsController.createEscalation
  * @desc Get ticket audit trail
  */
 router.get('/:id/audit-log', authenticate, authorize(['system_admin', 'it_manager']), TicketsController.getAuditLog);
+
+/**
+ * @route GET /api/tickets/:id
+ * @desc Get single ticket details
+ */
+router.get('/:id', authenticate, TicketsController.getTicket);
+
+/**
+ * @route PATCH /api/tickets/:id
+ * @desc Update ticket
+ */
+router.patch('/:id', authenticate, TicketsController.updateTicket);
 
 module.exports = router;
