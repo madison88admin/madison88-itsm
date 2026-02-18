@@ -182,6 +182,41 @@ textarea {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  z-index: 100;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(7, 15, 38, 0.9);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+}
+
+.mobile-menu-toggle span {
+  width: 24px;
+  height: 2px;
+  background: var(--slate-100);
+  border-radius: 2px;
+  transition: 0.3s ease;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 99;
 }
 
 .brand {
@@ -2105,6 +2140,27 @@ textarea {
   text-align: center;
 }
 
+.terms-notice {
+  margin: 24px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 0 8px;
+}
+
+.terms-link {
+  color: rgba(100, 200, 255, 0.9);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.terms-link:hover {
+  color: rgba(100, 200, 255, 1);
+  text-decoration: underline;
+}
+
 .password-field {
   position: relative;
   display: flex;
@@ -2153,29 +2209,54 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
   .sidebar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
+    position: fixed;
+    left: -100%;
+    top: 0;
+    width: 280px;
+    max-width: 85vw;
+    transition: left 0.3s ease;
+    z-index: 101;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .sidebar-overlay {
+    display: block;
   }
 
   .nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .nav-item {
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 12px 14px;
+    font-size: 14px;
+    width: 100%;
+    text-align: left;
   }
 
   .sidebar-footer {
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
     gap: 12px;
+  }
+
+  .content {
+    margin-left: 0;
+    padding-top: 60px;
+  }
+
+  .topbar {
+    margin-top: 0;
+    padding-left: 60px;
   }
 
   .kb-editor {
@@ -2226,17 +2307,44 @@ textarea {
 
 @media (max-width: 720px) {
   .sidebar {
-    flex-direction: column;
-    align-items: stretch;
+    width: 260px;
+    padding: 20px;
+    gap: 24px;
   }
 
-  .nav {
-    flex-direction: column;
+  .brand h1 {
+    font-size: 15px;
   }
 
-  .sidebar-footer {
-    flex-direction: column;
-    align-items: stretch;
+  .brand p {
+    font-size: 10px;
+  }
+
+  .nav-item {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .user-card {
+    padding: 12px;
+  }
+
+  .user-card strong {
+    font-size: 13px;
+  }
+
+  .role-pill {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .topbar {
+    padding-left: 60px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    margin-top: 8px;
   }
 
   .content {
@@ -2296,6 +2404,188 @@ textarea {
   }
 }
 
+/* iPad and Tablet (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ticket-filters {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ticket-filters input,
+  .ticket-filters select {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 150px;
+  }
+
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .auth-card {
+    max-width: 400px;
+    padding: 28px;
+  }
+}
+
+/* Mobile Phones (up to 767px) */
+@media (max-width: 767px) {
+  .auth-shell {
+    padding: 16px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ticket-filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ticket-filters input,
+  .ticket-filters select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-pill {
+    width: 100%;
+    text-align: center;
+  }
+
+  .ticket-card {
+    padding: 16px;
+  }
+
+  .ticket-card > div:first-child {
+    width: 100%;
+  }
+
+  .ticket-badges {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .auth-card {
+    max-width: 100%;
+    margin: 16px;
+    padding: 24px 20px;
+  }
+
+  .auth-mode-toggle {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .auth-mode-btn {
+    width: 100%;
+  }
+
+  .privacy-compliance-notice {
+    margin-top: 20px;
+  }
+
+  .terms-notice {
+    font-size: 11px;
+    margin-top: 20px;
+    padding: 0 4px;
+  }
+
+  .terms-link {
+    font-size: 11px;
+  }
+
+  .form-grid {
+    gap: 16px;
+  }
+
+  .detail-section {
+    padding: 16px;
+  }
+
+  .comment-form {
+    flex-direction: column;
+  }
+
+  .comment-form textarea {
+    width: 100%;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pagination-controls .btn {
+    width: 100%;
+  }
+
+  .stats-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stat-card {
+    width: 100%;
+  }
+
+  .step-indicator {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .step-indicator .step {
+    flex: 1 1 auto;
+    min-width: 80px;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .steps .step {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .steps .step span {
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .tickets-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-panel {
+    max-height: none;
+    position: static;
+  }
+}
+
 @media (max-width: 560px) {
   .brand-logo {
     max-width: 150px;
@@ -2318,15 +2608,191 @@ textarea {
   }
 
   .auth-card {
-    padding: 24px;
+    padding: 20px 16px;
+    margin: 12px;
   }
 
   .stats-row {
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .stat-chip {
+    width: 100%;
   }
 
   .ticket-filters input,
   .ticket-filters select {
     min-width: 0;
+    font-size: 14px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .topbar h2 {
+    font-size: 20px;
+  }
+
+  .panel-header h2 {
+    font-size: 18px;
+  }
+
+  .panel-header p {
+    font-size: 13px;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .field span {
+    font-size: 13px;
+  }
+
+  .ticket-card strong {
+    font-size: 15px;
+  }
+
+  .ticket-card span {
+    font-size: 12px;
+  }
+
+  .detail-grid {
+    gap: 12px;
+  }
+
+  .detail-section h3 {
+    font-size: 16px;
+  }
+
+  .comment-item {
+    padding: 12px;
+  }
+
+  .attachment-list {
+    gap: 8px;
+  }
+
+  .attachment-item {
+    padding: 10px;
+    font-size: 13px;
+  }
+}
+
+/* Small Mobile Phones (up to 480px) */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 18px 14px;
+    margin: 8px;
+    border-radius: 16px;
+  }
+
+  .auth-subtitle {
+    font-size: 12px;
+  }
+
+  .auth-note {
+    font-size: 11px;
+  }
+
+  .terms-notice {
+    font-size: 10px;
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+
+  .terms-link {
+    font-size: 10px;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .panel {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .topbar h2 {
+    font-size: 18px;
+  }
+
+  .btn {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .ticket-card {
+    padding: 14px;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .form-grid {
+    gap: 14px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 13px;
+    padding: 9px 11px;
+  }
+
+  .pagination-controls {
+    gap: 10px;
+  }
+
+  .pagination-page {
+    font-size: 0.85rem;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .steps .step {
+    padding: 10px;
+  }
+
+  .steps .step p {
+    font-size: 11px;
+  }
+
+  .steps .step span {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .auth-form {
+    gap: 12px;
+  }
+
+  .password-field input {
+    padding-right: 65px;
+  }
+
+  .password-toggle {
+    padding: 5px 10px;
+    font-size: 11px;
   }
 }

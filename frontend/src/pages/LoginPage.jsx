@@ -186,6 +186,18 @@ const LoginPage = ({ onLogin }) => {
             </p>
           </form>
         )}
+        
+        <p className="terms-notice">
+          By logging in, you agree to our{" "}
+          <a href="#" onClick={(e) => { e.preventDefault(); }} className="terms-link">
+            Terms of Service
+          </a>
+          {" "}and{" "}
+          <a href="#" onClick={(e) => { e.preventDefault(); }} className="terms-link">
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </div>
   );

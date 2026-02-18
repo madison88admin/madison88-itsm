@@ -31,6 +31,7 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [browserPermission, setBrowserPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
@@ -293,7 +294,16 @@ function App() {
 
   return (
     <div className={`app-shell ${roleClass}`}>
-      <aside className="sidebar">
+      <button
+        className="mobile-menu-toggle"
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        aria-label="Toggle menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <aside className={`sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="brand">
           <img
             className="brand-logo"
@@ -312,7 +322,10 @@ function App() {
               className={
                 activeTab === item.key ? "nav-item active" : "nav-item"
               }
-              onClick={() => setActiveTab(item.key)}
+              onClick={() => {
+                setActiveTab(item.key);
+                setIsSidebarOpen(false);
+              }}
             >
               {item.label}
             </button>
@@ -340,6 +353,9 @@ function App() {
           </button>
         </div>
       </aside>
+      {isSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
       <main className="content">
         <header className="topbar">
           <div>
