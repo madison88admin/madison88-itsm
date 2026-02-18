@@ -124,6 +124,26 @@ const TicketTemplatesPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedId) return;
+    if (!window.confirm(`Are you sure you want to delete the template "${selectedTemplate?.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await apiClient.delete(`/ticket-templates/${selectedId}`);
+      setMessage("Template deleted.");
+      resetForm();
+      loadTemplates();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete template");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="dashboard-stack">
       {error && <div className="panel error">{error}</div>}
@@ -249,10 +269,22 @@ const TicketTemplatesPage = () => {
                     ? "Update Template"
                     : "Create Template"}
               </button>
+              {selectedId && (
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  style={{ color: "#ff6b6b", borderColor: "#ff6b6b" }}
+                >
+                  {saving ? "Deleting..." : "Delete Template"}
+                </button>
+              )}
               <button
                 className="btn ghost"
                 type="button"
                 onClick={resetForm}
+                disabled={saving}
               >
                 Clear
               </button>

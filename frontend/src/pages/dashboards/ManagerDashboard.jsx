@@ -74,10 +74,15 @@ const ManagerDashboard = () => {
       <div className="panel">
         <h3>SLA Compliance</h3>
         <div className="stats-row">
-          {Object.keys(sla).map((key) => (
-            <div key={key} className="stat-chip">
-              <span>{key}</span>
-              <strong>{sla[key]?.compliance || 0}%</strong>
+          {['P1', 'P2', 'P3', 'P4'].map((priority) => (
+            <div key={priority} className="stat-chip">
+              <span>{priority}</span>
+              <strong>{sla[priority]?.compliance || 0}%</strong>
+              {sla[priority]?.total !== undefined && (
+                <small style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                  ({sla[priority].met || 0}/{sla[priority].total || 0})
+                </small>
+              )}
             </div>
           ))}
         </div>

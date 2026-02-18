@@ -82,14 +82,8 @@ function computeSlaStatus(ticket, rule) {
     };
   }
 
-  const now = new Date();
-  const createdAt = new Date(ticket.created_at);
-  const responseDue = ticket.sla_response_due ? new Date(ticket.sla_response_due) : null;
-  const resolutionDue = new Date(ticket.sla_due_date);
-
-  // If SLA is paused (ticket is Resolved/Closed), don't count remaining time
-  // The due dates are already adjusted when reopening, so this handles paused state
-  if (ticket.sla_paused_at && ['Resolved', 'Closed'].includes(ticket.status)) {
+  // Stop SLA countdown for Resolved/Closed tickets
+  if (['Resolved', 'Closed'].includes(ticket.status)) {
     return {
       response_remaining_minutes: null,
       resolution_remaining_minutes: null,
@@ -98,6 +92,11 @@ function computeSlaStatus(ticket, rule) {
       escalated: false,
     };
   }
+
+  const now = new Date();
+  const createdAt = new Date(ticket.created_at);
+  const responseDue = ticket.sla_response_due ? new Date(ticket.sla_response_due) : null;
+  const resolutionDue = new Date(ticket.sla_due_date);
 
   const responseRemaining = responseDue ? Math.ceil((responseDue - now) / 60000) : null;
   const resolutionRemaining = Math.ceil((resolutionDue - now) / 60000);
@@ -522,25 +521,34 @@ const TicketsService = {
   },
 
   async listTickets({ query, user }) {
-    const { status, priority, category, location, assigned_to, unassigned, include_archived, page = 1, limit = 50, q, tags, date_from, date_to } = query;
+    const { status, priority, category, location, assigned_to, unassigned, include_archived, page = 1, limit = 50, q, tags, date_from, date_to, ticket_type } = query;
     const parsedTags = typeof tags === 'string'
       ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
       : [];
-    const filters = { status, priority, category, location, q, tags: parsedTags, date_from, date_to };
+    // Only include filters that have non-empty values
+    const filters = {};
+    if (status && status.trim()) filters.status = status.trim();
+    if (priority && priority.trim()) filters.priority = priority.trim();
+    if (category && category.trim()) filters.category = category.trim();
+    if (location && location.trim()) filters.location = location.trim();
+    if (ticket_type && ticket_type.trim()) filters.ticket_type = ticket_type.trim();
+    if (q && q.trim()) filters.q = q.trim();
+    if (parsedTags.length) filters.tags = parsedTags;
+    if (date_from && date_from.trim()) filters.date_from = date_from.trim();
+    if (date_to && date_to.trim()) filters.date_to = date_to.trim();
     
-    // For admin, manager, and IT agent: always show resolved/closed tickets even if archived
-    // For end users: only exclude archived if not specifically looking for Resolved/Closed
+    // Handle archived and resolved/closed ticket filtering
+    // Only show resolved/closed tickets when:
+    // 1. User specifically filters by status = "Resolved" or "Closed", OR
+    // 2. User has "include_archived" checked
     if (include_archived !== 'true') {
       if (['Resolved', 'Closed'].includes(status)) {
         // If specifically looking for Resolved/Closed, show them even if archived
         filters.exclude_archived = false;
-      } else if (['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
-        // For IT staff: exclude archived active tickets, but always include resolved/closed even if archived
-        filters.exclude_archived = true;
-        filters.include_resolved_closed = true;
       } else {
-        // For end users: exclude archived unless looking for Resolved/Closed
+        // For all users: exclude archived and exclude Resolved/Closed unless specifically filtered
         filters.exclude_archived = true;
+        // Don't set include_resolved_closed - this will exclude resolved/closed tickets
       }
     } else {
       // If include_archived is true, show everything
@@ -684,6 +692,23 @@ const TicketsService = {
       throw new Error('Forbidden');
     }
 
+    // Validate assignment hierarchy
+    if (value.assigned_to && user.role === 'it_manager') {
+      // IT Manager can only assign to IT agents in their teams, not to IT managers
+      const assignee = await UserModel.findById(value.assigned_to);
+      if (!assignee) throw new Error('Assignee not found');
+      if (assignee.role !== 'it_agent') {
+        throw new Error('IT Managers can only assign tickets to IT Agents');
+      }
+      // Verify assignee is in manager's teams
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (!teamIds.length) throw new Error('Forbidden: No teams assigned');
+      const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+      if (!memberIds.includes(value.assigned_to)) {
+        throw new Error('Forbidden: Assignee must be a member of your teams');
+      }
+    }
+
     const assignedChanged = Object.prototype.hasOwnProperty.call(value, 'assigned_to')
       && value.assigned_to !== (existing.assigned_to || null);
     if (assignedChanged) {
@@ -717,6 +742,13 @@ const TicketsService = {
       if (existing.sla_due_date && !existing.sla_paused_at) {
         value.sla_paused_at = now;
       }
+      // Set SLA breach status for compliance reporting
+      if (existing.sla_due_date && new Date(existing.sla_due_date) < now) {
+        value.sla_breached = true;
+      }
+      if (existing.sla_response_due && new Date(existing.sla_response_due) < now) {
+        value.sla_response_breached = true;
+      }
     }
 
     if (statusChanged && value.status === 'Closed') {
@@ -733,6 +765,13 @@ const TicketsService = {
       // Ensure SLA is paused
       if (existing.sla_due_date && !existing.sla_paused_at) {
         value.sla_paused_at = now;
+      }
+      // Set SLA breach status for compliance reporting
+      if (existing.sla_due_date && new Date(existing.sla_due_date) < now) {
+        value.sla_breached = true;
+      }
+      if (existing.sla_response_due && new Date(existing.sla_response_due) < now) {
+        value.sla_response_breached = true;
       }
     }
 
@@ -1216,10 +1255,18 @@ const TicketsService = {
     if (tickets.length !== value.ticket_ids.length) throw new Error('One or more tickets not found');
 
     if (user.role === 'it_manager') {
+      // IT Manager can only assign to IT agents in their teams, not to IT managers
+      const assignee = await UserModel.findById(value.assigned_to);
+      if (!assignee) throw new Error('Assignee not found');
+      if (assignee.role !== 'it_agent') {
+        throw new Error('IT Managers can only assign tickets to IT Agents');
+      }
+      
       const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (!teamIds.length) throw new Error('Forbidden: No teams assigned');
       const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
       if (!memberIds.includes(value.assigned_to)) {
-        throw new Error('Forbidden');
+        throw new Error('Forbidden: Assignee must be a member of your teams');
       }
 
       const isAllowed = tickets.every((ticket) => {

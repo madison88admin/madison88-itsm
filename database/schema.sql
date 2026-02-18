@@ -500,25 +500,25 @@ CREATE OR REPLACE VIEW SLA_PERFORMANCE_SUMMARY AS
         COUNT(*)                                                       AS TOTAL_TICKETS,
         SUM(
             CASE
-                WHEN T.SLA_BREACHED = FALSE THEN
+                WHEN COALESCE(T.SLA_BREACHED, FALSE) = FALSE THEN
                     1
                 ELSE
                     0
             END)                                                       AS SLA_MET,
         SUM(
             CASE
-                WHEN T.SLA_BREACHED = TRUE THEN
+                WHEN COALESCE(T.SLA_BREACHED, FALSE) = TRUE THEN
                     1
                 ELSE
                     0
             END)                                                       AS SLA_BREACHED,
         ROUND(100.0 * SUM(
             CASE
-                WHEN T.SLA_BREACHED = FALSE THEN
+                WHEN COALESCE(T.SLA_BREACHED, FALSE) = FALSE THEN
                     1
                 ELSE
                     0
-            END) / COUNT(*), 2)                                        AS SLA_COMPLIANCE_PERCENT,
+            END) / NULLIF(COUNT(*), 0), 2)                            AS SLA_COMPLIANCE_PERCENT,
         AVG(EXTRACT(EPOCH FROM (T.RESOLVED_AT - T.CREATED_AT)) / 3600) AS AVG_RESOLUTION_HOURS
     FROM
         TICKETS T

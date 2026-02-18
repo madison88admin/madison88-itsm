@@ -102,12 +102,13 @@ const TicketsPage = ({
         if (includeArchived) params.include_archived = true;
         if (searchQuery.trim()) params.q = searchQuery.trim();
         if (tagQuery.trim()) params.tags = tagQuery.trim();
-        if (statusFilter) params.status = statusFilter;
-        if (priorityFilter) params.priority = priorityFilter;
-        if (categoryFilter) params.category = categoryFilter;
-        if (locationFilter) params.location = locationFilter;
-        if (dateFrom) params.date_from = dateFrom;
-        if (dateTo) params.date_to = dateTo;
+        // Only send filters that have non-empty values
+        if (statusFilter && statusFilter.trim()) params.status = statusFilter.trim();
+        if (priorityFilter && priorityFilter.trim()) params.priority = priorityFilter.trim();
+        if (categoryFilter && categoryFilter.trim()) params.category = categoryFilter.trim();
+        if (locationFilter && locationFilter.trim()) params.location = locationFilter.trim();
+        if (dateFrom && dateFrom.trim()) params.date_from = dateFrom.trim();
+        if (dateTo && dateTo.trim()) params.date_to = dateTo.trim();
         params.page = page;
         params.limit = PAGE_SIZE;
         const res = await apiClient.get("/tickets", { params });
@@ -176,16 +177,29 @@ const TicketsPage = ({
 
   useEffect(() => {
     if (!canBulkAssign) return;
-    const fetchAgents = async () => {
+    const fetchAssignableUsers = async () => {
       try {
-        const res = await apiClient.get("/users?role=it_agent");
-        setAgents(res.data.data.users || []);
+        // For system admin: fetch both IT agents and IT managers
+        // For IT manager: fetch only IT agents (their team members are filtered by backend)
+        if (isAdmin) {
+          const [agentsRes, managersRes] = await Promise.all([
+            apiClient.get("/users?role=it_agent"),
+            apiClient.get("/users?role=it_manager"),
+          ]);
+          const agents = agentsRes.data.data.users || [];
+          const managers = managersRes.data.data.users || [];
+          setAgents([...agents, ...managers]);
+        } else {
+          // IT Manager: only show IT agents (backend will validate team membership)
+          const res = await apiClient.get("/users?role=it_agent");
+          setAgents(res.data.data.users || []);
+        }
       } catch (err) {
         setAgents([]);
       }
     };
-    fetchAgents();
-  }, [canBulkAssign]);
+    fetchAssignableUsers();
+  }, [canBulkAssign, isAdmin]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -195,6 +209,8 @@ const TicketsPage = ({
   }, []);
 
   const formatSlaCountdown = (ticket) => {
+    // Don't show countdown for Resolved/Closed tickets
+    if (['Resolved', 'Closed'].includes(ticket?.status)) return null;
     if (!ticket?.sla_due_date) return null;
     const dueTime = new Date(ticket.sla_due_date).getTime();
     if (Number.isNaN(dueTime)) return null;
@@ -217,6 +233,8 @@ const TicketsPage = ({
   };
 
   const getUrgencyScore = (ticket) => {
+    // Don't calculate urgency for Resolved/Closed tickets
+    if (['Resolved', 'Closed'].includes(ticket?.status)) return Number.MAX_SAFE_INTEGER;
     const remaining = ticket?.sla_status?.resolution_remaining_minutes;
     if (typeof remaining === "number") return remaining;
     if (ticket?.sla_due_date) {
@@ -404,7 +422,7 @@ const TicketsPage = ({
             <option value="">Assign to agent...</option>
             {agents.map((agent) => (
               <option key={agent.user_id} value={agent.user_id}>
-                {agent.full_name}
+                {agent.full_name} {isAdmin && `(${agent.role})`}
               </option>
             ))}
           </select>

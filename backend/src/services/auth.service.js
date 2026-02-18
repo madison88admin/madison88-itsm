@@ -36,10 +36,11 @@ const AuthService = {
 
   async login({ email, password }) {
     const user = await UserModel.findByEmail(email);
-    if (!user || !user.is_active) throw new Error('Invalid credentials');
-    if (!user.password_hash) throw new Error('Invalid credentials');
+    if (!user) throw new Error('Invalid email or password');
+    if (!user.is_active) throw new Error('Account is inactive. Please contact your administrator.');
+    if (!user.password_hash) throw new Error('Invalid email or password');
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) throw new Error('Invalid credentials');
+    if (!valid) throw new Error('Invalid email or password');
     await UserModel.updateLastLogin(user.user_id);
     const token = jwt.sign(
       { user_id: user.user_id, email: user.email, role: user.role },

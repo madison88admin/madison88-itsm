@@ -455,7 +455,7 @@ const NewTicketPage = ({ onCreated }) => {
               ))}
             </select>
             <small className="muted">
-              Incident = something is broken. Request = you need something new.
+              Incident = unplanned interruption. Request = formal request from a user for something to be provided.
             </small>
           </label>
           <label className="field">

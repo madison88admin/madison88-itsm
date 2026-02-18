@@ -150,17 +150,30 @@ const TicketDetailPage = ({
 
   useEffect(() => {
     if (!canAssign) return;
-    const fetchAgents = async () => {
+    const fetchAssignableUsers = async () => {
       try {
-        const res = await apiClient.get("/users?role=it_agent");
-        setAgents(res.data.data.users || []);
+        // For system admin: fetch both IT agents and IT managers
+        // For IT manager: fetch only IT agents (their team members are filtered by backend)
+        if (isAdmin) {
+          const [agentsRes, managersRes] = await Promise.all([
+            apiClient.get("/users?role=it_agent"),
+            apiClient.get("/users?role=it_manager"),
+          ]);
+          const agents = agentsRes.data.data.users || [];
+          const managers = managersRes.data.data.users || [];
+          setAgents([...agents, ...managers]);
+        } else {
+          // IT Manager: only show IT agents (backend will validate team membership)
+          const res = await apiClient.get("/users?role=it_agent");
+          setAgents(res.data.data.users || []);
+        }
       } catch (err) {
         setAgents([]);
       }
     };
 
-    fetchAgents();
-  }, [canAssign]);
+    fetchAssignableUsers();
+  }, [canAssign, isAdmin]);
 
   const handleAddComment = async () => {
     const trimmed = commentText.trim();
@@ -524,7 +537,9 @@ const TicketDetailPage = ({
         <div>
           <span>SLA Remaining (mins)</span>
           <strong>
-            {ticket.sla_status?.resolution_remaining_minutes ?? "N/A"}
+            {['Resolved', 'Closed'].includes(ticket?.status) 
+              ? "Stopped" 
+              : (ticket.sla_status?.resolution_remaining_minutes ?? "N/A")}
           </strong>
         </div>
       </div>
@@ -619,7 +634,7 @@ const TicketDetailPage = ({
                 <option value="">Unassigned</option>
                 {agents.map((agent) => (
                   <option key={agent.user_id} value={agent.user_id}>
-                    {agent.full_name || agent.email}
+                    {agent.full_name || agent.email} {isAdmin && `(${agent.role})`}
                   </option>
                 ))}
               </select>
@@ -707,31 +722,69 @@ const TicketDetailPage = ({
       )}
 
       {canRequestPriorityOverride && (
-        <div className="detail-section">
-          <h3>Request Priority Override</h3>
-          {notice && <p className="muted">{notice}</p>}
-          <div className="comment-form">
-            <select
-              value={priorityRequestPriority}
-              onChange={(e) => setPriorityRequestPriority(e.target.value)}
-            >
-              {priorityOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <input
-              value={priorityRequestReason}
-              onChange={(e) => setPriorityRequestReason(e.target.value)}
-              placeholder="Why should this priority change?"
-            />
+        <div className="detail-section" style={{ 
+          backgroundColor: "rgba(26, 58, 92, 0.4)", 
+          borderRadius: "8px", 
+          padding: "20px", 
+          marginBottom: "20px",
+          border: "1px solid rgba(42, 74, 106, 0.3)"
+        }}>
+          <h3 style={{ margin: "0 0 12px 0", fontSize: "18px", fontWeight: "600", color: "#e0e0e0" }}>
+            Request Priority Override
+          </h3>
+          {notice && (
+            <div className="panel success" style={{ marginBottom: "16px", padding: "12px" }}>
+              {notice}
+            </div>
+          )}
+          <div style={{ display: "grid", gap: "16px" }}>
+            <label className="field">
+              <span>Requested Priority</span>
+              <select
+                value={priorityRequestPriority}
+                onChange={(e) => setPriorityRequestPriority(e.target.value)}
+                style={{ 
+                  padding: "12px 14px", 
+                  backgroundColor: "rgba(10, 26, 42, 0.6)", 
+                  border: "1px solid rgba(58, 90, 122, 0.4)", 
+                  borderRadius: "6px", 
+                  color: "#e0e0e0",
+                  fontSize: "14px"
+                }}
+              >
+                {priorityOptions.map((option) => (
+                  <option key={option} value={option} style={{ backgroundColor: "#0a1a2a" }}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Reason for Change</span>
+              <textarea
+                value={priorityRequestReason}
+                onChange={(e) => setPriorityRequestReason(e.target.value)}
+                placeholder="Why should this priority change?"
+                rows={4}
+                style={{ 
+                  padding: "12px 14px", 
+                  backgroundColor: "rgba(10, 26, 42, 0.6)", 
+                  border: "1px solid rgba(58, 90, 122, 0.4)", 
+                  borderRadius: "6px", 
+                  color: "#e0e0e0",
+                  fontSize: "14px",
+                  fontFamily: "inherit",
+                  resize: "vertical"
+                }}
+              />
+            </label>
             <button
-              className="btn ghost"
+              className="btn primary"
               onClick={handlePriorityOverrideRequest}
               disabled={saving}
+              style={{ justifySelf: "flex-start" }}
             >
-              Submit Request
+              {saving ? "Submitting..." : "Submit Request"}
             </button>
           </div>
         </div>
@@ -1064,45 +1117,132 @@ const TicketDetailPage = ({
         </div>
       </div>
 
-      <div className="detail-section">
-        <h3>Escalations</h3>
-        {escalationNotice && <p className="muted">{escalationNotice}</p>}
-        <div className="audit-list">
+      <div className="detail-section" style={{ 
+        backgroundColor: "rgba(26, 58, 92, 0.4)", 
+        borderRadius: "8px", 
+        padding: "20px", 
+        marginBottom: "20px",
+        border: "1px solid rgba(42, 74, 106, 0.3)"
+      }}>
+        <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: "600", color: "#e0e0e0" }}>
+          Escalations
+        </h3>
+        {escalationNotice && (
+          <div className="panel success" style={{ marginBottom: "16px", padding: "12px" }}>
+            {escalationNotice}
+          </div>
+        )}
+        <div style={{ marginBottom: "20px" }}>
           {escalations.length === 0 && (
-            <p className="muted">No escalations logged.</p>
+            <p className="muted" style={{ textAlign: "center", padding: "20px", color: "#a0a0a0" }}>
+              No escalations logged.
+            </p>
           )}
-          {escalations.map((entry) => (
-            <div key={entry.escalation_id} className="audit-item">
-              <div>
-                <strong>{entry.severity}</strong>
-                <span>{new Date(entry.escalated_at).toLocaleString()}</span>
+          {escalations.map((entry) => {
+            const severityColors = {
+              critical: { bg: "rgba(58, 26, 26, 0.6)", border: "rgba(90, 42, 42, 0.5)", text: "#ff6b6b", badge: "#ff4444" },
+              high: { bg: "rgba(58, 42, 26, 0.6)", border: "rgba(90, 74, 42, 0.5)", text: "#ffa500", badge: "#ff8800" },
+              medium: { bg: "rgba(42, 42, 58, 0.6)", border: "rgba(58, 58, 90, 0.5)", text: "#60a5fa", badge: "#3b82f6" },
+              low: { bg: "rgba(26, 58, 42, 0.6)", border: "rgba(42, 90, 58, 0.5)", text: "#4ade80", badge: "#22c55e" },
+            };
+            const colors = severityColors[entry.severity?.toLowerCase()] || severityColors.medium;
+            return (
+              <div 
+                key={entry.escalation_id} 
+                style={{
+                  backgroundColor: colors.bg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "8px",
+                  padding: "16px",
+                  marginBottom: "12px"
+                }}
+              >
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  marginBottom: "8px"
+                }}>
+                  <span style={{ 
+                    padding: "4px 10px", 
+                    backgroundColor: colors.badge, 
+                    borderRadius: "4px",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    textTransform: "uppercase"
+                  }}>
+                    {entry.severity}
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#a0a0a0" }}>
+                    {new Date(entry.escalated_at).toLocaleString()}
+                  </span>
+                </div>
+                <p style={{ 
+                  margin: "0", 
+                  color: "#e0e0e0",
+                  fontSize: "14px",
+                  lineHeight: "1.5"
+                }}>
+                  {entry.reason}
+                </p>
               </div>
-              <p>{entry.reason}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {canEscalate && (
-          <div className="comment-form">
-            <select
-              value={escalationSeverity}
-              onChange={(e) => setEscalationSeverity(e.target.value)}
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-            <input
-              value={escalationReason}
-              onChange={(e) => setEscalationReason(e.target.value)}
-              placeholder="Reason for escalation"
-            />
+          <div style={{ 
+            paddingTop: "20px", 
+            borderTop: "1px solid rgba(42, 74, 106, 0.3)",
+            display: "grid",
+            gap: "16px"
+          }}>
+            <label className="field">
+              <span>Severity</span>
+              <select
+                value={escalationSeverity}
+                onChange={(e) => setEscalationSeverity(e.target.value)}
+                style={{ 
+                  padding: "12px 14px", 
+                  backgroundColor: "rgba(10, 26, 42, 0.6)", 
+                  border: "1px solid rgba(58, 90, 122, 0.4)", 
+                  borderRadius: "6px", 
+                  color: "#e0e0e0",
+                  fontSize: "14px"
+                }}
+              >
+                <option value="low" style={{ backgroundColor: "#0a1a2a" }}>Low</option>
+                <option value="medium" style={{ backgroundColor: "#0a1a2a" }}>Medium</option>
+                <option value="high" style={{ backgroundColor: "#0a1a2a" }}>High</option>
+                <option value="critical" style={{ backgroundColor: "#0a1a2a" }}>Critical</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Reason for Escalation</span>
+              <textarea
+                value={escalationReason}
+                onChange={(e) => setEscalationReason(e.target.value)}
+                placeholder="Reason for escalation"
+                rows={4}
+                style={{ 
+                  padding: "12px 14px", 
+                  backgroundColor: "rgba(10, 26, 42, 0.6)", 
+                  border: "1px solid rgba(58, 90, 122, 0.4)", 
+                  borderRadius: "6px", 
+                  color: "#e0e0e0",
+                  fontSize: "14px",
+                  fontFamily: "inherit",
+                  resize: "vertical"
+                }}
+              />
+            </label>
             <button
-              className="btn ghost"
+              className="btn primary"
               onClick={handleEscalate}
               disabled={saving}
+              style={{ justifySelf: "flex-start" }}
             >
-              Escalate Ticket
+              {saving ? "Escalating..." : "Escalate Ticket"}
             </button>
           </div>
         )}

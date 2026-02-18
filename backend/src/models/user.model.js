@@ -41,8 +41,16 @@ const UserModel = {
     const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
 
     const result = await db.query(
-      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE user_id = $${keys.length + 1} RETURNING user_id, email, full_name, role, department, location, phone, is_active, created_at`,
+      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE user_id = $${keys.length + 1} RETURNING user_id, email, full_name, role, department, location, phone, is_active, created_at, password_hash`,
       [...values, userId]
+    );
+    return result.rows[0];
+  },
+
+  async updatePassword(userId, passwordHash) {
+    const result = await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE user_id = $2 RETURNING user_id, email, full_name, role',
+      [passwordHash, userId]
     );
     return result.rows[0];
   },

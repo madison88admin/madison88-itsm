@@ -14,37 +14,68 @@ const router = express.Router();
 async function loadSlaPerformance(db) {
   try {
     const result = await db.query('SELECT * FROM sla_performance_summary');
-    return result.rows.reduce((acc, row) => {
+    const performance = result.rows.reduce((acc, row) => {
       acc[row.priority] = {
         total: parseInt(row.total_tickets, 10),
         met: parseInt(row.sla_met, 10),
         breached: parseInt(row.sla_breached, 10),
-        compliance: parseFloat(row.sla_compliance_percent),
+        compliance: parseFloat(row.sla_compliance_percent) || 0,
       };
       return acc;
     }, {});
+    
+    // Ensure all priorities (P1-P4) are present, even if 0 tickets
+    const priorities = ['P1', 'P2', 'P3', 'P4'];
+    priorities.forEach(priority => {
+      if (!performance[priority]) {
+        performance[priority] = {
+          total: 0,
+          met: 0,
+          breached: 0,
+          compliance: 0,
+        };
+      }
+    });
+    
+    return performance;
   } catch (err) {
+    // Fallback: Calculate from resolved/closed tickets
     const fallback = await db.query(
       `SELECT priority,
               COUNT(*)::int AS total,
-              SUM(CASE WHEN sla_due_date IS NOT NULL
-                        AND sla_due_date < NOW()
-                        AND status NOT IN ('Resolved','Closed')
-                   THEN 1 ELSE 0 END)::int AS breached
+              SUM(CASE WHEN COALESCE(sla_breached, false) = false THEN 1 ELSE 0 END)::int AS met,
+              SUM(CASE WHEN COALESCE(sla_breached, false) = true THEN 1 ELSE 0 END)::int AS breached
        FROM tickets
+       WHERE status IN ('Resolved', 'Closed')
        GROUP BY priority`
     );
-    return fallback.rows.reduce((acc, row) => {
+    const performance = fallback.rows.reduce((acc, row) => {
       const total = parseInt(row.total, 10);
+      const met = parseInt(row.met, 10);
       const breached = parseInt(row.breached, 10);
       acc[row.priority] = {
         total,
-        met: Math.max(total - breached, 0),
+        met,
         breached,
-        compliance: total ? Number((((total - breached) / total) * 100).toFixed(2)) : 0,
+        compliance: total > 0 ? Number(((met / total) * 100).toFixed(2)) : 0,
       };
       return acc;
     }, {});
+    
+    // Ensure all priorities (P1-P4) are present
+    const priorities = ['P1', 'P2', 'P3', 'P4'];
+    priorities.forEach(priority => {
+      if (!performance[priority]) {
+        performance[priority] = {
+          total: 0,
+          met: 0,
+          breached: 0,
+          compliance: 0,
+        };
+      }
+    });
+    
+    return performance;
   }
 }
 
@@ -192,13 +223,12 @@ router.get('/sla-summary', authenticate, authorize(['system_admin']), async (req
     const db = req.app.get('db');
     const result = await db.query(
       `SELECT
-         SUM(CASE WHEN sla_due_date IS NOT NULL
-                   AND sla_due_date < NOW()
-                   AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS total_breached,
-         SUM(CASE WHEN priority = 'P1'
+         COUNT(CASE WHEN status NOT IN ('Resolved','Closed')
                    AND sla_due_date IS NOT NULL
-                   AND sla_due_date < NOW()
-                   AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS critical_breached
+                   AND sla_due_date < NOW() THEN 1 END)::int AS total_breached,
+         COUNT(CASE WHEN status NOT IN ('Resolved','Closed')
+                   AND sla_due_date IS NOT NULL
+                   AND sla_due_date < NOW() THEN 1 END)::int AS critical_breached
        FROM tickets`
     );
     const summary = result.rows[0] || { total_breached: 0, critical_breached: 0 };

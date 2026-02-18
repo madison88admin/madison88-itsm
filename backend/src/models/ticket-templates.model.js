@@ -14,6 +14,17 @@ const TicketTemplatesModel = {
     return result.rows;
   },
 
+  async getTemplateById(templateId) {
+    const result = await db.query(
+      `SELECT template_id, name, title, description, business_impact, category, priority,
+              created_by, is_active, created_at, updated_at
+       FROM ticket_templates
+       WHERE template_id = $1`,
+      [templateId]
+    );
+    return result.rows[0];
+  },
+
   async createTemplate(data) {
     const templateId = uuidv4();
     const result = await db.query(
@@ -38,12 +49,23 @@ const TicketTemplatesModel = {
 
   async updateTemplate(templateId, updates) {
     const keys = Object.keys(updates);
+    if (keys.length === 0) {
+      return await this.getTemplateById(templateId);
+    }
     const values = Object.values(updates);
     const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
 
     const result = await db.query(
       `UPDATE ticket_templates SET ${setClause}, updated_at = NOW() WHERE template_id = $${keys.length + 1} RETURNING *`,
       [...values, templateId]
+    );
+    return result.rows[0];
+  },
+
+  async deleteTemplate(templateId) {
+    const result = await db.query(
+      `DELETE FROM ticket_templates WHERE template_id = $1 RETURNING *`,
+      [templateId]
     );
     return result.rows[0];
   },

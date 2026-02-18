@@ -57,8 +57,28 @@ router.patch('/:id', authenticate, authorize(['it_manager', 'system_admin']), as
     if (error) {
       return res.status(400).json({ status: 'error', message: error.details.map((d) => d.message).join(', ') });
     }
+    const existing = await TicketTemplatesModel.getTemplateById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ status: 'error', message: 'Template not found' });
+    }
     const template = await TicketTemplatesModel.updateTemplate(req.params.id, value);
+    if (!template) {
+      return res.status(404).json({ status: 'error', message: 'Template not found' });
+    }
     res.json({ status: 'success', data: { template } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', authenticate, authorize(['it_manager', 'system_admin']), async (req, res, next) => {
+  try {
+    const existing = await TicketTemplatesModel.getTemplateById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ status: 'error', message: 'Template not found' });
+    }
+    await TicketTemplatesModel.deleteTemplate(req.params.id);
+    res.json({ status: 'success', message: 'Template deleted' });
   } catch (err) {
     next(err);
   }
