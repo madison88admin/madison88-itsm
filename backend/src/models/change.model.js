@@ -10,6 +10,7 @@ const ChangeModel = {
   },
 
   async listChanges({ status, from, to }) {
+    const filters = { status, from, to };
     const where = [];
     const values = [];
 
@@ -73,7 +74,7 @@ const ChangeModel = {
         data.change_window_start,
         data.change_window_end,
         data.requested_by,
-        data.status,
+        data.status
       ]
     );
     return result.rows[0];

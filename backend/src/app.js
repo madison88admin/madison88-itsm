@@ -76,7 +76,6 @@ app.use('/api/bi', require('./routes/bi.routes'));
 app.use('/api/audit', require('./routes/audit.routes'));
 app.use('/api/ticket-templates', require('./routes/ticket-templates.routes'));
 app.use('/api/notifications', require('./routes/notifications.routes'));
-
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

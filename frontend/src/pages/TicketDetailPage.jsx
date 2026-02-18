@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../api/client";
 import { hasMaxLength, hasMinLength, isBlank } from "../utils/validation";
+import { joinTicket, leaveTicket, onPresenceUpdate } from "../api/socket";
 
 const statusOptions = [
   "New",
@@ -56,6 +57,9 @@ const TicketDetailPage = ({
   const [resolutionPhoto, setResolutionPhoto] = useState(null);
   const [reopenReason, setReopenReason] = useState("");
   const [manuallyConfirmed, setManuallyConfirmed] = useState(false);
+  const [viewers, setViewers] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
 
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
@@ -134,7 +138,22 @@ const TicketDetailPage = ({
     };
 
     fetchDetails();
-  }, [ticketId, canSeeAudit]);
+
+    // Presence: Join ticket room
+    joinTicket(ticketId, user);
+
+    // Presence: Listen for viewer updates
+    const unsubscribePresence = onPresenceUpdate(({ ticketId: incomingId, viewers: updatedViewers }) => {
+      if (String(incomingId) === String(ticketId)) {
+        setViewers(updatedViewers);
+      }
+    });
+
+    return () => {
+      leaveTicket(ticketId);
+      unsubscribePresence();
+    };
+  }, [ticketId, canSeeAudit, user]);
 
   useEffect(() => {
     if (!isEndUser) return;
@@ -201,6 +220,67 @@ const TicketDetailPage = ({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAttachFiles = async (filesToUpload) => {
+    if (!filesToUpload || filesToUpload.length === 0) return;
+
+    setSaving(true);
+    setUploadProgress(`Uploading ${filesToUpload.length} file(s)...`);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      Array.from(filesToUpload).forEach(file => {
+        formData.append('files', file);
+      });
+
+      await apiClient.post(`/tickets/${ticketId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setNotice("Files attached successfully!");
+      // Refresh details
+      const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
+      setAttachments(ticketRes.data.data.attachments || []);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to upload attachments");
+    } finally {
+      setSaving(false);
+      setUploadProgress("");
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    const files = [];
+    for (const item of items) {
+      if (item.kind === 'file') {
+        files.push(item.getAsFile());
+      }
+    }
+    if (files.length > 0) {
+      handleAttachFiles(files);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleAttachFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   const handleTicketUpdate = async () => {
@@ -461,26 +541,51 @@ const TicketDetailPage = ({
   }
 
   if (loading) {
-    return <div className="panel detail-panel">Loading ticket...</div>;
+    return (
+      <div className="panel detail-panel" style={{ animation: 'fadeIn 0.5s ease' }}>
+        <div className="skeleton-shimmer" style={{ height: '40px', width: '70%', marginBottom: '12px' }} />
+        <div className="skeleton-shimmer" style={{ height: '20px', width: '30%', marginBottom: '24px' }} />
+        <div className="detail-grid">
+          {[...Array(11)].map((_, i) => (
+            <div key={i}>
+              <div className="skeleton-shimmer" style={{ height: '14px', width: '50%', marginBottom: '4px' }} />
+              <div className="skeleton-shimmer" style={{ height: '20px', width: '80%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="panel detail-panel error">{error}</div>;
+    return <div className="panel detail-panel error" style={{ animation: 'fadeIn 0.3s ease' }}>{error}</div>;
   }
 
   if (!ticket) {
-    return <div className="panel detail-panel">Ticket not found.</div>;
+    return <div className="panel detail-panel" style={{ animation: 'fadeIn 0.3s ease' }}>Ticket not found.</div>;
   }
 
   const canEditEndUser =
     isEndUser && ["New", "Pending"].includes(ticket.status);
 
   return (
-    <div className="panel detail-panel">
+    <div className="panel detail-panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
       <div className="detail-header">
         <div>
-          <h2>{ticket.title}</h2>
-          <p>{ticket.ticket_number}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <h2>{ticket.title}</h2>
+            {viewers.length > 1 && (
+              <div className="presence-indicators">
+                {viewers.filter(v => v.user_id !== user.user_id).map(viewer => (
+                  <span key={viewer.user_id} className="presence-pill" title={viewer.full_name}>
+                    <span className="presence-dot online"></span>
+                    {viewer.full_name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="muted">{ticket.ticket_number}</p>
         </div>
         <div className="detail-actions">
           <button className="btn ghost" onClick={onClose}>
@@ -1201,14 +1306,25 @@ const TicketDetailPage = ({
             </div>
           ))}
         </div>
-        <div className="comment-form">
+        <div
+          className={`comment-form ${isDragging ? "dragging" : ""}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {uploadProgress && (
+            <div className="upload-indicator glow-pulse">
+              <span>{uploadProgress}</span>
+            </div>
+          )}
           <textarea
             rows={3}
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
+            onPaste={handlePaste}
             placeholder={
               canComment
-                ? "Add a comment for the IT team"
+                ? "Add a comment (Paste images or drop files here...)"
                 : "Only the assigned agent can add resolution comments."
             }
             disabled={!canComment}

@@ -3,7 +3,7 @@ const db = require('../config/database');
 const SlaModel = {
   async listRules() {
     const result = await db.query(
-      'SELECT sla_id, priority, response_time_hours, resolution_time_hours, escalation_threshold_percent, is_active, created_at, updated_at FROM sla_rules ORDER BY priority ASC'
+      'SELECT * FROM sla_rules ORDER BY priority ASC'
     );
     return result.rows;
   },

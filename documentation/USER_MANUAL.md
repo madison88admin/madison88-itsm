@@ -1,8 +1,12 @@
 
 # Madison88 ITSM Platform
 
+
 ## Table of Contents
 
+- [Quick Start Guide](QUICK_START_GUIDE.md)
+- [Glossary](GLOSSARY.md)
+- [Troubleshooting Flowchart](TROUBLESHOOTING_FLOWCHART.md)
 - Introduction
 - Getting Started
 - End User Guide

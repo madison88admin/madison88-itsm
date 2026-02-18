@@ -8,6 +8,7 @@ const PriorityOverrideModel = require('../models/priority-override.model');
 const UserModel = require('../models/user.model');
 const NotificationService = require('./notification.service');
 const NotificationsModel = require('../models/notifications.model');
+const SlaUtils = require('../utils/sla-utils');
 
 const DEFAULT_RESPONSE_HOURS = Number(process.env.DEFAULT_SLA_RESPONSE_HOURS) || 4;
 const DEFAULT_RESOLUTION_HOURS = Number(process.env.DEFAULT_SLA_RESOLUTION_HOURS) || 24;
@@ -72,50 +73,7 @@ async function getSlaRuleMap() {
 }
 
 function computeSlaStatus(ticket, rule) {
-  if (!ticket || !ticket.sla_due_date || !rule) {
-    return {
-      response_remaining_minutes: null,
-      resolution_remaining_minutes: null,
-      response_breached: false,
-      resolution_breached: false,
-      escalated: false,
-    };
-  }
-
-  // Stop SLA countdown for Resolved/Closed tickets
-  if (['Resolved', 'Closed'].includes(ticket.status)) {
-    return {
-      response_remaining_minutes: null,
-      resolution_remaining_minutes: null,
-      response_breached: false,
-      resolution_breached: false,
-      escalated: false,
-    };
-  }
-
-  const now = new Date();
-  const createdAt = new Date(ticket.created_at);
-  const responseDue = ticket.sla_response_due ? new Date(ticket.sla_response_due) : null;
-  const resolutionDue = new Date(ticket.sla_due_date);
-
-  const responseRemaining = responseDue ? Math.ceil((responseDue - now) / 60000) : null;
-  const resolutionRemaining = Math.ceil((resolutionDue - now) / 60000);
-
-  const responseBreached = responseDue ? now > responseDue : false;
-  const resolutionBreached = now > resolutionDue;
-
-  const totalWindowMs = resolutionDue - createdAt;
-  const elapsedMs = now - createdAt;
-  const elapsedPercent = totalWindowMs > 0 ? (elapsedMs / totalWindowMs) * 100 : 0;
-  const escalated = elapsedPercent >= (rule.escalation_threshold_percent || 100);
-
-  return {
-    response_remaining_minutes: responseRemaining,
-    resolution_remaining_minutes: resolutionRemaining,
-    response_breached: responseBreached,
-    resolution_breached: resolutionBreached,
-    escalated,
-  };
+  return SlaUtils.computeSlaStatus(ticket, rule);
 }
 
 function normalizeText(value) {
@@ -146,16 +104,7 @@ function matchClassificationRule(rules, { description, businessImpact }) {
 }
 
 function addBusinessDays(startDate, businessDays) {
-  const result = new Date(startDate);
-  let added = 0;
-  while (added < businessDays) {
-    result.setDate(result.getDate() + 1);
-    const day = result.getDay();
-    if (day !== 0 && day !== 6) {
-      added += 1;
-    }
-  }
-  return result;
+  return SlaUtils.addBusinessDays(startDate, businessDays);
 }
 
 function appendTag(tagString, tag) {
@@ -185,8 +134,10 @@ async function buildSla(priority) {
   const now = new Date();
   const responseHours = rule ? rule.response_time_hours : DEFAULT_RESPONSE_HOURS;
   const resolutionHours = rule ? rule.resolution_time_hours : DEFAULT_RESOLUTION_HOURS;
-  const responseDue = new Date(now.getTime() + responseHours * 60 * 60 * 1000);
-  const resolutionDue = new Date(now.getTime() + resolutionHours * 60 * 60 * 1000);
+
+  const responseDue = SlaUtils.addBusinessHours(now, responseHours);
+  const resolutionDue = SlaUtils.addBusinessHours(now, resolutionHours);
+
   return { sla_due_date: resolutionDue, sla_response_due: responseDue };
 }
 
@@ -230,9 +181,7 @@ const TicketsService = {
       role: user.role,
     });
 
-    const ticket_number = await generateTicketNumber();
     const sla = await buildSla(priority);
-
     const routingRule = await TicketsModel.getRoutingRule({
       category: value.category,
       subcategory: value.subcategory,
@@ -252,25 +201,42 @@ const TicketsService = {
       }
     }
 
-    const ticket = await TicketsModel.createTicket({
-      ticket_number,
-      user_id: user.user_id,
-      category: value.category,
-      subcategory: value.subcategory || null,
-      priority: routingRule?.priority_override || priority,
-      title: value.title,
-      description: value.description,
-      business_impact: value.business_impact,
-      status: 'New',
-      location: value.location,
-      tags: value.tags || null,
-      ticket_type: value.ticket_type || 'incident',
-      assigned_team,
-      assigned_to,
-      assigned_at,
-      assigned_by,
-      ...sla,
-    });
+    let ticket;
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (retries < maxRetries) {
+      try {
+        const ticket_number = await generateTicketNumber();
+        ticket = await TicketsModel.createTicket({
+          ticket_number,
+          user_id: user.user_id,
+          category: value.category,
+          subcategory: value.subcategory || null,
+          priority: routingRule?.priority_override || priority,
+          title: value.title,
+          description: value.description,
+          business_impact: value.business_impact,
+          status: 'New',
+          location: value.location,
+          tags: value.tags || null,
+          ticket_type: value.ticket_type || 'incident',
+          assigned_team,
+          assigned_to,
+          assigned_at,
+          assigned_by,
+          ...sla,
+        });
+        break;
+      } catch (err) {
+        if (err.code === '23505' && err.detail?.includes('ticket_number')) {
+          retries++;
+          if (retries >= maxRetries) throw err;
+          continue;
+        }
+        throw err;
+      }
+    }
 
     await TicketsModel.createStatusHistory({
       ticket_id: ticket.ticket_id,
@@ -312,6 +278,7 @@ const TicketsService = {
       title: value.title,
       description: value.description,
       excludeTicketId: ticket.ticket_id,
+      userId: user.user_id,
     });
 
     const adminUsers = await UserModel.listUsers({ role: 'system_admin' });
@@ -375,9 +342,7 @@ const TicketsService = {
       role: user.role,
     });
 
-    const ticket_number = await generateTicketNumber();
     const sla = await buildSla(priority);
-
     const routingRule = await TicketsModel.getRoutingRule({
       category: value.category,
       subcategory: value.subcategory,
@@ -397,25 +362,42 @@ const TicketsService = {
       }
     }
 
-    const ticket = await TicketsModel.createTicket({
-      ticket_number,
-      user_id: user.user_id,
-      category: value.category,
-      subcategory: value.subcategory || null,
-      priority: routingRule?.priority_override || priority,
-      title: value.title,
-      description: value.description,
-      business_impact: value.business_impact,
-      status: 'New',
-      location: value.location,
-      tags: value.tags || null,
-      ticket_type: value.ticket_type || 'incident',
-      assigned_team,
-      assigned_to,
-      assigned_at,
-      assigned_by,
-      ...sla,
-    });
+    let ticket;
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (retries < maxRetries) {
+      try {
+        const ticket_number = await generateTicketNumber();
+        ticket = await TicketsModel.createTicket({
+          ticket_number,
+          user_id: user.user_id,
+          category: value.category,
+          subcategory: value.subcategory || null,
+          priority: routingRule?.priority_override || priority,
+          title: value.title,
+          description: value.description,
+          business_impact: value.business_impact,
+          status: 'New',
+          location: value.location,
+          tags: value.tags || null,
+          ticket_type: value.ticket_type || 'incident',
+          assigned_team,
+          assigned_to,
+          assigned_at,
+          assigned_by,
+          ...sla,
+        });
+        break;
+      } catch (err) {
+        if (err.code === '23505' && err.detail?.includes('ticket_number')) {
+          retries++;
+          if (retries >= maxRetries) throw err;
+          continue;
+        }
+        throw err;
+      }
+    }
 
     await TicketsModel.createStatusHistory({
       ticket_id: ticket.ticket_id,
@@ -489,6 +471,7 @@ const TicketsService = {
       title: value.title,
       description: value.description,
       excludeTicketId: ticket.ticket_id,
+      userId: user.user_id,
     });
 
     const adminUsers = await UserModel.listUsers({ role: 'system_admin' });
@@ -583,6 +566,7 @@ const TicketsService = {
     } else {
       filters.user_id = user.user_id;
     }
+
     const pagination = { page: parseInt(page, 10), limit: parseInt(limit, 10) };
     const data = await TicketsModel.listTickets(filters, pagination);
     const slaRuleMap = await getSlaRuleMap();

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { onDashboardRefresh } from "../../api/socket";
 
@@ -18,8 +19,16 @@ const AdminDashboard = () => {
   const [agentStatusMatrix, setAgentStatusMatrix] = useState([]);
   const [ticketsByLocation, setTicketsByLocation] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const handleDrillDown = (params) => {
+    const searchParams = new URLSearchParams(params);
+    navigate(`/tickets?${searchParams.toString()}`);
+  };
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError("");
     try {
       const [usersRes, statusRes, slaRes, reportingRes, volumeRes] = await Promise.all([
@@ -40,6 +49,8 @@ const AdminDashboard = () => {
       );
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load dashboard");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -105,18 +116,18 @@ const AdminDashboard = () => {
             Monitor workload, resolution pace, and SLA exposure in real time.
           </p>
           <div className="admin-hero-metrics">
-            <div className="admin-kpi">
+            <div className="admin-kpi hover-lift">
               <span>Total Users</span>
-              <strong>{users}</strong>
+              {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '4px' }} /> : <strong>{users}</strong>}
             </div>
-            <div className="admin-kpi">
+            <div className="admin-kpi hover-lift">
               <span>Total Tickets</span>
-              <strong>{totalTickets}</strong>
+              {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '4px' }} /> : <strong>{totalTickets}</strong>}
             </div>
-            <div className="admin-kpi">
+            <div className="admin-kpi hover-lift">
               <span>Active Work</span>
-              <strong>{activeTickets}</strong>
-              <em>{activePercent} of total</em>
+              {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '4px' }} /> : <strong>{activeTickets}</strong>}
+              {loading ? <div className="skeleton-shimmer" style={{ height: '14px', width: '80px', marginTop: '4px' }} /> : <em>{activePercent} of total</em>}
             </div>
           </div>
         </div>
@@ -128,11 +139,11 @@ const AdminDashboard = () => {
             <div className="admin-progress">
               <div className="admin-progress-bar">
                 <div
-                  className="admin-progress-fill danger"
-                  style={{ width: breachPercent }}
+                  className={`admin-progress-fill danger ${!loading ? 'sla-progress-animated' : ''}`}
+                  style={{ width: loading ? '0%' : breachPercent }}
                 />
               </div>
-              <span>{breachPercent} breached</span>
+              {loading ? <div className="skeleton-shimmer" style={{ height: '14px', width: '100px', marginTop: '4px' }} /> : <span>{breachPercent} breached</span>}
             </div>
           </div>
           <div className="admin-alert muted">
@@ -154,10 +165,15 @@ const AdminDashboard = () => {
 
       <section className="admin-grid">
         {statusCards.map((card) => (
-          <div key={card.label} className="panel admin-status-card">
+          <div
+            key={card.label}
+            className="panel admin-status-card hover-lift cascade-item"
+            style={{ cursor: 'pointer' }}
+            onClick={() => handleDrillDown({ status: card.label })}
+          >
             <span className="status-pill">{card.label}</span>
-            <strong>{card.value}</strong>
-            <em>{formatPercent(card.value, totalTickets)} of total</em>
+            {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '80px', marginTop: '8px' }} /> : <strong>{card.value}</strong>}
+            {loading ? <div className="skeleton-shimmer" style={{ height: '14px', width: '100px', marginTop: '4px' }} /> : <em>{formatPercent(card.value, totalTickets)} of total</em>}
           </div>
         ))}
         <div className="panel admin-status-card emphasis">
@@ -175,7 +191,12 @@ const AdminDashboard = () => {
         ) : (
           <div className="location-cards">
             {ticketsByLocation.map((item) => (
-              <div key={item.key || "unknown"} className="location-card">
+              <div
+                key={item.key || "unknown"}
+                className="location-card hover-lift"
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleDrillDown({ location: item.key })}
+              >
                 <span className="location-label">
                   {item.key || "Unknown"}
                 </span>

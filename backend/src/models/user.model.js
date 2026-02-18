@@ -24,14 +24,21 @@ const UserModel = {
   },
 
   async listUsers({ role } = {}) {
+    const conditions = [];
+    const values = [];
+
     if (role) {
-      const result = await db.query(
-        'SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
-        [role]
-      );
-      return result.rows;
+      values.push(role);
+      conditions.push(`role = $${values.length}`);
     }
-    const result = await db.query('SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at FROM users ORDER BY created_at DESC');
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await db.query(
+      `SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at 
+       FROM users ${whereClause} ORDER BY created_at DESC`,
+      values
+    );
     return result.rows;
   },
 

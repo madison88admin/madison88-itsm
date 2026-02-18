@@ -92,9 +92,9 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
                             key={item.path}
                             to={item.path}
                             className={
-                                location.pathname === item.path || (item.path !== "/" && location.pathname.startsWith(item.path))
-                                    ? "nav-item active"
-                                    : "nav-item"
+                                `nav-item btn-press ${location.pathname === item.path || (item.path !== "/" && location.pathname.startsWith(item.path))
+                                    ? "active"
+                                    : ""}`
                             }
                             onClick={() => setIsSidebarOpen(false)}
                         >
@@ -128,7 +128,7 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
                     </div>
                     <div className="topbar-actions">
                         <button
-                            className="notification-button"
+                            className="notification-button btn-press"
                             onClick={onNotificationToggle}
                             aria-label="Notifications"
                         >
@@ -189,7 +189,9 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
                     </div>
                 </header>
 
-                <Outlet />
+                <div className="page-transition-wrapper" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                    <Outlet />
+                </div>
 
             </main>
         </div>

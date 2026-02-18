@@ -23,11 +23,82 @@ const io = socketIo(server, {
   }
 });
 
+// Track active viewers per ticket: ticketId -> Set of userData { userId, fullName }
+const ticketViewers = new Map();
+// Track socketId -> { ticketId, user }
+const socketUserData = new Map();
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   logger.info(`User connected: ${socket.id}`);
 
+  socket.on('join-ticket', ({ ticketId, user }) => {
+    if (!ticketId || !user) return;
+
+    socket.join(`ticket-${ticketId}`);
+
+    // Store user info for cleanup on disconnect
+    socketUserData.set(socket.id, { ticketId, user });
+
+    if (!ticketViewers.has(ticketId)) {
+      ticketViewers.set(ticketId, new Map());
+    }
+
+    const viewers = ticketViewers.get(ticketId);
+    viewers.set(user.user_id, {
+      user_id: user.user_id,
+      full_name: user.full_name,
+      socket_id: socket.id
+    });
+
+    // Notify everyone in the room (including joiner) of the current viewers
+    io.to(`ticket-${ticketId}`).emit('presence-update', {
+      ticketId,
+      viewers: Array.from(viewers.values())
+    });
+
+    logger.info(`User ${user.full_name} joined ticket ${ticketId}`);
+  });
+
+  socket.on('leave-ticket', (ticketId) => {
+    socket.leave(`ticket-${ticketId}`);
+    const data = socketUserData.get(socket.id);
+    if (!data || data.ticketId !== ticketId) return;
+
+    const { user } = data;
+    const viewers = ticketViewers.get(ticketId);
+    if (viewers) {
+      viewers.delete(user.user_id);
+      if (viewers.size === 0) {
+        ticketViewers.delete(ticketId);
+      } else {
+        io.to(`ticket-${ticketId}`).emit('presence-update', {
+          ticketId,
+          viewers: Array.from(viewers.values())
+        });
+      }
+    }
+    socketUserData.delete(socket.id);
+  });
+
   socket.on('disconnect', () => {
+    const data = socketUserData.get(socket.id);
+    if (data) {
+      const { ticketId, user } = data;
+      const viewers = ticketViewers.get(ticketId);
+      if (viewers) {
+        viewers.delete(user.user_id);
+        if (viewers.size === 0) {
+          ticketViewers.delete(ticketId);
+        } else {
+          io.to(`ticket-${ticketId}`).emit('presence-update', {
+            ticketId,
+            viewers: Array.from(viewers.values())
+          });
+        }
+      }
+      socketUserData.delete(socket.id);
+    }
     logger.info(`User disconnected: ${socket.id}`);
   });
 
@@ -67,6 +138,7 @@ async function runSlaEscalationJob() {
     });
     if (result.escalated) {
       logger.info(`SLA auto-escalations created: ${result.escalated}`);
+      io.emit('dashboard-refresh');
     }
   } catch (err) {
     logger.error('SLA auto-escalation job failed', { error: err.message });
@@ -88,14 +160,16 @@ async function runAutoCloseJob() {
     });
     if (confirmationResult.closed) {
       logger.info(`Auto-closed tickets (no user confirmation): ${confirmationResult.closed}`);
+      io.emit('dashboard-refresh');
     }
-    
+
     // Then, run the original auto-close for resolved tickets (business days)
     const result = await TicketsService.runAutoCloseResolvedTickets({
       businessDays: AUTO_CLOSE_BUSINESS_DAYS,
     });
     if (result.closed) {
       logger.info(`Auto-closed resolved tickets: ${result.closed}`);
+      io.emit('dashboard-refresh');
     }
   } catch (err) {
     logger.error('Auto-close job failed', { error: err.message });

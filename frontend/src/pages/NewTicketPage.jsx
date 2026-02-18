@@ -94,7 +94,7 @@ const NewTicketPage = ({ onCreated }) => {
       business_impact: template.business_impact || "",
       priority: template.priority || "",
     }));
-    
+
     // Show instant success feedback
     const filledFields = [];
     if (template.title) filledFields.push("Title");
@@ -102,7 +102,7 @@ const NewTicketPage = ({ onCreated }) => {
     if (template.priority) filledFields.push("Priority");
     if (template.description) filledFields.push("Description");
     if (template.business_impact) filledFields.push("Business Impact");
-    
+
     if (filledFields.length > 0) {
       setSuccess(`✓ Template "${template.name}" applied! Fields filled: ${filledFields.join(", ")}`);
       setTimeout(() => setSuccess(""), 3000);
@@ -118,8 +118,8 @@ const NewTicketPage = ({ onCreated }) => {
     );
     if (template) {
       // Only apply if form doesn't match template (templates just loaded)
-      const needsApply = 
-        form.title !== (template.title || "") || 
+      const needsApply =
+        form.title !== (template.title || "") ||
         form.category !== (template.category || "");
       if (needsApply) {
         applyTemplate(template);
@@ -229,7 +229,7 @@ const NewTicketPage = ({ onCreated }) => {
         } catch (err) {
           setError(
             err.response?.data?.message ||
-              "Ticket created, but asset link failed",
+            "Ticket created, but asset link failed",
           );
         }
       }
@@ -270,7 +270,7 @@ const NewTicketPage = ({ onCreated }) => {
   };
 
   return (
-    <div className="panel">
+    <div className="panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
       <div className="panel-header">
         <div>
           <h2>Create Ticket</h2>
@@ -356,7 +356,7 @@ const NewTicketPage = ({ onCreated }) => {
                 const id = e.target.value;
                 setSelectedTemplateId(id);
                 setError(""); // Clear any previous errors
-                
+
                 // Apply template IMMEDIATELY when selected
                 if (id) {
                   const template = templates.find(
@@ -398,7 +398,7 @@ const NewTicketPage = ({ onCreated }) => {
               if (selectedTemplate.business_impact) filled.push("Business Impact");
               return (
                 <small className="muted" style={{ color: "#4ade80", fontWeight: "500" }}>
-                  ✓ Template applied: {filled.length > 0 ? filled.join(", ") : "No fields to fill"} 
+                  ✓ Template applied: {filled.length > 0 ? filled.join(", ") : "No fields to fill"}
                   {filled.length > 0 && " - You can edit any field"}
                 </small>
               );
@@ -574,7 +574,7 @@ const NewTicketPage = ({ onCreated }) => {
         </button>
         {step < steps.length - 1 ? (
           <button
-            className="btn primary"
+            className="btn primary btn-press"
             type="button"
             onClick={() => {
               const validationMessage =
@@ -596,7 +596,7 @@ const NewTicketPage = ({ onCreated }) => {
           </button>
         ) : (
           <button
-            className="btn primary"
+            className="btn primary btn-press"
             type="button"
             disabled={!validateStep() || loading}
             onClick={handleSubmit}

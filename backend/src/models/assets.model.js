@@ -83,7 +83,7 @@ const AssetsModel = {
         data.next_maintenance_date,
         data.cost,
         data.currency,
-        data.status,
+        data.status
       ]
     );
     return result.rows[0];

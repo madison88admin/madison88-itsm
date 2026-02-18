@@ -19,7 +19,7 @@ const AdminUsersPage = () => {
   const updateUser = async (id, updates) => {
     try {
       const res = await apiClient.patch(`/users/${id}`, updates);
-      
+
       // Check if temporary password was generated
       if (res.data.data?.temporary_password) {
         setTempPasswordInfo({
@@ -32,7 +32,7 @@ const AdminUsersPage = () => {
       } else {
         setTempPasswordInfo(null);
       }
-      
+
       load();
     } catch (err) {
       console.error("Failed to update user:", err);
@@ -48,7 +48,7 @@ const AdminUsersPage = () => {
           <p>Manage roles and access.</p>
         </div>
       </div>
-      
+
       {tempPasswordInfo && (
         <div className="panel success" style={{ marginBottom: "16px", padding: "16px", backgroundColor: "#1a3a5c", border: "2px solid #4ade80" }}>
           <div style={{ marginBottom: "12px" }}>
@@ -89,7 +89,7 @@ const AdminUsersPage = () => {
           </button>
         </div>
       )}
-      
+
       <div className="user-table">
         {users.map((user) => (
           <div key={user.user_id} className="user-row">
@@ -110,6 +110,7 @@ const AdminUsersPage = () => {
                   </option>
                 ))}
               </select>
+
               {['it_agent', 'it_manager', 'system_admin'].includes(user.role) && (
                 <button
                   className="btn ghost"

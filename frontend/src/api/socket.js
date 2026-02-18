@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const socketUrl = process.env.REACT_APP_API_URL || (typeof window !== "undefined" ? window.location.origin : "");
+const socketUrl = process.env.REACT_APP_API_URL || "ws://localhost:3000";
 let socket = null;
 
 export function getSocket() {
@@ -20,7 +20,7 @@ export function getSocket() {
  */
 export function onDashboardRefresh(onRefresh) {
   const s = getSocket();
-  if (!s) return () => {};
+  if (!s) return () => { };
   s.on("dashboard-refresh", onRefresh);
   return () => s.off("dashboard-refresh", onRefresh);
 }
@@ -30,7 +30,7 @@ export function onDashboardRefresh(onRefresh) {
  */
 export function subscribeTicket(ticketId, onUpdate) {
   const s = getSocket();
-  if (!s || !ticketId) return () => {};
+  if (!s || !ticketId) return () => { };
   s.emit("subscribe-ticket", ticketId);
   const handler = (payload) => onUpdate(payload);
   s.on("ticket-updated", handler);
@@ -46,4 +46,34 @@ export function subscribeTicket(ticketId, onUpdate) {
     s.off("ticket-reopened", handler);
     s.off("ticket-confirmed", handler);
   };
+}
+
+/**
+ * Presence: Notify backend we are viewing a ticket
+ */
+export function joinTicket(ticketId, user) {
+  const s = getSocket();
+  if (s && ticketId && user) {
+    s.emit("join-ticket", { ticketId, user });
+  }
+}
+
+/**
+ * Presence: Notify backend we stopped viewing a ticket
+ */
+export function leaveTicket(ticketId) {
+  const s = getSocket();
+  if (s && ticketId) {
+    s.emit("leave-ticket", ticketId);
+  }
+}
+
+/**
+ * Presence: Listen for viewer updates
+ */
+export function onPresenceUpdate(onUpdate) {
+  const s = getSocket();
+  if (!s) return () => { };
+  s.on("presence-update", onUpdate);
+  return () => s.off("presence-update", onUpdate);
 }

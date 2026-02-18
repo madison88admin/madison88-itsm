@@ -3,7 +3,7 @@ const db = require('../config/database');
 const DashboardService = {
     async getSlaPerformance() {
         try {
-            const result = await db.query('SELECT * FROM sla_performance_summary');
+            const result = await db.query(`SELECT * FROM sla_performance_summary`);
             const performance = result.rows.reduce((acc, row) => {
                 acc[row.priority] = {
                     total: parseInt(row.total_tickets, 10),
@@ -91,13 +91,13 @@ const DashboardService = {
     },
 
     async getTeamPerformance() {
-        const result = await db.query('SELECT * FROM team_performance_summary');
+        const result = await db.query(`SELECT * FROM team_performance_summary`);
         return { teams: result.rows };
     },
 
     async getAgingReport() {
         try {
-            const result = await db.query('SELECT * FROM aging_tickets');
+            const result = await db.query(`SELECT * FROM aging_tickets`);
             return {
                 over_7_days: result.rows.filter((row) => row.age_category === 'over_7_days'),
                 over_14_days: result.rows.filter((row) => row.age_category === 'over_14_days'),
@@ -124,7 +124,7 @@ const DashboardService = {
     },
 
     async getStatusSummary() {
-        const result = await db.query('SELECT status, COUNT(*)::int AS count FROM tickets GROUP BY status');
+        const result = await db.query(`SELECT status, COUNT(*)::int AS count FROM tickets GROUP BY status`);
         const status_counts = result.rows.reduce((acc, row) => {
             acc[row.status] = parseInt(row.count, 10);
             return acc;
@@ -152,7 +152,8 @@ const DashboardService = {
          COUNT(CASE WHEN status NOT IN ('Resolved','Closed')
                    AND sla_due_date IS NOT NULL
                    AND sla_due_date < NOW() THEN 1 END)::int AS critical_breached
-       FROM tickets`
+       FROM tickets
+       WHERE 1=1`
         );
         return result.rows[0] || { total_breached: 0, critical_breached: 0 };
     },
@@ -178,32 +179,32 @@ const DashboardService = {
     },
 
     async getAdvancedReporting() {
-        const mttrResult = await db.query(
+        const result = await db.query(
             `SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600) AS mttr_hours
        FROM tickets WHERE resolved_at IS NOT NULL`
         );
-        const mttr_hours = Number(mttrResult.rows[0]?.mttr_hours || 0);
+        const mttr_hours = Number(result.rows[0]?.mttr_hours || 0);
 
         const mttaResult = await db.query(
             `WITH first_response AS (
-         SELECT t.ticket_id, MIN(c.created_at) AS first_response_at
-         FROM tickets t
-         JOIN ticket_comments c ON c.ticket_id = t.ticket_id
-         JOIN users u ON u.user_id = c.user_id
-         WHERE u.role IN ('it_agent','it_manager','system_admin')
-         GROUP BY t.ticket_id
-       )
-       SELECT AVG(EXTRACT(EPOCH FROM (fr.first_response_at - t.created_at)) / 3600) AS mtta_hours
-       FROM tickets t
-       JOIN first_response fr ON fr.ticket_id = t.ticket_id`
+          SELECT t.ticket_id, MIN(c.created_at) AS first_response_at
+          FROM tickets t
+          JOIN ticket_comments c ON c.ticket_id = t.ticket_id
+          JOIN users u ON u.user_id = c.user_id
+          WHERE u.role IN ('it_agent','it_manager','system_admin')
+          GROUP BY t.ticket_id
+        )
+        SELECT AVG(EXTRACT(EPOCH FROM (fr.first_response_at - t.created_at)) / 3600) AS mtta_hours
+        FROM tickets t
+        JOIN first_response fr ON fr.ticket_id = t.ticket_id`
         );
         const mtta_hours = Number(mttaResult.rows[0]?.mtta_hours || 0);
 
         const reopenStats = await db.query(
             `SELECT COUNT(*)::int AS total,
-              SUM(CASE WHEN reopened_count > 0 THEN 1 ELSE 0 END)::int AS reopened_tickets,
-              AVG(reopened_count)::numeric AS avg_reopens
-       FROM tickets`
+               SUM(CASE WHEN reopened_count > 0 THEN 1 ELSE 0 END)::int AS reopened_tickets,
+               AVG(reopened_count)::numeric AS avg_reopens
+        FROM tickets`
         );
         const reopen_total = reopenStats.rows[0]?.total || 0;
         const reopened_tickets = reopenStats.rows[0]?.reopened_tickets || 0;
@@ -212,144 +213,145 @@ const DashboardService = {
 
         const volumeTrend = await db.query(
             `SELECT DATE_TRUNC('day', created_at)::date AS day, COUNT(*)::int AS count
-       FROM tickets
-       GROUP BY day
-       ORDER BY day DESC
-       LIMIT 30`
+        FROM tickets
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30`
         );
 
         const slaTrend = await db.query(
             `SELECT DATE_TRUNC('day', sla_due_date)::date AS day, COUNT(*)::int AS count
-       FROM tickets
-       WHERE sla_due_date IS NOT NULL
-         AND sla_due_date < NOW()
-         AND status NOT IN ('Resolved','Closed')
-       GROUP BY day
-       ORDER BY day DESC
-       LIMIT 30`
+        FROM tickets
+        WHERE sla_due_date IS NOT NULL
+          AND sla_due_date < NOW()
+          AND status NOT IN ('Resolved','Closed')
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30`
         );
 
         const agentPerf = await db.query(
             `SELECT u.user_id, u.full_name,
-              COUNT(t.ticket_id)::int AS resolved_count,
-              AVG(EXTRACT(EPOCH FROM (t.resolved_at - t.created_at)) / 3600) AS avg_resolution_hours
-       FROM tickets t
-       JOIN users u ON u.user_id = t.assigned_to
-       WHERE t.resolved_at IS NOT NULL
-       GROUP BY u.user_id, u.full_name
-       ORDER BY resolved_count DESC
-       LIMIT 10`
+               COUNT(t.ticket_id)::int AS resolved_count,
+               AVG(EXTRACT(EPOCH FROM (t.resolved_at - t.created_at)) / 3600) AS avg_resolution_hours
+        FROM tickets t
+        JOIN users u ON u.user_id = t.assigned_to
+        WHERE t.resolved_at IS NOT NULL
+        GROUP BY u.user_id, u.full_name
+        ORDER BY resolved_count DESC
+        LIMIT 10`
         );
 
         const pendingChangeApprovals = await db.query(
             `SELECT COUNT(*)::int AS count
-       FROM change_requests
-       WHERE status = 'submitted'`
+        FROM change_requests
+        WHERE status = 'submitted'`
         );
 
         const pendingPriorityOverrides = await db.query(
             `SELECT COUNT(*)::int AS count
-       FROM ticket_priority_override_requests
-       WHERE status = 'pending'`
+        FROM ticket_priority_override_requests r
+        JOIN tickets t ON t.ticket_id = r.ticket_id
+        WHERE r.status = 'pending'`
         );
 
         const escalationsOpen = await db.query(
             `SELECT COUNT(*)::int AS count
-       FROM tickets t
-       JOIN sla_rules s ON s.priority = t.priority AND s.is_active = true
-       WHERE t.status NOT IN ('Resolved','Closed')
-         AND t.sla_due_date IS NOT NULL
-         AND t.created_at IS NOT NULL
-         AND EXTRACT(EPOCH FROM (NOW() - t.created_at)) / NULLIF(EXTRACT(EPOCH FROM (t.sla_due_date - t.created_at)), 0) * 100 >= s.escalation_threshold_percent`
+        FROM tickets t
+        JOIN sla_rules s ON s.priority = t.priority AND s.is_active = true
+        WHERE t.status NOT IN ('Resolved','Closed')
+          AND t.sla_due_date IS NOT NULL
+          AND t.created_at IS NOT NULL
+          AND EXTRACT(EPOCH FROM (NOW() - t.created_at)) / NULLIF(EXTRACT(EPOCH FROM (t.sla_due_date - t.created_at)), 0) * 100 >= s.escalation_threshold_percent`
         );
 
         const topTags = await db.query(
             `SELECT LOWER(TRIM(tag)) AS tag, COUNT(*)::int AS count
-       FROM tickets t
-       CROSS JOIN LATERAL unnest(string_to_array(COALESCE(t.tags, ''), ',')) AS tag
-       WHERE t.tags IS NOT NULL AND t.tags <> ''
-       GROUP BY tag
-       ORDER BY count DESC
-       LIMIT 10`
+        FROM tickets t
+        CROSS JOIN LATERAL unnest(string_to_array(COALESCE(t.tags, ''), ',')) AS tag
+        WHERE t.tags IS NOT NULL AND t.tags <> ''
+        GROUP BY tag
+        ORDER BY count DESC
+        LIMIT 10`
         );
 
         const slaByPriority = await db.query(
             `SELECT priority,
-              COUNT(*)::int AS total,
-              SUM(CASE WHEN sla_due_date IS NOT NULL
-                        AND sla_due_date < NOW()
-                        AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
-       FROM tickets
-       GROUP BY priority
-       ORDER BY priority`
+               COUNT(*)::int AS total,
+               SUM(CASE WHEN sla_due_date IS NOT NULL
+                         AND sla_due_date < NOW()
+                         AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
+        FROM tickets
+        GROUP BY priority
+        ORDER BY priority`
         );
 
         const slaByTeam = await db.query(
             `SELECT tm.team_id, tm.team_name,
-              COUNT(t.ticket_id)::int AS total,
-              SUM(CASE WHEN t.sla_due_date IS NOT NULL
-                        AND t.sla_due_date < NOW()
-                        AND t.status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
-       FROM teams tm
-       LEFT JOIN tickets t ON t.assigned_team = tm.team_id
-       GROUP BY tm.team_id, tm.team_name
-       ORDER BY tm.team_name`
+               COUNT(t.ticket_id)::int AS total,
+               SUM(CASE WHEN t.sla_due_date IS NOT NULL
+                         AND t.sla_due_date < NOW()
+                         AND t.status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
+        FROM teams tm
+        LEFT JOIN tickets t ON t.assigned_team = tm.team_id
+        GROUP BY tm.team_id, tm.team_name
+        ORDER BY tm.team_name`
         );
 
         const slaWeekly = await db.query(
             `SELECT DATE_TRUNC('week', created_at)::date AS week_start,
-              COUNT(*)::int AS total,
-              SUM(CASE WHEN sla_due_date IS NOT NULL
-                        AND sla_due_date < NOW()
-                        AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
-       FROM tickets
-       GROUP BY week_start
-       ORDER BY week_start DESC
-       LIMIT 12`
+               COUNT(*)::int AS total,
+               SUM(CASE WHEN sla_due_date IS NOT NULL
+                         AND sla_due_date < NOW()
+                         AND status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS breached
+        FROM tickets
+        GROUP BY week_start
+        ORDER BY week_start DESC
+        LIMIT 12`
         );
 
         const agingBuckets = await db.query(
             `SELECT
-         SUM(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN 1 ELSE 0 END)::int AS bucket_0_1,
-         SUM(CASE WHEN created_at < NOW() - INTERVAL '1 day'
-                   AND created_at >= NOW() - INTERVAL '3 days' THEN 1 ELSE 0 END)::int AS bucket_2_3,
-         SUM(CASE WHEN created_at < NOW() - INTERVAL '3 days'
-                   AND created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)::int AS bucket_4_7,
-         SUM(CASE WHEN created_at < NOW() - INTERVAL '7 days'
-                   AND created_at >= NOW() - INTERVAL '14 days' THEN 1 ELSE 0 END)::int AS bucket_8_14,
-         SUM(CASE WHEN created_at < NOW() - INTERVAL '14 days' THEN 1 ELSE 0 END)::int AS bucket_15_plus
-       FROM tickets
-       WHERE status NOT IN ('Resolved','Closed')`
+          SUM(CASE WHEN created_at >= NOW() - INTERVAL '1 day' THEN 1 ELSE 0 END)::int AS bucket_0_1,
+          SUM(CASE WHEN created_at < NOW() - INTERVAL '1 day'
+                    AND created_at >= NOW() - INTERVAL '3 days' THEN 1 ELSE 0 END)::int AS bucket_2_3,
+          SUM(CASE WHEN created_at < NOW() - INTERVAL '3 days'
+                    AND created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)::int AS bucket_4_7,
+          SUM(CASE WHEN created_at < NOW() - INTERVAL '7 days'
+                    AND created_at >= NOW() - INTERVAL '14 days' THEN 1 ELSE 0 END)::int AS bucket_8_14,
+          SUM(CASE WHEN created_at < NOW() - INTERVAL '14 days' THEN 1 ELSE 0 END)::int AS bucket_15_plus
+        FROM tickets
+        WHERE status NOT IN ('Resolved','Closed')`
         );
 
         const agentWorkload = await db.query(
             `SELECT u.user_id, u.full_name,
-              COUNT(t.ticket_id)::int AS assigned_total,
-              SUM(CASE WHEN t.status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS active_count,
-              SUM(CASE WHEN t.status NOT IN ('Resolved','Closed')
-                        AND t.sla_due_date IS NOT NULL
-                        AND t.sla_due_date < NOW() THEN 1 ELSE 0 END)::int AS overdue_count
-       FROM users u
-       LEFT JOIN tickets t ON t.assigned_to = u.user_id
-       WHERE u.role IN ('it_agent','it_manager','system_admin')
-       GROUP BY u.user_id, u.full_name
-       ORDER BY active_count DESC NULLS LAST
-       LIMIT 12`
+               COUNT(t.ticket_id)::int AS assigned_total,
+               SUM(CASE WHEN t.status NOT IN ('Resolved','Closed') THEN 1 ELSE 0 END)::int AS active_count,
+               SUM(CASE WHEN t.status NOT IN ('Resolved','Closed')
+                         AND t.sla_due_date IS NOT NULL
+                         AND t.sla_due_date < NOW() THEN 1 ELSE 0 END)::int AS overdue_count
+        FROM users u
+        LEFT JOIN tickets t ON t.assigned_to = u.user_id
+        WHERE u.role IN ('it_agent','it_manager','system_admin')
+        GROUP BY u.user_id, u.full_name
+        ORDER BY active_count DESC NULLS LAST
+        LIMIT 12`
         );
 
         const agentStatusMatrix = await db.query(
             `SELECT u.user_id, u.full_name,
-              SUM(CASE WHEN t.status = 'New' THEN 1 ELSE 0 END)::int AS new_count,
-              SUM(CASE WHEN t.status = 'In Progress' THEN 1 ELSE 0 END)::int AS in_progress_count,
-              SUM(CASE WHEN t.status = 'Pending' THEN 1 ELSE 0 END)::int AS pending_count,
-              SUM(CASE WHEN t.status = 'Resolved' THEN 1 ELSE 0 END)::int AS resolved_count,
-              SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END)::int AS closed_count,
-              SUM(CASE WHEN t.status = 'Reopened' THEN 1 ELSE 0 END)::int AS reopened_count
-       FROM users u
-       LEFT JOIN tickets t ON t.assigned_to = u.user_id
-       WHERE u.role = 'it_agent'
-       GROUP BY u.user_id, u.full_name
-       ORDER BY u.full_name`
+               SUM(CASE WHEN t.status = 'New' THEN 1 ELSE 0 END)::int AS new_count,
+               SUM(CASE WHEN t.status = 'In Progress' THEN 1 ELSE 0 END)::int AS in_progress_count,
+               SUM(CASE WHEN t.status = 'Pending' THEN 1 ELSE 0 END)::int AS pending_count,
+               SUM(CASE WHEN t.status = 'Resolved' THEN 1 ELSE 0 END)::int AS resolved_count,
+               SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END)::int AS closed_count,
+               SUM(CASE WHEN t.status = 'Reopened' THEN 1 ELSE 0 END)::int AS reopened_count
+        FROM users u
+        LEFT JOIN tickets t ON t.assigned_to = u.user_id
+        WHERE u.role = 'it_agent'
+        GROUP BY u.user_id, u.full_name
+        ORDER BY u.full_name`
         );
 
         return {
@@ -399,7 +401,7 @@ const DashboardService = {
             },
             top_tags: topTags.rows,
         };
-    }
+    },
 };
 
 module.exports = DashboardService;

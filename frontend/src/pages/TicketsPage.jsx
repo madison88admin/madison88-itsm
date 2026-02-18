@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import apiClient from "../api/client";
 import { onDashboardRefresh } from "../api/socket";
 
@@ -74,6 +75,21 @@ const TicketsPage = ({
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0 });
   const previousStatusRef = useRef(new Map());
+  const location = useLocation();
+
+  // Parse filters from URL on mount (for Drill-down Dashboard)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get("status");
+    const priority = params.get("priority");
+    const category = params.get("category");
+    const assignment = params.get("assignment");
+
+    if (status) setStatusFilter(status);
+    if (priority) setPriorityFilter(priority);
+    if (category) setCategoryFilter(category);
+    if (assignment) setAssignmentFilter(assignment);
+  }, [location.search]);
 
   useEffect(() => {
     const unsubscribe = onDashboardRefresh(() => setSocketRefreshKey((k) => k + 1));
@@ -451,9 +467,8 @@ const TicketsPage = ({
         {displayedTickets.map((ticket) => (
           <button
             key={ticket.ticket_id}
-            className={`ticket-card ${
-              selectedId === ticket.ticket_id ? "active" : ""
-            }`}
+            className={`ticket-card cascade-item hover-lift ${selectedId === ticket.ticket_id ? "active" : ""
+              }`}
             onClick={() => onSelectTicket(ticket.ticket_id)}
           >
             {canBulkAssign && (
@@ -526,7 +541,7 @@ const TicketsPage = ({
         </span>
         <button
           type="button"
-          className="btn primary"
+          className="btn primary btn-press"
           disabled={!hasNext || loading}
           onClick={() => setPage((p) => p + 1)}
           aria-label="Next 5 tickets"

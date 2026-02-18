@@ -158,7 +158,7 @@ const KnowledgeBasePage = ({ user }) => {
   };
 
   return (
-    <div className="panel">
+    <div className="panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
       <div className="panel-header">
         <div>
           <h2>Knowledge Base</h2>
@@ -196,9 +196,8 @@ const KnowledgeBasePage = ({ user }) => {
           {articles.map((article) => (
             <button
               key={article.article_id}
-              className={`kb-card ${
-                selectedId === article.article_id ? "active" : ""
-              }`}
+              className={`kb-card cascade-item hover-lift ${selectedId === article.article_id ? "active" : ""
+                }`}
               type="button"
               onClick={() => loadArticle(article.article_id)}
             >
@@ -222,7 +221,7 @@ const KnowledgeBasePage = ({ user }) => {
             <div className="empty-state">Select an article to view details.</div>
           )}
           {!detailLoading && selectedArticle && (
-            <div className="kb-detail-card">
+            <div className="kb-detail-card" style={{ animation: 'fadeIn 0.4s ease-out' }}>
               <div className="kb-detail-header">
                 <div>
                   <h3>{selectedArticle.title}</h3>

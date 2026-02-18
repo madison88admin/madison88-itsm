@@ -209,6 +209,8 @@ const TicketsController = {
           sessionId: req.headers['x-session-id'] || null,
         },
       });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-updated', { ticketId: req.params.id });
       res.status(201).json({ status: 'success', data: result });
     } catch (err) {
       next(err);
@@ -263,6 +265,8 @@ const TicketsController = {
           sessionId: req.headers['x-session-id'] || null,
         },
       });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-updated', { ticketId: req.params.id });
       res.status(201).json({ status: 'success', data: result });
     } catch (err) {
       next(err);
@@ -312,6 +316,8 @@ const TicketsController = {
           sessionId: req.headers['x-session-id'] || null,
         },
       });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-updated', { ticketId: req.params.id });
       res.json({ status: 'success', data: result });
     } catch (err) {
       next(err);
@@ -329,6 +335,8 @@ const TicketsController = {
           sessionId: req.headers['x-session-id'] || null,
         },
       });
+      const io = req.app.get('io');
+      if (io) io.emit('dashboard-refresh');
       res.json({ status: 'success', data: result });
     } catch (err) {
       next(err);

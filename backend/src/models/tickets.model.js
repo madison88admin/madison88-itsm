@@ -38,7 +38,7 @@ const TicketsModel = {
         data.assigned_team || null,
         data.assigned_to || null,
         data.assigned_at || null,
-        data.assigned_by || null,
+        data.assigned_by || null
       ]
     );
     return result.rows[0];
@@ -66,6 +66,7 @@ const TicketsModel = {
   },
 
   async getLeastLoadedAgent(teamId) {
+    // teamId determines agent scope via team membership
     const result = await db.query(
       `SELECT tm.user_id, COUNT(t.ticket_id) AS open_count
        FROM team_members tm

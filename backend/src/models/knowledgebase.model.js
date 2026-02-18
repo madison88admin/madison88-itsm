@@ -2,6 +2,7 @@ const db = require('../config/database');
 
 const KnowledgeBaseModel = {
   async listArticles({ category, status, page, limit }) {
+    const filters = { category, status, page, limit };
     const where = [];
     const values = [];
 
@@ -89,6 +90,7 @@ const KnowledgeBaseModel = {
   },
 
   async searchArticles({ q, category, status, page, limit }) {
+    const filters = { q, category, status, page, limit };
     const where = [];
     const values = [];
 
