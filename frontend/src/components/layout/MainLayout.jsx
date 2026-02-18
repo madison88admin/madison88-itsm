@@ -3,6 +3,7 @@ import { Link, useLocation, Navigate, Outlet } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import brandLogo from "../../assets/Madison-88-Logo-250.png";
 import apiClient from "../../api/client";
+import ITPulseTicker from "./ITPulseTicker";
 
 const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNotificationToggle, isNotificationsOpen, onRequestBrowserPermission, browserPermission, onNotificationClick }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -194,8 +195,8 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
                 <div className="page-transition-wrapper" style={{ animation: 'fadeIn 0.4s ease-out' }}>
                     <Outlet />
                 </div>
-
             </main>
+            <ITPulseTicker />
         </div>
     );
 };

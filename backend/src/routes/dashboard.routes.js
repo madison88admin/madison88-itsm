@@ -31,4 +31,7 @@ router.get('/export', authenticate, authorize(['it_manager', 'system_admin']), D
 // Advanced Reporting
 router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system_admin']), DashboardController.getAdvancedReporting);
 
+// IT Pulse (Real-time events) - Accessible to all authenticated users
+router.get('/pulse', authenticate, DashboardController.getPulse);
+
 module.exports = router;

@@ -113,6 +113,17 @@ router.post('/articles', authenticate, authorize(['it_manager', 'system_admin'])
       author_id: req.user.user_id,
     });
 
+    if (article.status === 'published') {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('pulse-update', {
+          type: 'kb',
+          text: `New Knowledge Base: ${article.title}`,
+          timestamp: new Date()
+        });
+      }
+    }
+
     res.status(201).json({ status: 'success', data: { article } });
   } catch (err) {
     if (err.code === '23505') {
@@ -174,6 +185,19 @@ router.patch('/articles/:id', authenticate, authorize(['it_manager', 'system_adm
     }
 
     const article = await KnowledgeBaseModel.updateArticle(id, updates);
+
+    // Emit IT Pulse if status changed to published
+    if (updates.status === 'published' && existing.status !== 'published') {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('pulse-update', {
+          type: 'kb',
+          text: `New Knowledge Base: ${article.title}`,
+          timestamp: new Date()
+        });
+      }
+    }
+
     res.json({ status: 'success', data: { article } });
   } catch (err) {
     if (err.code === '23505') {

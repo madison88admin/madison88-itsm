@@ -1,4 +1,5 @@
 const DashboardService = require('../services/dashboard.service');
+const PulseService = require('../services/pulse.service');
 
 const DashboardController = {
     async getSlaPerformance(req, res, next) {
@@ -90,6 +91,15 @@ const DashboardController = {
         try {
             const result = await DashboardService.getAdvancedReporting();
             res.json({ status: 'success', data: result });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async getPulse(req, res, next) {
+        try {
+            const events = await PulseService.getPulseEvents();
+            res.json({ status: 'success', data: { events } });
         } catch (err) {
             next(err);
         }

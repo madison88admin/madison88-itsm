@@ -159,6 +159,16 @@ const TicketsController = {
       });
       const io = req.app.get('io');
       emitTicketUpdate(io, req.params.id, 'ticket-updated', { ticket: result.ticket });
+
+      // Emit IT Pulse if resolved
+      if (result.ticket.status === 'Resolved') {
+        io.emit('pulse-update', {
+          type: 'resolution',
+          text: `${result.ticket.priority} Resolved: ${result.ticket.title} (${result.ticket.ticket_number})`,
+          timestamp: new Date()
+        });
+      }
+
       res.json({ status: 'success', data: result });
     } catch (err) {
       next(err);
@@ -351,6 +361,14 @@ const TicketsController = {
       });
       const io = req.app.get('io');
       emitTicketUpdate(io, req.params.id, 'ticket-confirmed', { ticket: result.ticket });
+
+      // Emit IT Pulse for confirmed resolution
+      io.emit('pulse-update', {
+        type: 'resolution',
+        text: `${result.ticket.priority} Resolved: ${result.ticket.title} (${result.ticket.ticket_number})`,
+        timestamp: new Date()
+      });
+
       res.json({ status: 'success', data: result });
     } catch (err) {
       next(err);

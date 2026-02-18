@@ -3352,3 +3352,116 @@ textarea {
 .dragging-over {
   background: rgba(47, 215, 255, 0.03) !important;
 }
+
+/* IT Pulse Ticker */
+.it-pulse-ticker {
+  position: fixed;
+  bottom: 0;
+  left: 260px;
+  /* Matching sidebar width */
+  right: 0;
+  height: 36px;
+  background: rgba(10, 22, 53, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(111, 230, 255, 0.15);
+  display: flex;
+  align-items: center;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.pulse-label {
+  background: var(--navy-800);
+  height: 100%;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--cyan-400);
+  border-right: 1px solid rgba(111, 230, 255, 0.15);
+  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+  box-shadow: 10px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.pulse-icon-anim {
+  animation: pulse-glow 2s infinite;
+}
+
+.marquee-container {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-content {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: marquee 40s linear infinite;
+  padding-left: 20px;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
+}
+
+.pulse-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  font-size: 11px;
+  color: var(--slate-300);
+  font-weight: 500;
+}
+
+.pulse-text {
+  letter-spacing: 0.02em;
+}
+
+.pulse-divider {
+  color: rgba(111, 230, 255, 0.2);
+  margin-left: 12px;
+  font-weight: 300;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px var(--cyan-400));
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* Adjust main content for ticker */
+.main-content {
+  padding-bottom: 50px !important;
+}
