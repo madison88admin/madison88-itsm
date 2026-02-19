@@ -36,6 +36,20 @@ const PulseService = {
             { type: 'metric', label: 'Active Agents', value: '12', status: 'info' }
         ];
 
+        // Calculate system health status
+        const criticalBreaches = await db.query(`
+            SELECT COUNT(*)::int as count 
+            FROM tickets 
+            WHERE priority = 'P1' 
+            AND status NOT IN ('Resolved', 'Closed') 
+            AND sla_due_date < NOW()
+        `);
+
+        const healthStatus = criticalBreaches.rows[0].count > 0 ? 'critical' : 'optimal';
+        const healthText = criticalBreaches.rows[0].count > 0
+            ? `${criticalBreaches.rows[0].count} P1 Breaches Detected`
+            : 'All systems operational';
+
         // Combine and format
         const events = [
             ...recentResolutions.rows.map(r => ({
@@ -57,7 +71,16 @@ const PulseService = {
         ];
 
         // Sort by timestamp descending
-        return events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const sortedEvents = events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        return {
+            events: sortedEvents,
+            systemHealth: {
+                status: healthStatus,
+                text: healthText,
+                timestamp: new Date()
+            }
+        };
     }
 };
 

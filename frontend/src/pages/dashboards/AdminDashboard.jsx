@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { onDashboardRefresh } from "../../api/socket";
+import ExecutiveDashboard from "./ExecutiveDashboard";
 
 const AdminDashboard = () => {
+  const [viewMode, setViewMode] = useState(localStorage.getItem('adminViewMode') || 'detailed');
   const [users, setUsers] = useState(0);
   const [statusSummary, setStatusSummary] = useState({
     open: 0,
@@ -21,6 +23,12 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const toggleViewMode = () => {
+    const newMode = viewMode === 'detailed' ? 'simple' : 'detailed';
+    setViewMode(newMode);
+    localStorage.setItem('adminViewMode', newMode);
+  };
 
   const handleDrillDown = (params) => {
     const searchParams = new URLSearchParams(params);
@@ -62,6 +70,10 @@ const AdminDashboard = () => {
     const unsubscribe = onDashboardRefresh(() => load());
     return unsubscribe;
   }, [load]);
+
+  if (viewMode === 'simple') {
+    return <ExecutiveDashboard loadDetailView={() => setViewMode('detailed')} />;
+  }
 
   const totalTickets =
     (statusSummary.open || 0) +
@@ -105,7 +117,27 @@ const AdminDashboard = () => {
   }, 0);
 
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard animate-fadeIn">
+      <div className="view-mode-toggle-container" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          className="btn-press hover-lift"
+          onClick={toggleViewMode}
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '0.6rem 1.2rem',
+            borderRadius: '10px',
+            color: '#94a3b8',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          Switch to Executive View
+        </button>
+      </div>
+
       {error && <div className="panel error">{error}</div>}
 
       <section className="panel admin-hero">

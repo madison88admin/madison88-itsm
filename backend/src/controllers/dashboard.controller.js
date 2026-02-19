@@ -98,12 +98,41 @@ const DashboardController = {
 
     async getPulse(req, res, next) {
         try {
-            const events = await PulseService.getPulseEvents();
-            res.json({ status: 'success', data: { events } });
+            const data = await PulseService.getPulseEvents();
+            res.json({ status: 'success', data });
         } catch (err) {
             next(err);
         }
     },
+
+    async bulkEscalateP1(req, res, next) {
+        try {
+            const escalatedTickets = await DashboardService.bulkEscalateP1(req.user.user_id);
+            res.json({
+                status: 'success',
+                message: `Successfully escalated ${escalatedTickets.length} P1 tickets.`,
+                data: { escalatedTickets }
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async broadcast(req, res, next) {
+        try {
+            const { message } = req.body;
+            if (!message) return res.status(400).json({ status: 'error', message: 'Message is required' });
+
+            const count = await DashboardService.broadcast(req.user.user_id, message);
+            res.json({
+                status: 'success',
+                message: `Broadcast sent to ${count} staff members.`,
+                data: { count }
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
 };
 
 module.exports = DashboardController;

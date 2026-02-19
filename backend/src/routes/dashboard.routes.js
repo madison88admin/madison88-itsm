@@ -34,4 +34,8 @@ router.get('/advanced-reporting', authenticate, authorize(['it_manager', 'system
 // IT Pulse (Real-time events) - Accessible to all authenticated users
 router.get('/pulse', authenticate, DashboardController.getPulse);
 
+// Executive Actions (Admin only)
+router.post('/bulk-escalate-p1', authenticate, authorize(['system_admin']), DashboardController.bulkEscalateP1);
+router.post('/broadcast', authenticate, authorize(['system_admin']), DashboardController.broadcast);
+
 module.exports = router;
