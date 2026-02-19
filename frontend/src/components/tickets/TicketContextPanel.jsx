@@ -137,11 +137,9 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         .ticket-context-panel {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            padding: 1.5rem;
+            gap: 2rem;
+            padding: 2rem;
             color: #cbd5e1;
-            overflow-y: auto;
-            max-height: 100%;
         }
         
         .panel-section {
@@ -158,22 +156,22 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         .ticket-id { font-family: 'JetBrains Mono', monospace; color: #475569; font-weight: 700; font-size: 0.8rem; letter-spacing: -0.02em; }
         
         .status-badge {
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             font-weight: 800;
-            padding: 0.15rem 0.5rem;
-            border-radius: 4px;
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
             background: rgba(255,255,255,0.06);
             color: #94a3b8;
             border: 1px solid rgba(255,255,255,0.1);
         }
 
         .ticket-title {
-            margin: 0;
-            font-size: 1.25rem;
+            margin: 0.5rem 0;
+            font-size: 1.6rem;
             font-weight: 800;
             color: #f8fafc;
-            line-height: 1.2;
-            letter-spacing: -0.01em;
+            line-height: 1.3;
+            letter-spacing: -0.02em;
             word-break: break-word;
             overflow-wrap: break-word;
         }
@@ -207,12 +205,12 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             background: currentColor;
             opacity: 0.2;
         }
-        .sla-section h4 { margin: 0 0 0.8rem 0; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.1em; }
+        .sla-section h4 { margin: 0 0 1rem 0; font-size: 0.8rem; font-weight: 900; letter-spacing: 0.12em; }
         
-        .sla-details { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-        .sla-details div { display: flex; flex-direction: column; gap: 0.2rem; }
-        .sla-details small { font-size: 0.65rem; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; }
-        .sla-details span { font-size: 0.85rem; color: #cbd5e1; font-weight: 500; }
+        .sla-details { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
+        .sla-details div { display: flex; flex-direction: column; gap: 0.4rem; }
+        .sla-details small { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.08em; }
+        .sla-details span { font-size: 0.95rem; color: #f1f5f9; font-weight: 600; }
 
         h3 { 
             font-size: 0.7rem; 
@@ -249,9 +247,9 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             font-size: 1rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
-        .user-profile-mini strong { display: block; color: #f1f5f9; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.1rem; overflow-wrap: anywhere; word-break: break-all; }
-        .user-profile-mini p { margin: 0; font-size: 0.8rem; color: #64748b; overflow-wrap: anywhere; word-break: break-all; }
-        .user-profile-mini .sub-text { font-size: 0.75rem; color: #475569; font-weight: 600; margin-top: 0.2rem; }
+        .user-profile-mini strong { display: block; color: #f1f5f9; font-size: 1.05rem; font-weight: 700; margin-bottom: 0.2rem; overflow-wrap: anywhere; word-break: break-all; }
+        .user-profile-mini p { margin: 0; font-size: 0.85rem; color: #94a3b8; overflow-wrap: anywhere; word-break: break-all; }
+        .user-profile-mini .sub-text { font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 0.3rem; }
 
         .description-text, .impact-text {
             font-size: 0.95rem;
@@ -312,6 +310,26 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         .office-status.open { background: rgba(16, 185, 129, 0.15); color: #10b981; }
         .office-status.closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
+        @media (max-width: 600px) {
+            .ticket-context-panel {
+                padding: 1rem;
+                gap: 1.2rem;
+            }
+            .ticket-title {
+                font-size: 1.1rem;
+            }
+            .user-profile-mini {
+                padding: 0.8rem;
+                gap: 0.8rem;
+            }
+            .description-text, .impact-text {
+                padding: 0.8rem;
+                font-size: 0.85rem;
+            }
+            .sla-section {
+                padding: 0.8rem;
+            }
+        }
       `}</style>
         </div>
     );

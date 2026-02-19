@@ -21,13 +21,12 @@ const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTi
     };
 
     return (
-        <div className="tickets-layout">
+        <div className="tickets-layout" style={{ position: 'relative' }}>
             <TicketsPage
                 refreshKey={refreshKey}
                 user={user}
                 viewMode={viewMode}
                 onViewModeChange={(mode) => {
-                    // If switching mode, navigate to the specific route
                     if (mode === 'team') navigate('/team-queue');
                     else navigate('/tickets');
                 }}
@@ -35,14 +34,19 @@ const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTi
                 onSelectTicket={handleSelectTicket}
                 onResolvedTickets={onResolvedTickets}
             />
+
             {selectedTicketId && (
-                <TicketDetailPage
-                    ticketId={selectedTicketId}
-                    user={user}
-                    onClose={handleClose}
-                    onUpdated={() => setRefreshKey((prev) => prev + 1)}
-                    onResolved={onResolvedTickets}
-                />
+                <div className="modal-overlay" onClick={handleClose}>
+                    <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+                        <TicketDetailPage
+                            ticketId={selectedTicketId}
+                            user={user}
+                            onClose={handleClose}
+                            onUpdated={() => setRefreshKey((prev) => prev + 1)}
+                            onResolved={onResolvedTickets}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );

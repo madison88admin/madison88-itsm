@@ -78,7 +78,6 @@ const SignupPage = () => {
                 department: formData.department,
                 location: formData.location,
                 phone: formData.phone,
-                role: "end_user", // Default role
             });
             navigate("/login", { state: { message: "Registration successful! Please log in." } });
         } catch (err) {

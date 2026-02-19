@@ -317,6 +317,12 @@ function App() {
         >
           <Route index element={<Navigate to={`/${user?.role || "end_user"}/dashboard`} replace />} />
 
+          {/* Dashboard Routes */}
+          <Route path="/end_user/dashboard" element={<UserDashboard user={user} />} />
+          <Route path="/it_agent/dashboard" element={<AgentDashboard user={user} />} />
+          <Route path="/it_manager/dashboard" element={<ManagerDashboard user={user} />} />
+          <Route path="/system_admin/dashboard" element={<AdminDashboard user={user} />} />
+
           <Route path="/tickets/*" element={
             <Routes>
               <Route path="/" element={<TicketsLayout user={user} viewMode="my" refreshKey={refreshKey} setRefreshKey={setRefreshKey} onResolvedTickets={handleResolvedTickets} />} />

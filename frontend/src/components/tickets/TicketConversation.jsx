@@ -139,18 +139,18 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
         .comments-list {
             flex: 1;
             overflow-y: auto;
-            padding: 2rem;
+            padding: 2.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 2rem;
         }
 
         .comment-bubble {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.05);
-            padding: 1.2rem;
-            border-radius: 16px;
-            max-width: 85%;
+            padding: 1.5rem;
+            border-radius: 20px;
+            max-width: 90%;
             position: relative;
             transition: transform 0.2s;
         }
@@ -169,10 +169,10 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
 
         .comment-meta {
             display: flex;
-            gap: 0.8rem;
+            gap: 1rem;
             align-items: center;
-            margin-bottom: 0.8rem;
-            font-size: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
         }
         .comment-meta strong { color: #f1f5f9; font-weight: 700; }
         .role-badge { 
@@ -194,14 +194,14 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
         }
 
         .comment-body {
-            color: #cbd5e1;
-            line-height: 1.6;
+            color: #d1d5db;
+            line-height: 1.7;
             white-space: pre-wrap;
-            font-size: 0.95rem;
+            font-size: 1rem;
         }
 
         .comment-input-area {
-            padding: 2rem;
+            padding: 2.5rem;
             background: rgba(15, 23, 42, 0.4);
             border-top: 1px solid rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
@@ -261,16 +261,16 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
 
         textarea {
             width: 100%;
-            height: 120px;
+            height: 140px;
             background: rgba(0,0,0,0.25);
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
+            border-radius: 16px;
             color: #f8fafc;
-            padding: 1rem;
-            padding-top: 3.2rem; /* Space for overlay */
+            padding: 1.5rem;
+            padding-top: 3.5rem; /* Space for overlay */
             font-family: inherit;
             resize: none;
-            font-size: 0.95rem;
+            font-size: 1rem;
             transition: all 0.3s;
             box-sizing: border-box;
         }
@@ -322,6 +322,24 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             margin-top: 2rem;
             letter-spacing: 0.1em;
             text-transform: uppercase;
+        }
+        @media (max-width: 1100px) {
+            .ticket-conversation {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .comments-list {
+                padding: 1rem !important;
+                max-height: 500px !important; /* Allow some scrolling but not fixed 100% height */
+            }
+            .comment-input-area {
+                padding: 1rem !important;
+                position: static !important;
+                backdrop-filter: none !important;
+            }
+            .comment-bubble {
+                max-width: 95% !important;
+            }
         }
       `}</style>
         </div>

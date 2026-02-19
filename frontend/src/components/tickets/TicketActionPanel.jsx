@@ -426,13 +426,11 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
 
             <style>{`
         .ticket-action-panel {
-            padding: 1.5rem;
+            padding: 2rem;
             display: flex;
             flex-direction: column;
-            gap: 2rem;
+            gap: 2.5rem;
             background: transparent;
-            height: 100%;
-            overflow-y: auto;
         }
 
         .panel-header h3 {
@@ -455,13 +453,13 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             border-left: 3px solid #3b82f6;
         }
         .local-time-badge .label {
-            font-size: 0.6rem;
+            font-size: 0.7rem;
             color: #3b82f6;
             font-weight: 900;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
         }
         .local-time-badge .value {
-            font-size: 1.1rem;
+            font-size: 1.4rem;
             color: #f8fafc;
             font-weight: 800;
             font-variant-numeric: tabular-nums;
@@ -479,10 +477,10 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             gap: 1rem;
         }
         .action-group label {
-            font-size: 0.65rem;
-            color: #475569;
+            font-size: 0.7rem;
+            color: #64748b;
             font-weight: 800;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
         }
 
@@ -493,17 +491,17 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
         }
 
         .btn-action {
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 1.25rem;
+            border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.08);
             background: rgba(255,255,255,0.03);
-            color: #94a3b8;
+            color: #cbd5e1;
             font-weight: 800;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
         }
         .btn-action:hover:not(:disabled) {
             transform: translateY(-2px);
@@ -796,6 +794,24 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             background: rgba(0, 0, 0, 0.1);
             border-radius: 12px;
             border: 1px dashed rgba(255, 255, 255, 0.05);
+        }
+        @media (max-width: 600px) {
+            .ticket-action-panel {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+            .local-time-badge {
+                margin-bottom: 1rem;
+            }
+            .kb-search-box input {
+                padding-right: 1rem;
+            }
+            .search-hint {
+                display: none;
+            }
+            .action-buttons-grid {
+                flex-direction: column !important;
+            }
         }
       `}</style>
         </div >

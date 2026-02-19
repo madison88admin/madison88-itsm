@@ -12,11 +12,14 @@ const AuthService = {
     const existing = await UserModel.findByEmail(email);
     if (existing) throw new Error('Email already registered');
 
-    const resolvedFirst = first_name || (name ? name.split(' ')[0] : undefined);
-    const resolvedLast = last_name || (name ? name.split(' ').slice(1).join(' ') : undefined);
+    const sourceName = name || full_name || '';
+    const nameParts = sourceName.trim().split(/\s+/);
+
+    const resolvedFirst = first_name || nameParts[0];
+    const resolvedLast = last_name || nameParts.slice(1).join(' ');
     const resolvedFull = full_name || name || [resolvedFirst, resolvedLast].filter(Boolean).join(' ').trim();
 
-    if (!resolvedFirst || !resolvedLast || !resolvedFull) {
+    if (!resolvedFirst || !resolvedFull) {
       throw new Error('Name is required');
     }
 

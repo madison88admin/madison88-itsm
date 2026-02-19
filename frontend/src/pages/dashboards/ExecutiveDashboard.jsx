@@ -519,6 +519,48 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
           to { transform: translateY(0); opacity: 1; }
         }
         .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
+
+        /* Responsive Executive Dashboard */
+        @media (max-width: 1024px) {
+          .exec-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .exec-sidebar {
+            order: 2;
+          }
+          .kpi-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .exec-dashboard {
+            padding: 1rem;
+          }
+          .exec-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+          }
+          .exec-title h1 {
+            font-size: 2rem;
+          }
+          .system-heartbeat {
+            width: 100%;
+            padding: 0.8rem 1.5rem;
+          }
+          .kpi-row {
+            grid-template-columns: 1fr;
+          }
+          .kpi-card {
+            padding: 1.5rem;
+          }
+          .section-header h3 {
+            font-size: 1.2rem;
+          }
+        }
       `}</style>
         </div>
     );

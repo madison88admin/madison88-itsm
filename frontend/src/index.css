@@ -63,12 +63,38 @@
   border-color: rgba(255, 93, 108, 0.4);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   padding: 0;
   font-family: 'Sora', sans-serif;
   background: radial-gradient(circle at top, #10224c 0%, #050b1f 60%);
+  background-attachment: fixed;
+  background-size: cover;
+  min-height: 100vh;
   color: var(--slate-100);
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(5, 11, 31, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(47, 215, 255, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 215, 255, 0.35);
 }
 
 .heatmap {
@@ -152,8 +178,11 @@ textarea {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 280px 1fr;
   min-height: 100vh;
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
 }
 
 .role-end_user .brand-mark {
@@ -327,27 +356,36 @@ textarea {
 }
 
 .content {
-  padding: 32px;
+  padding: 40px 60px;
   min-width: 0;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .topbar {
-  margin-bottom: 24px;
+  margin-bottom: 0;
+  /* Handled by .content gap */
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .topbar h2 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .topbar p {
   margin: 0;
   color: var(--slate-500);
+  font-size: 14px;
 }
 
 .topbar-actions {
@@ -1472,14 +1510,14 @@ textarea {
 .archive-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   height: 38px;
   border-radius: 12px;
   border: 1px solid rgba(47, 215, 255, 0.2);
   background: rgba(10, 22, 53, 0.6);
   color: var(--slate-200);
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
   flex: 0 0 auto;
   justify-content: flex-start;
@@ -1861,8 +1899,8 @@ textarea {
 
 .ticket-card {
   border: 1px solid rgba(47, 215, 255, 0.12);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 20px;
+  padding: 24px 28px;
   background: rgba(10, 22, 53, 0.75);
   display: flex;
   justify-content: space-between;
@@ -1870,39 +1908,49 @@ textarea {
   text-align: left;
   color: inherit;
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 24px;
+}
+
+.ticket-card:hover {
+  background: rgba(47, 215, 255, 0.08);
+  border-color: rgba(47, 215, 255, 0.3);
+  transform: translateX(4px);
 }
 
 .team-queue-panel .ticket-filters {
-  gap: 10px;
+  gap: 16px;
 }
 
 .team-queue-panel .ticket-filters input,
 .team-queue-panel .ticket-filters select {
-  padding: 8px 10px;
-  font-size: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
 }
 
 .team-queue-panel .ticket-list {
-  gap: 10px;
+  gap: 16px;
 }
 
 .team-queue-panel .ticket-card {
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 24px 28px;
+  border-radius: 20px;
 }
 
 .team-queue-panel .ticket-title {
-  font-size: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
 
 .team-queue-panel .ticket-meta {
-  font-size: 11px;
+  font-size: 13px;
+  color: var(--slate-500);
 }
 
 .team-queue-panel .ticket-badges .badge {
-  padding: 5px 8px;
-  font-size: 11px;
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 .urgent-note {
@@ -2051,8 +2099,9 @@ textarea {
 
 .tickets-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);
+  grid-template-columns: 1fr;
   gap: 24px;
+  align-items: start;
 }
 
 .detail-panel {
@@ -3155,13 +3204,30 @@ textarea {
     left: 0 !important;
   }
 
+  .tickets-layout,
+  .glassy-workspace {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    max-height: none !important;
+    gap: 20px !important;
+  }
+
   .reporting-grid,
   .dashboard-grid,
   .portal-main-grid,
-  .tickets-layout,
   .admin-grid,
   .kb-layout {
     grid-template-columns: 1fr !important;
+  }
+
+  .admin-hero {
+    grid-template-columns: 1fr !important;
+    padding: 24px !important;
+  }
+
+  .admin-hero-metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .nav {
@@ -3234,6 +3300,37 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 
+  .ticket-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .ticket-filters input,
+  .ticket-filters select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .sla-table-header {
+    display: none !important;
+  }
+
+  .sla-table-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 20px !important;
+  }
+
+  .kanban-container {
+    padding: 10px 10px 60px !important;
+    gap: 16px !important;
+  }
+
+  .kanban-column {
+    flex: 0 0 calc(100vw - 40px) !important;
+    max-width: 400px !important;
+  }
+
   .auth-card {
     max-width: 100% !important;
     margin: 16px !important;
@@ -3279,5 +3376,82 @@ textarea {
 
   .topbar h2 {
     font-size: 22px;
+  }
+}
+
+
+/* Modal System */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 11, 31, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-container {
+  width: 100%;
+  max-width: 1400px;
+  height: 90vh;
+  /* Fixed height for consistent fitting */
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalContentIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-close-overlay {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--slate-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2100;
+  transition: 0.2s ease;
+}
+
+.modal-close-overlay:hover {
+  background: rgba(255, 93, 108, 0.15);
+  color: var(--danger);
+  border-color: var(--danger);
+  transform: rotate(90deg);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalContentIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

@@ -348,6 +348,7 @@ const TicketsPage = ({
           </div>
         )}
       </div>
+
       <div className="filter-bar ticket-filters">
         <input
           value={searchInput}
@@ -433,6 +434,7 @@ const TicketsPage = ({
           title="Created to"
         />
       </div>
+
       <div className="pagination-info">
         Showing {displayedTickets.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + displayedTickets.length} of {total} tickets (order: Escalated → SLA Breached → P1 → P2 → P3 → P4 → Newest).
       </div>

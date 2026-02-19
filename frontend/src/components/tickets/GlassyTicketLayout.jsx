@@ -73,21 +73,25 @@ const GlassyTicketLayout = ({
         .glassy-workspace {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            max-height: 100vh;
-            background: radial-gradient(circle at top left, #1e293b, #0f172a);
+            height: 100%; /* Fill the fixed 90vh container */
+            background: rgba(10, 22, 53, 0.4); /* Transparent to show global bg */
+            backdrop-filter: blur(40px);
             color: #f8fafc;
-            overflow: hidden;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden; /* Prevent workspace overflow */
+            font-family: 'Sora', sans-serif;
+            border-radius: 20px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            border: 1px solid rgba(47, 215, 255, 0.2); /* High-fidelity border */
         }
 
         .workspace-header {
-            height: 64px;
+            height: 72px;
+            flex: 0 0 auto; /* Fixed header */
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0 2rem;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
             background: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(20px);
             z-index: 10;
@@ -96,17 +100,17 @@ const GlassyTicketLayout = ({
         .header-left, .header-right {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
         }
 
         .header-action-btn {
             background: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.2);
             color: #60a5fa;
-            font-size: 0.65rem;
-            font-weight: 900;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
             letter-spacing: 0.05em;
@@ -121,21 +125,26 @@ const GlassyTicketLayout = ({
         .workspace-grid {
             flex: 1;
             display: grid;
-            grid-template-columns: 280px 1fr 280px;
-            gap: 1px;
-            background: rgba(255,255,255,0.03);
-            overflow: hidden;
+            grid-template-columns: 280px 1fr 300px;
+            gap: 0;
+            overflow: hidden; /* Prevent grid overflow */
         }
 
         .workspace-col {
-            background: rgba(15, 23, 42, 0.2); 
-            overflow: hidden;
+            background: transparent;
+            overflow-y: auto; /* Enable independent scrolling */
             display: flex;
             flex-direction: column;
+            padding: 0; /* Let children components handle their own padding */
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .workspace-col.col-right {
+            border-right: none;
         }
 
         .workspace-col.col-main {
-            background: transparent;
+            background: rgba(255,255,255,0.02);
         }
 
         .back-btn {
@@ -146,8 +155,8 @@ const GlassyTicketLayout = ({
             font-size: 0.75rem;
             cursor: pointer;
             margin-right: 0.5rem;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             transition: all 0.2s;
         }
         .back-btn:hover { color: white; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
@@ -155,21 +164,21 @@ const GlassyTicketLayout = ({
         .breadcrumb {
             color: #94a3b8;
             font-weight: 500;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 500px;
+            max-width: 600px;
             display: inline-block;
             vertical-align: middle;
         }
         .breadcrumb strong { color: #f8fafc; font-weight: 600; margin-left: 0.5rem; }
 
         .status-pill {
-            font-size: 0.7rem;
-            font-weight: 800;
-            padding: 0.4rem 1rem;
-            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
             color: white;
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -183,30 +192,45 @@ const GlassyTicketLayout = ({
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 1100px) {
             .glassy-workspace {
-                height: auto;
-                max-height: none;
-                overflow-y: auto;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            .workspace-header {
+                height: auto !important;
+                padding: 1rem !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
             }
             .workspace-grid {
-                display: flex;
-                flex-direction: column;
-                height: auto;
-                overflow: visible;
+                display: flex !important;
+                flex-direction: column !important;
+                height: auto !important;
+                overflow: visible !important;
+                gap: 20px !important;
             }
             .workspace-col {
-                height: auto;
-                max-height: none;
-                overflow: visible;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                background: rgba(15, 23, 42, 0.4) !important;
+                border-radius: 12px !important;
+                padding: 10px !important;
             }
             .workspace-col.col-main {
-                min-height: 500px;
-                order: 2;
+                min-height: auto !important;
+                order: 2 !important;
             }
             .workspace-col.col-left {
-                order: 1;
+                order: 1 !important;
             }
             .workspace-col.col-right {
-                order: 3;
+                order: 3 !important;
+            }
+            .breadcrumb {
+                max-width: 100% !important;
+                white-space: normal !important;
             }
         }
       `}</style>
