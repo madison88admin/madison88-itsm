@@ -2,6 +2,7 @@ const UserModel = require('../models/user.model');
 const AuthService = require('./auth.service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const NotificationService = require('./notification.service');
 
 const UsersService = {
     /**
@@ -105,7 +106,15 @@ const UsersService = {
                 const tempPasswordHash = await bcrypt.hash(temporaryPassword, 10);
                 await UserModel.updatePassword(userId, tempPasswordHash);
 
-                message = 'User role changed to privileged role. A temporary password has been generated. Please share this password with the user - they must use Email/Password login and should change their password on first login.';
+                // Send Email Notice (Non-blocking)
+                NotificationService.sendPasswordResetNotice({
+                    user: currentUser,
+                    temporaryPassword
+                }).catch(err => {
+                    console.error('Failed to send role change password notice:', err);
+                });
+
+                message = 'User role changed to privileged role. A temporary password has been generated and sent to the user via email.';
             }
         } else if (password) {
             const passwordHash = await bcrypt.hash(password, 10);
@@ -186,10 +195,18 @@ const UsersService = {
         // Update password
         await UserModel.updatePassword(userId, tempPasswordHash);
 
+        // Send Email Notice (Non-blocking)
+        NotificationService.sendPasswordResetNotice({
+            user,
+            temporaryPassword: tempPassword
+        }).catch(err => {
+            console.error('Failed to send password reset notice:', err);
+        });
+
         return {
             user,
             temporary_password: tempPassword,
-            message: 'Password reset successful. A temporary password has been generated. Please share this password with the user - they must use Email/Password login and should change their password on first login.'
+            message: 'Password reset successful. A temporary password has been generated and sent to the user via email.'
         };
     },
 

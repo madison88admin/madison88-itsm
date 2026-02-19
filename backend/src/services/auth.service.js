@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../models/user.model');
+const NotificationService = require('./notification.service');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
@@ -31,6 +32,12 @@ const AuthService = {
       location,
       phone,
     });
+
+    // Send Welcome Email (Non-blocking)
+    NotificationService.sendWelcomeNotice({ user }).catch(err => {
+      console.error('Failed to send welcome notice:', err);
+    });
+
     return user;
   },
 
@@ -54,68 +61,6 @@ const AuthService = {
     return jwt.verify(token, JWT_SECRET);
   },
 
-  async loginWithAuth0({ email: rawEmail, name, sub }) {
-    const email = rawEmail.toLowerCase();
-    // 1. Robust lookup: Try finding by AUTH0_ID (sub) first, then by email
-    let user = await UserModel.findByAuth0Id(sub);
-    if (!user) {
-      user = await UserModel.findByEmail(email);
-    }
-
-    const nameParts = name ? name.split(' ') : ['User', 'Account'];
-    const first_name = nameParts[0] || 'User';
-    const last_name = nameParts.slice(1).join(' ') || 'Account';
-    const full_name = name || `${first_name} ${last_name}`;
-
-    if (!user) {
-      // 2. Auto-provision new user
-      // Users table requires PASSWORD_HASH NOT NULL, so generate an unreachable random password hash
-      const randomSecret = crypto.randomBytes(32).toString('hex') + (sub ? `:${sub}` : '');
-      const passwordHash = await bcrypt.hash(randomSecret, 10);
-
-      user = await UserModel.create({
-        email,
-        first_name,
-        last_name,
-        full_name,
-        passwordHash,
-        auth0_id: sub,
-        // Employee default role (can be updated by admin later)
-        role: process.env.AUTH0_DEFAULT_ROLE || 'end_user',
-        department: null,
-        location: null,
-        phone: null,
-      });
-    } else {
-      // 3. Identity Sync: Update if name, email, or auth0_id has changed/is missing
-      if (!user.is_active) {
-        throw new Error('Account is inactive');
-      }
-
-      const updates = {};
-      if (user.email !== email) updates.email = email;
-      if (user.full_name !== full_name) updates.full_name = full_name;
-      if (user.first_name !== first_name) updates.first_name = first_name;
-      if (user.last_name !== last_name) updates.last_name = last_name;
-      if (!user.auth0_id) updates.auth0_id = sub;
-
-      if (Object.keys(updates).length > 0) {
-        user = await UserModel.updateUser(user.user_id, updates);
-      }
-    }
-
-    // Update last login
-    await UserModel.updateLastLogin(user.user_id);
-
-    // Generate our system JWT token
-    const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    return { token, user };
-  },
 
   async refreshToken(refreshToken) {
     // TODO: Implement actual refresh token verification logic

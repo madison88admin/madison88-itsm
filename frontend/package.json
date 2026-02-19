@@ -4,7 +4,6 @@
   "description": "Madison88 IT Service Management Platform - Frontend Application",
   "private": true,
   "dependencies": {
-    "@auth0/auth0-react": "^2.14.0",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@headlessui/react": "^1.7.17",

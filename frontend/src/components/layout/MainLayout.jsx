@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useLocation, Navigate, Outlet } from "react-router-dom";
-import { useAuth0 } from "@auth0/auth0-react";
 import brandLogo from "../../assets/Madison-88-Logo-250.png";
 import apiClient from "../../api/client";
 import ITPulseTicker from "./ITPulseTicker";
@@ -8,7 +7,6 @@ import ITPulseTicker from "./ITPulseTicker";
 const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNotificationToggle, isNotificationsOpen, onRequestBrowserPermission, browserPermission, onNotificationClick }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const location = useLocation();
-    const { logout: auth0Logout } = useAuth0();
 
     if (!user) {
         return <Navigate to="/login" replace />;
@@ -63,7 +61,6 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
 
     const handleLogout = () => {
         if (onLogout) onLogout();
-        auth0Logout({ logoutParams: { returnTo: window.location.origin } });
     };
 
     return (

@@ -1,11 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { useAuth0 } from "@auth0/auth0-react";
+import axios from "axios";
 import apiClient from "./api/client";
 import { getSocket } from "./api/socket";
+
+// Layouts & Pages
 import MainLayout from "./components/layout/MainLayout";
 import TicketsLayout from "./components/layout/TicketsLayout";
 import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 import NewTicketPage from "./pages/NewTicketPage";
 import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 import KnowledgeBaseEditor from "./pages/KnowledgeBaseEditor";
@@ -23,7 +26,6 @@ import KanbanPage from "./pages/KanbanPage";
 import ProfilePage from "./pages/ProfilePage";
 
 function App() {
-  const { logout: auth0Logout, isAuthenticated, isLoading: auth0Loading, user: auth0User, getAccessTokenSilently } = useAuth0();
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -37,73 +39,56 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load user from local storage on mount
+  // Load user and verify session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setLoadingUser(false);
-      } catch (err) {
-        localStorage.removeItem("user");
-      }
-    } else {
-      setLoadingUser(false);
-    }
-  }, []);
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
 
-  // Handle Auth0 login
-  useEffect(() => {
-    const syncUser = async () => {
-      if (isAuthenticated && auth0User) {
+      if (storedToken) {
         try {
-          // Get token
-          const token = await getAccessTokenSilently();
-          localStorage.setItem("token", token); // client.js interceptor uses this
-
-          // Login/Sync with backend using Auth0 token
-          // We trust the token, but need to get our DB user
-          // The backend endpoint /auth/auth0-login handles syncing
-          // But for now let's assume valid token and call /auth/me or /users/me works if we have one
-          // Actually the original App.jsx used /auth/auth0-login? No, it handled manual login mostly?
-
-          // Let's use the explicit auth0-login endpoint in backend we saw in AuthController
-          // It takes idToken (which we need to get from auth0)
-          // OR we can just use the access token if the backend validates it?
-          // The current backend uses our own JWT.
-
-          // In original App.jsx, handleLogin set the token.
-          // We need to support Auth0 login flow.
-          // AuthController.loginWithAuth0 takes { idToken }.
-
-          const idTokenClaims = await (await getAccessTokenSilently({ detailedResponse: true })).id_token;
-          // Wait, getAccessTokenSilently returns access token string usually.
-          // We might need getIdTokenClaims() from useAuth0.
-
+          // Verify token and get fresh user data
+          apiClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+          const res = await apiClient.get("/auth/me");
+          const freshUser = res.data.user;
+          setUser(freshUser);
+          localStorage.setItem("user", JSON.stringify(freshUser));
+        } catch (err) {
+          console.error("Session verification failed:", err);
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          delete apiClient.defaults.headers.common["Authorization"];
+          setUser(null);
+        }
+      } else if (storedUser) {
+        // Fallback if token is missing but user is there (shouldn't happen with clean logic but for safety)
+        try {
+          setUser(JSON.parse(storedUser));
         } catch (e) {
-          console.error("Login sync failed", e);
+          localStorage.removeItem("user");
         }
       }
+      setLoadingUser(false);
     };
-    // Note: The original App.jsx relied on manual login via LoginPage (which used loginWithRedirect).
-    // And handleLogin was passed to LoginPage.
-    // If we want to support persistent login, we should keep the localStorage logic.
-    // For now, let's assume standard behavior: if we have a token in localStorage, we try to load user.
-  }, [isAuthenticated, auth0User, getAccessTokenSilently]);
+
+    initAuth();
+  }, []);
 
   const handleLogin = (jwt, userInfo) => {
     setUser(userInfo);
     localStorage.setItem("token", jwt);
     localStorage.setItem("user", JSON.stringify(userInfo));
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
     navigate('/');
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    // MainLayout handles auth0Logout
-  };
+    delete apiClient.defaults.headers.common["Authorization"];
+    navigate('/login');
+  }, [navigate]);
 
   const shouldNotify = (ticket, statusValue) => {
     const key = `${ticket.ticket_id}-${statusValue}`;
@@ -277,41 +262,60 @@ function App() {
     };
   }, [user]);
 
-  // Render Dashboard based on role
-  const renderDashboard = () => {
-    if (user?.role === "system_admin") return <AdminDashboard />;
-    if (user?.role === "it_manager") return <ManagerDashboard />;
-    if (user?.role === "it_agent") return <AgentDashboard />;
-    return <UserDashboard />;
-  };
-
   if (loadingUser) {
-    return <div className="loading-screen">Loading...</div>;
+    return (
+      <div className="loading-screen">
+        <div className="loader"></div>
+        <p>Initializing Madison88 ITSM...</p>
+      </div>
+    );
   }
 
   return (
     <>
       <Routes>
-        <Route path="/login" element={!user ? <LoginPage onLogin={handleLogin} /> : <Navigate to="/" replace />} />
+        <Route
+          path="/login"
+          element={
+            !user ? (
+              <LoginPage onLogin={handleLogin} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            !user ? (
+              <SignupPage />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
 
-        <Route element={
-          user ? (
-            <MainLayout
-              user={user}
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onLogout={handleLogout}
-              onNotificationToggle={handleNotificationToggle}
-              isNotificationsOpen={isNotificationsOpen}
-              onRequestBrowserPermission={handleRequestBrowserPermission}
-              browserPermission={browserPermission}
-              onNotificationClick={handleNotificationClick}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }>
-          <Route path="/" element={renderDashboard()} />
+        <Route
+          path="/"
+          element={
+            user ? (
+              <MainLayout
+                user={user}
+                notifications={notifications}
+                unreadCount={unreadCount}
+                onLogout={handleLogout}
+                onNotificationToggle={handleNotificationToggle}
+                isNotificationsOpen={isNotificationsOpen}
+                onRequestBrowserPermission={handleRequestBrowserPermission}
+                browserPermission={browserPermission}
+                onNotificationClick={handleNotificationClick}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        >
+          <Route index element={<Navigate to={`/${user?.role || "end_user"}/dashboard`} replace />} />
 
           <Route path="/tickets/*" element={
             <Routes>
@@ -369,4 +373,3 @@ function App() {
 }
 
 export default App;
-

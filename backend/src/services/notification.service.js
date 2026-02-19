@@ -379,6 +379,70 @@ async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
   });
 }
 
+async function sendWelcomeNotice({ user }) {
+  if (!user?.email) return false;
+
+  const subject = `Welcome to ${process.env.APP_NAME || 'Madison88 ITSM'}`;
+  const text = [
+    `Hello ${user.full_name || 'there'},`,
+    '',
+    `Welcome to the Madison88 IT Service Management Platform! Your account has been successfully created.`,
+    '',
+    `You can now log in to the platform at: ${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal'}`,
+    '',
+    `Through the portal, you can:`,
+    `- Create new IT Support tickets`,
+    `- Track the status of your requests`,
+    `- View company announcements`,
+    '',
+    `If you have any questions, feel free to contact the IT support team.`,
+    '',
+    `Best regards,`,
+    `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
+  ].join('\n');
+
+  return sendEmail({
+    to: user.email,
+    subject,
+    text,
+    templateParams: {
+      user_name: user.full_name,
+      welcome_link: process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL,
+    },
+  });
+}
+
+async function sendPasswordResetNotice({ user, temporaryPassword }) {
+  if (!user?.email) return false;
+
+  const subject = `Security: Temporary Password for ${process.env.APP_NAME || 'Madison88 ITSM'}`;
+  const text = [
+    `Hello ${user.full_name},`,
+    '',
+    `A temporary password has been generated for your account.`,
+    '',
+    `Temporary Password: ${temporaryPassword}`,
+    '',
+    `Please log in using the link below and change your password immediately upon entry.`,
+    `${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL}`,
+    '',
+    `Security Tip: Never share your password with anyone, including IT Support.`,
+    '',
+    `Best regards,`,
+    `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
+  ].join('\n');
+
+  return sendEmail({
+    to: user.email,
+    subject,
+    text,
+    templateParams: {
+      user_name: user.full_name,
+      temp_password: temporaryPassword,
+    },
+  });
+}
+
 module.exports = {
   sendEmail,
   sendEscalationNotice,
@@ -388,4 +452,6 @@ module.exports = {
   sendTicketAssignedNotice,
   sendTicketReopenedNotice,
   sendCriticalTicketNotice,
+  sendWelcomeNotice,
+  sendPasswordResetNotice,
 };
