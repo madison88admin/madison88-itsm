@@ -434,17 +434,27 @@ const DashboardService = {
     },
 
     async broadcast(adminUserId, message) {
-        const staff = await db.query(
-            "SELECT user_id FROM users WHERE role IN ('it_agent', 'it_manager', 'system_admin')"
-        );
-
-        for (const user of staff.rows) {
-            await db.query(
-                "INSERT INTO notifications (user_id, type, title, message) VALUES ($1, $2, $3, $4)",
-                [user.user_id, 'broadcast', 'Global Administrative Broadcast', message]
+        try {
+            const NotificationsModel = require('../models/notifications.model');
+            const staff = await db.query(
+                "SELECT user_id FROM users WHERE role IN ('it_agent', 'it_manager', 'system_admin')"
             );
+
+            const notifications = staff.rows.map(user =>
+                NotificationsModel.createNotification({
+                    user_id: user.user_id,
+                    type: 'broadcast',
+                    title: 'Global Administrative Broadcast',
+                    message: message
+                })
+            );
+
+            await Promise.all(notifications);
+            return staff.rowCount;
+        } catch (err) {
+            console.error('Broadcast Service Error:', err);
+            throw err;
         }
-        return staff.rowCount;
     }
 };
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import apiClient from "../api/client";
 import { hasMinLength, isBlank } from "../utils/validation";
 
 const KnowledgeBasePage = ({ user }) => {
+  const location = useLocation();
   const [articles, setArticles] = useState([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("published");
@@ -55,6 +57,24 @@ const KnowledgeBasePage = ({ user }) => {
     }
     fetchArticles(params);
   }, [isPrivileged, statusFilter]);
+
+  // Handle query params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
+    const q = params.get("q");
+
+    if (id) {
+      loadArticle(id);
+    } else if (q) {
+      setQuery(q);
+      const searchParams = { q };
+      if (isPrivileged && statusFilter !== "all") {
+        searchParams.status = statusFilter;
+      }
+      fetchArticles(searchParams);
+    }
+  }, [location.search]);
 
   const handleSearch = async (event) => {
     event.preventDefault();

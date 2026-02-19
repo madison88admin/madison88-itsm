@@ -3728,3 +3728,94 @@
 {"timestamp":"2026-02-19T00:04:29.786Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-19T00:04:30.124Z","level":"INFO","message":"Database connection established"}
 {"timestamp":"2026-02-19T00:04:30.157Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:07:30.953Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:09:54.509Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:29.570Z","level":"INFO","message":"Redis disabled (REDIS_ENABLED=false or no REDIS_URL/REDIS_HOST:REDIS_PORT). Idempotency will be skipped."}
+{"timestamp":"2026-02-19T00:21:29.649Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-19T00:21:29.650Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-19T00:21:30.052Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:30.053Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:30.063Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:30.148Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-19T00:21:30.108Z"}}
+{"timestamp":"2026-02-19T00:21:42.745Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:42.756Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:42.757Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:43.261Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:21:43.262Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:22:55.298Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:22:56.325Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:22:56.334Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:22:56.388Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:23:40.189Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:23:40.338Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:24:22.882Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:25:20.496Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:25:20.604Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:25:22.458Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:26:30.364Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:26:38.813Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:26:39.374Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:27:47.338Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:27:47.339Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:27:48.258Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:27:52.220Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:30:18.138Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:30:18.230Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:30:18.230Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:31:27.398Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:32:17.775Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:32:18.067Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:32:20.447Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:32:35.641Z","level":"ERROR","message":"Database connection test failed:","data":{"code":"ECONNREFUSED"}}
+{"timestamp":"2026-02-19T00:33:56.389Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:33:57.440Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:33:57.468Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:15.575Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:48.720Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:49.029Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:49.206Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:52.406Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-19T00:34:52.466Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-19T00:34:56.685Z","level":"INFO","message":"Redis disabled (REDIS_ENABLED=false or no REDIS_URL/REDIS_HOST:REDIS_PORT). Idempotency will be skipped."}
+{"timestamp":"2026-02-19T00:34:56.757Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-19T00:34:56.758Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-19T00:34:57.205Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:57.318Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-19T00:34:57.263Z"}}
+{"timestamp":"2026-02-19T00:34:57.465Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:34:57.474Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:35:25.102Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:35:25.104Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:35:25.113Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:37:10.318Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:37:11.374Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:38:11.369Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:18.480Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:20.038Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:22.054Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:22.291Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:26.017Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:26.052Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:28.271Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:39:28.406Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:40:37.102Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:40:46.584Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-19T00:40:46.586Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-19T00:40:50.154Z","level":"INFO","message":"Redis disabled (REDIS_ENABLED=false or no REDIS_URL/REDIS_HOST:REDIS_PORT). Idempotency will be skipped."}
+{"timestamp":"2026-02-19T00:40:50.224Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-19T00:40:50.225Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-19T00:40:50.619Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:40:50.629Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:40:50.630Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:40:50.728Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-19T00:40:50.686Z"}}
+{"timestamp":"2026-02-19T00:41:36.509Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:10.148Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:10.205Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:24.869Z","level":"INFO","message":"SIGINT received, shutting down gracefully"}
+{"timestamp":"2026-02-19T00:42:24.871Z","level":"INFO","message":"Server closed"}
+{"timestamp":"2026-02-19T00:42:28.688Z","level":"INFO","message":"Redis disabled (REDIS_ENABLED=false or no REDIS_URL/REDIS_HOST:REDIS_PORT). Idempotency will be skipped."}
+{"timestamp":"2026-02-19T00:42:28.762Z","level":"INFO","message":"🚀 Madison88 ITSM Server running on port 3001"}
+{"timestamp":"2026-02-19T00:42:28.763Z","level":"INFO","message":"Environment: development"}
+{"timestamp":"2026-02-19T00:42:29.166Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:29.182Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:29.184Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-02-19T00:42:29.287Z","level":"INFO","message":"Database connection test successful:","data":{"now":"2026-02-19T00:42:29.242Z"}}

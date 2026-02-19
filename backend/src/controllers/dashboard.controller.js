@@ -124,6 +124,11 @@ const DashboardController = {
             if (!message) return res.status(400).json({ status: 'error', message: 'Message is required' });
 
             const count = await DashboardService.broadcast(req.user.user_id, message);
+
+            // Emit refresh event to all connected clients
+            const io = req.app.get('io');
+            if (io) io.emit('dashboard-refresh');
+
             res.json({
                 status: 'success',
                 message: `Broadcast sent to ${count} staff members.`,

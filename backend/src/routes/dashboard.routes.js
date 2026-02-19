@@ -36,6 +36,6 @@ router.get('/pulse', authenticate, DashboardController.getPulse);
 
 // Executive Actions (Admin only)
 router.post('/bulk-escalate-p1', authenticate, authorize(['system_admin']), DashboardController.bulkEscalateP1);
-router.post('/broadcast', authenticate, authorize(['system_admin']), DashboardController.broadcast);
+router.post('/broadcast', authenticate, authorize(['system_admin', 'it_manager']), DashboardController.broadcast);
 
 module.exports = router;

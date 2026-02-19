@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import apiClient from "../api/client";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -54,6 +55,8 @@ const NewTicketPage = ({ onCreated }) => {
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
   const searchTimeoutRef = useRef(null);
 
+  const location = useLocation();
+
   const totalSize = useMemo(
     () => files.reduce((sum, file) => sum + file.size, 0),
     [files],
@@ -83,7 +86,14 @@ const NewTicketPage = ({ onCreated }) => {
 
     loadAssets();
     loadTemplates();
-  }, []);
+
+    // Pre-fill ticket type from query param
+    const params = new URLSearchParams(location.search);
+    const typeParam = params.get("type");
+    if (typeParam && ["incident", "request"].includes(typeParam)) {
+      setForm((prev) => ({ ...prev, ticket_type: typeParam }));
+    }
+  }, [location.search]);
 
   const applyTemplate = React.useCallback((template) => {
     if (!template) return;
