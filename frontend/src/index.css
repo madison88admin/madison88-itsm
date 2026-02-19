@@ -1067,6 +1067,105 @@ textarea {
   opacity: 0.6;
 }
 
+.editor {
+  background: rgba(10, 22, 53, 0.8);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  border-radius: 12px;
+  color: var(--slate-100);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.editor .ql-toolbar {
+  border: none;
+  border-bottom: 1px solid rgba(47, 215, 255, 0.1);
+  background: rgba(47, 215, 255, 0.05);
+}
+
+.editor .ql-container {
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 120px;
+}
+
+.editor .ql-editor {
+  padding: 12px;
+}
+
+.editor .ql-editor.ql-blank::before {
+  color: var(--slate-500);
+  font-style: normal;
+}
+
+.editor .ql-stroke {
+  stroke: var(--slate-300);
+}
+
+.editor .ql-fill {
+  fill: var(--slate-300);
+}
+
+.editor .ql-picker {
+  color: var(--slate-300);
+}
+
+.editor .ql-picker-options {
+  background: #0a1635;
+  border: 1px solid rgba(47, 215, 255, 0.2);
+}
+
+.editor .ql-snow.ql-toolbar button:hover,
+.editor .ql-snow .ql-toolbar button:hover,
+.editor .ql-snow.ql-toolbar button:focus,
+.editor .ql-snow .ql-toolbar button:focus,
+.editor .ql-snow.ql-toolbar button.ql-active,
+.editor .ql-snow .ql-toolbar button.ql-active,
+.editor .ql-snow.ql-toolbar .ql-picker-label:hover,
+.editor .ql-snow .ql-toolbar .ql-picker-label:hover,
+.editor .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+.editor .ql-snow .ql-toolbar .ql-picker-label.ql-active,
+.editor .ql-snow.ql-toolbar .ql-picker-item:hover,
+.editor .ql-snow .ql-toolbar .ql-picker-item:hover,
+.editor .ql-snow.ql-toolbar .ql-picker-item.ql-selected,
+.editor .ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+  color: var(--cyan-300);
+}
+
+.editor .ql-snow.ql-toolbar button:hover .ql-stroke,
+.editor .ql-snow .ql-toolbar button:hover .ql-stroke,
+.editor .ql-snow.ql-toolbar button:focus .ql-stroke,
+.editor .ql-snow .ql-toolbar button:focus .ql-stroke,
+.editor .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.editor .ql-snow .ql-toolbar button.ql-active .ql-stroke,
+.editor .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+.editor .ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke,
+.editor .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+.editor .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+.editor .ql-snow.ql-toolbar .ql-picker-item:hover .ql-stroke,
+.editor .ql-snow .ql-toolbar .ql-picker-item:hover .ql-stroke,
+.editor .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-stroke,
+.editor .ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-stroke {
+  stroke: var(--cyan-300);
+}
+
+.editor .ql-snow.ql-toolbar button:hover .ql-fill,
+.editor .ql-snow .ql-toolbar button:hover .ql-fill,
+.editor .ql-snow.ql-toolbar button:focus .ql-fill,
+.editor .ql-snow .ql-toolbar button:focus .ql-fill,
+.editor .ql-snow.ql-toolbar button.ql-active .ql-fill,
+.editor .ql-snow .ql-toolbar button.ql-active .ql-fill,
+.editor .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+.editor .ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
+.editor .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
+.editor .ql-snow .ql-toolbar .ql-picker-label.ql-active .ql-fill,
+.editor .ql-snow.ql-toolbar .ql-picker-item:hover .ql-fill,
+.editor .ql-snow .ql-toolbar .ql-picker-item:hover .ql-fill,
+.editor .ql-snow.ql-toolbar .ql-picker-item.ql-selected .ql-fill,
+.editor .ql-snow .ql-toolbar .ql-picker-item.ql-selected .ql-fill {
+  fill: var(--cyan-300);
+}
+
 .user-table {
   display: flex;
   flex-direction: column;
@@ -2261,12 +2360,32 @@ textarea {
 
   .content {
     margin-left: 0;
-    padding-top: 60px;
+    padding: 72px 20px 20px;
+    /* extra top for hamburger button */
   }
 
   .topbar {
     margin-top: 0;
     padding-left: 60px;
+    align-items: center;
+  }
+
+  /* --- User portal responsive (980px) --- */
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.2rem !important;
+  }
+
+  .portal-main-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-section {
+    padding: 2.5rem 1.5rem !important;
+  }
+
+  .hero-section h1 {
+    font-size: 1.8rem !important;
   }
 
   .kb-editor {
@@ -2288,10 +2407,6 @@ textarea {
 
   .sla-table-header {
     display: none;
-  }
-
-  .content {
-    padding: 24px;
   }
 
   .tickets-layout {
@@ -2610,11 +2725,11 @@ textarea {
   }
 
   .content {
-    padding: 16px;
+    padding: 64px 14px 14px;
   }
 
   .panel {
-    padding: 16px;
+    padding: 14px;
   }
 
   .auth-card {
@@ -2640,7 +2755,8 @@ textarea {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
+    padding-left: 58px;
   }
 
   .topbar h2 {
@@ -2658,6 +2774,59 @@ textarea {
   .btn {
     padding: 10px 16px;
     font-size: 14px;
+  }
+
+  /* --- User portal mobile (560px) --- */
+  .quick-actions-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .action-card {
+    padding: 1.5rem 1.2rem !important;
+  }
+
+  .hero-section {
+    padding: 2rem 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  .hero-section h1 {
+    font-size: 1.5rem !important;
+  }
+
+  .hero-section p {
+    font-size: 0.9rem !important;
+  }
+
+  .user-portal {
+    padding: 1rem !important;
+  }
+
+  .ticket-title-row {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  .timeline-visual {
+    overflow-x: auto;
+  }
+
+  .step-point .label {
+    font-size: 0.65rem !important;
+  }
+
+  .magic-search-container {
+    max-width: 100% !important;
+  }
+
+  .search-bar-wrapper {
+    padding: 0.4rem 1rem !important;
+  }
+
+  .deflection-results {
+    position: static !important;
+    margin-top: 12px;
   }
 
   .field input,
@@ -3470,4 +3639,20 @@ textarea {
 /* Adjust main content for ticker */
 .main-content {
   padding-bottom: 50px !important;
+}
+
+/* Locked location display on New Ticket form */
+.locked-location {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  background: rgba(47, 215, 255, 0.06);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  border-radius: 10px;
+}
+
+.locked-location-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cyan-300);
 }

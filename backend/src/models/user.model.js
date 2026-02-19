@@ -4,18 +4,22 @@ const db = require('../config/database');
 
 const UserModel = {
   async findByEmail(email) {
-    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    return result.rows[0];
+  },
+  async findByAuth0Id(auth0Id) {
+    const result = await db.query('SELECT * FROM users WHERE auth0_id = $1', [auth0Id]);
     return result.rows[0];
   },
   async findById(userId) {
     const result = await db.query('SELECT * FROM users WHERE user_id = $1', [userId]);
     return result.rows[0];
   },
-  async create({ email, first_name, last_name, full_name, passwordHash, role, department, location, phone }) {
+  async create({ email, first_name, last_name, full_name, passwordHash, role, department, location, phone, auth0_id }) {
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, full_name, role, department, location, phone, is_active, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW()) RETURNING *`,
-      [email, passwordHash, first_name, last_name, full_name, role, department, location, phone]
+      `INSERT INTO users (email, password_hash, first_name, last_name, full_name, role, department, location, phone, auth0_id, is_active, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, NOW()) RETURNING *`,
+      [email, passwordHash, first_name, last_name, full_name, role, department, location, phone, auth0_id]
     );
     return result.rows[0];
   },

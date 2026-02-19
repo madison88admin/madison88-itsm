@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
-const TicketConversation = ({ ticketId, comments, onCommentAdded }) => {
+const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {
     const [newComment, setNewComment] = useState("");
     const [isInternal, setIsInternal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -22,11 +22,17 @@ const TicketConversation = ({ ticketId, comments, onCommentAdded }) => {
         e.target.value = ""; // Reset select
     };
 
+    const timeline = comments.map(c => ({
+        ...c,
+        type: 'comment',
+        timestamp: new Date(c.created_at)
+    })).sort((a, b) => a.timestamp - b.timestamp);
+
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [comments]);
+    }, [timeline]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -54,24 +60,24 @@ const TicketConversation = ({ ticketId, comments, onCommentAdded }) => {
             </div>
 
             <div className="comments-list" ref={scrollRef}>
-                {comments.length === 0 ? (
-                    <div className="empty-state">No comments yet. Start the conversation!</div>
+                {timeline.length === 0 ? (
+                    <div className="empty-state">No activity yet.</div>
                 ) : (
-                    comments.map((comment) => (
+                    timeline.map((item) => (
                         <div
-                            key={comment.comment_id}
-                            className={`comment-bubble ${comment.is_internal ? 'internal' : 'public'}`}
+                            key={`comment-${item.comment_id}`}
+                            className={`comment-bubble ${item.is_internal ? 'internal' : 'public'}`}
                         >
                             <div className="comment-meta">
-                                <strong>{comment.full_name}</strong>
-                                <span className="role-badge">{comment.role?.replace('_', ' ')}</span>
+                                <strong>{item.full_name}</strong>
+                                <span className="role-badge">{item.role?.replace('_', ' ')}</span>
                                 <span className="timestamp">
-                                    {new Date(comment.created_at).toLocaleString()}
+                                    {item.timestamp.toLocaleString()}
                                 </span>
-                                {comment.is_internal && <span className="internal-badge">INTERNAL NOTE</span>}
+                                {item.is_internal && <span className="internal-badge">INTERNAL NOTE</span>}
                             </div>
                             <div className="comment-body">
-                                {comment.comment_text}
+                                {item.comment_text}
                             </div>
                         </div>
                     ))
@@ -128,13 +134,6 @@ const TicketConversation = ({ ticketId, comments, onCommentAdded }) => {
             padding: 1.2rem 2rem;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             background: rgba(15, 23, 42, 0.2);
-        }
-        .conversation-header h3 {
-            margin: 0;
-            font-size: 0.7rem;
-            font-weight: 900;
-            color: #475569;
-            letter-spacing: 0.15em;
         }
 
         .comments-list {

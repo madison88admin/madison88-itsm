@@ -67,6 +67,10 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
   const override = process.env.NOTIFICATION_EMAIL_OVERRIDE;
   const finalTo = override && override.trim().length ? override.trim() : to;
 
+  if (override) {
+    logger.info('Email override active', { originalTo: to, finalTo });
+  }
+
   const emailJsConfig = getEmailJsConfig();
   if (emailJsConfig) {
     if (!finalTo || !finalTo.trim()) {
@@ -103,6 +107,7 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
       await axios.post('https://api.emailjs.com/api/v1.0/email/send', payload, {
         headers: { 'Content-Type': 'application/json' },
       });
+      logger.info('EmailJS send successful', { to: finalTo, subject });
       return true;
     } catch (err) {
       logger.error('Failed to send EmailJS email', {
@@ -121,6 +126,8 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
     logger.warn('SMTP not configured. Skipping email.', { subject, to });
     return false;
   }
+
+  logger.info('Sending SMTP email', { to: finalTo, subject });
 
   // Audit log for sent email
   try {
@@ -146,10 +153,11 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
   const from = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
   try {
-    await mailer.sendMail({ from, to: finalTo, subject, text });
+    const info = await mailer.sendMail({ from, to: finalTo, subject, text });
+    logger.info('SMTP email sent successfully', { messageId: info.messageId, to: finalTo });
     return true;
   } catch (err) {
-    logger.error('Failed to send email', { error: err.message, to: finalTo, subject });
+    logger.error('Failed to send email via SMTP', { error: err.message, to: finalTo, subject });
     return false;
   }
 }
@@ -227,11 +235,16 @@ function collectRecipientEmails(recipients = []) {
     return r?.email?.trim();
   }).filter(Boolean);
 
+  logger.debug('Normalizing recipients for email collection', { rawCount: recipients.length, emailCount: emails.length });
+
   // Robust Validation: Basic format check and filter out test/dummy domains
   const validEmails = emails.filter((email) => {
     // 1. Basic Regex for email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return false;
+    if (!emailRegex.test(email)) {
+      logger.warn('Skipping recipient with invalid format', { email });
+      return false;
+    }
 
     // 2. Filter out known dummy/test domains
     const lowerEmail = email.toLowerCase();
@@ -243,10 +256,18 @@ function collectRecipientEmails(recipients = []) {
       'invalid.com'
     ];
 
-    return !dummyDomains.some(domain => lowerEmail.endsWith(`@${domain}`) || lowerEmail.endsWith(`.${domain}`));
+    const isDummy = dummyDomains.some(domain => lowerEmail.endsWith(`@${domain}`) || lowerEmail.endsWith(`.${domain}`));
+    if (isDummy) {
+      logger.info('Skipping recipient with dummy domain', { email });
+      return false;
+    }
+
+    return true;
   });
 
-  return Array.from(new Set(validEmails));
+  const unique = Array.from(new Set(validEmails));
+  logger.info('Collection complete', { inputCount: recipients.length, validCount: unique.length, recipients: unique });
+  return unique;
 }
 
 async function sendNewTicketNotice({ ticket, requester, recipients }) {

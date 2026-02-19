@@ -328,7 +328,7 @@ function App() {
           } />
 
           <Route path="/new-ticket" element={
-            <NewTicketPage onCreated={(ticket) => {
+            <NewTicketPage user={user} onCreated={(ticket) => {
               setRefreshKey(p => p + 1);
               navigate(`/tickets/${ticket.ticket_id}`);
             }} />

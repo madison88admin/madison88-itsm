@@ -38,6 +38,7 @@ const GlassyTicketLayout = ({
                     <TicketConversation
                         ticketId={ticket.ticket_id}
                         comments={comments}
+                        audit={audit}
                         onCommentAdded={onCommentAdded}
                     />
                 </div>
@@ -139,6 +140,34 @@ const GlassyTicketLayout = ({
 
         .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1100px) {
+            .glassy-workspace {
+                height: auto;
+                max-height: none;
+                overflow-y: auto;
+            }
+            .workspace-grid {
+                display: flex;
+                flex-direction: column;
+                height: auto;
+                overflow: visible;
+            }
+            .workspace-col {
+                height: auto;
+                max-height: none;
+                overflow: visible;
+            }
+            .workspace-col.col-main {
+                min-height: 500px;
+                order: 2;
+            }
+            .workspace-col.col-left {
+                order: 1;
+            }
+            .workspace-col.col-right {
+                order: 3;
+            }
+        }
       `}</style>
         </div>
     );

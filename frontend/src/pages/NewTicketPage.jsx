@@ -28,7 +28,7 @@ const ticketTypes = [
   { value: "request", label: "Request" },
 ];
 
-const NewTicketPage = ({ onCreated }) => {
+const NewTicketPage = ({ onCreated, user }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +86,11 @@ const NewTicketPage = ({ onCreated }) => {
 
     loadAssets();
     loadTemplates();
+
+    // Pre-fill location from user profile
+    if (user?.location) {
+      setForm((prev) => ({ ...prev, location: user.location }));
+    }
 
     // Pre-fill ticket type from query param
     const params = new URLSearchParams(location.search);
@@ -500,17 +505,26 @@ const NewTicketPage = ({ onCreated }) => {
           </label>
           <label className="field">
             <span>Location</span>
-            <select
-              value={form.location}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-            >
-              <option value="">Select location</option>
-              {locations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+            {user?.location ? (
+              <div className="locked-location">
+                <span className="locked-location-value">📍 {user.location}</span>
+                <small className="muted" style={{ display: 'block', marginTop: '4px', fontSize: '11px' }}>
+                  Set from your profile • <a href="/profile" style={{ color: 'var(--cyan-300)' }}>Change in Profile Settings</a>
+                </small>
+              </div>
+            ) : (
+              <select
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+              >
+                <option value="">Select location</option>
+                {locations.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
           <label className="field">
             <span>Ticket Type</span>

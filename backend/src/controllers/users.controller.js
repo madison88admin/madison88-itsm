@@ -21,7 +21,8 @@ const UsersController = {
                 email: Joi.string().email(),
                 password: Joi.string().min(6),
                 phone: Joi.string().allow('', null),
-                department: Joi.string().allow('', null)
+                department: Joi.string().allow('', null),
+                location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'China', 'Other').allow('', null)
             }).min(1);
 
             const { error, value } = schema.validate(req.body, { abortEarly: false });

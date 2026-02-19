@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/client";
-import { hasMaxLength, hasMinLength, isBlank } from "../utils/validation";
+import { hasMaxLength, hasMinLength, isBlank, stripHtml } from "../utils/validation";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const categories = [
   "Hardware",
@@ -96,7 +98,7 @@ const TicketTemplatesPage = () => {
       setError("Category is required.");
       return;
     }
-    if (!hasMinLength(form.description, 10)) {
+    if (!hasMinLength(stripHtml(form.description), 10)) {
       setError("Description must be at least 10 characters.");
       return;
     }
@@ -160,9 +162,8 @@ const TicketTemplatesPage = () => {
             {templates.map((template) => (
               <button
                 key={template.template_id}
-                className={`template-card ${
-                  selectedId === template.template_id ? "active" : ""
-                }`}
+                className={`template-card ${selectedId === template.template_id ? "active" : ""
+                  }`}
                 onClick={() => setSelectedId(template.template_id)}
               >
                 <div>
@@ -229,13 +230,10 @@ const TicketTemplatesPage = () => {
             </label>
             <label className="field full">
               <span>Description</span>
-              <textarea
-                rows={4}
+              <ReactQuill
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                required
+                onChange={(value) => setForm({ ...form, description: value })}
+                className="editor"
               />
             </label>
             <label className="field full">

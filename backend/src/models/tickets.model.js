@@ -480,21 +480,21 @@ const TicketsModel = {
 
   async findPotentialDuplicates({ title, description, excludeTicketId, userId, createdAfter }) {
     const needle = `%${title || description || ''}%`;
-    const conditions = ['($1::uuid IS NULL OR ticket_id <> $1)', '(title ILIKE $2 OR description ILIKE $2)'];
+    const conditions = ['($1::uuid IS NULL OR t.ticket_id <> $1)', '(t.title ILIKE $2 OR t.description ILIKE $2)'];
     const values = [excludeTicketId || null, needle];
     if (userId) {
       values.push(userId);
-      conditions.push(`user_id = $${values.length}`);
+      conditions.push(`t.user_id = $${values.length}`);
     }
     if (createdAfter) {
       values.push(createdAfter);
-      conditions.push(`created_at >= $${values.length}`);
+      conditions.push(`t.created_at >= $${values.length}`);
     }
     const result = await db.query(
-      `SELECT ticket_id, ticket_number, title, status, created_at
-       FROM tickets
+      `SELECT t.ticket_id, t.ticket_number, t.title, t.status, t.created_at
+       FROM tickets t
        WHERE ${conditions.join(' AND ')}
-       ORDER BY created_at DESC
+       ORDER BY t.created_at DESC
        LIMIT 5`,
       values
     );

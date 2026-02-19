@@ -579,6 +579,10 @@ const TicketsService = {
 
     if (user.role === 'end_user') {
       filters.user_id = user.user_id;
+      // Location scoping: end users only see tickets from their own location
+      if (user.location) {
+        filters.location = user.location;
+      }
     } else if (user.role === 'it_agent') {
       // Strict isolation: Agents only see their own location's tickets
       if (user.location) {
@@ -686,6 +690,7 @@ const TicketsService = {
     if (!existing) throw new Error('Ticket not found');
 
     const statusChanged = value.status && value.status !== existing.status;
+    const priorityChanged = value.priority && value.priority !== existing.priority;
     const statusReason = value.status_change_reason;
     delete value.status_change_reason;
 
@@ -707,7 +712,7 @@ const TicketsService = {
         entity_id: ticketId,
         old_value: JSON.stringify(existing),
         new_value: JSON.stringify(updated),
-        description: 'Ticket updated by requester',
+        description: 'Ticket content updated by requester (Title/Description/Impact)',
         ip_address: meta.ip,
         user_agent: meta.userAgent,
         session_id: meta.sessionId,
@@ -967,6 +972,22 @@ const TicketsService = {
       }
     }
 
+    const auditDescriptions = [];
+    if (statusChanged) auditDescriptions.push(`Status changed to ${value.status}`);
+    if (priorityChanged) auditDescriptions.push(`Priority updated to ${value.priority}`);
+    if (assignedChanged) {
+      if (value.assigned_to) {
+        const assignee = await UserModel.findById(value.assigned_to);
+        auditDescriptions.push(`Ticket assigned to ${assignee?.full_name || 'Agent'}`);
+      } else {
+        auditDescriptions.push('Ticket unassigned');
+      }
+    }
+
+    if (auditDescriptions.length === 0) {
+      auditDescriptions.push('Ticket updated attributes');
+    }
+
     await TicketsModel.createAuditLog({
       ticket_id: ticketId,
       user_id: user.user_id,
@@ -975,7 +996,7 @@ const TicketsService = {
       entity_id: ticketId,
       old_value: JSON.stringify(existing),
       new_value: JSON.stringify(updated),
-      description: 'Ticket updated',
+      description: auditDescriptions.join(', '),
       ip_address: meta.ip,
       user_agent: meta.userAgent,
       session_id: meta.sessionId,
@@ -1107,19 +1128,36 @@ const TicketsService = {
   async getAuditLog({ ticketId, user }) {
     const ticket = await TicketsModel.getTicketById(ticketId);
     if (!ticket) throw new AppError('Ticket not found', 404);
+
+    let hasAccess = false;
     if (user.role === 'system_admin') {
-      const audit_logs = await TicketsModel.getAuditLogs(ticketId);
-      return { audit_logs };
+      hasAccess = true;
+    } else if (user.role === 'it_manager') {
+      // 1. Check basic location match first
+      const locationMatch = !user.location || ticket.location === user.location;
+      if (locationMatch) {
+        // 2. Team-based logic
+        const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+        if (teamIds.length) {
+          const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+          const inTeam = teamIds.includes(ticket.assigned_team);
+          const assignedToMember = ticket.assigned_to && memberIds.includes(ticket.assigned_to);
+          hasAccess = inTeam || assignedToMember || ticket.assigned_to === user.user_id;
+        } else {
+          hasAccess = ticket.assigned_to === user.user_id;
+        }
+      }
+    } else if (user.role === 'it_agent') {
+      const isAssigned = ticket.assigned_to === user.user_id || ticket.user_id === user.user_id;
+      const isUnassigned = !ticket.assigned_to;
+      const locationMatch = !user.location || ticket.location === user.location;
+      hasAccess = (isAssigned || isUnassigned) && locationMatch;
     }
-    if (user.role === 'it_manager') {
-      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
-      const memberIds = teamIds.length ? await TicketsModel.listTeamMemberIdsForTeams(teamIds) : [];
-      const canAccess = teamIds.includes(ticket.assigned_team) || (ticket.assigned_to && memberIds.includes(ticket.assigned_to));
-      if (!canAccess) throw new AppError('Forbidden', 403);
-      const audit_logs = await TicketsModel.getAuditLogs(ticketId);
-      return { audit_logs };
-    }
-    throw new AppError('Forbidden', 403);
+
+    if (!hasAccess) throw new AppError('Forbidden', 403);
+
+    const audit_logs = await TicketsModel.getAuditLogs(ticketId);
+    return { audit_logs };
   },
 
   async getStatusHistory({ ticketId, user }) {

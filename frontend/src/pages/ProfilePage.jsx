@@ -3,11 +3,14 @@ import apiClient from "../api/client";
 import { FiUser, FiMail, FiLock, FiPhone, FiMapPin, FiBriefcase, FiCheckCircle, FiAlertCircle, FiSave } from "react-icons/fi";
 
 const ProfilePage = ({ user, onUserUpdate }) => {
+    const LOCATIONS = ['Philippines', 'US', 'Indonesia', 'China', 'Other'];
+
     const [formData, setFormData] = useState({
         full_name: user?.full_name || "",
         email: user?.email || "",
         phone: user?.phone || "",
         department: user?.department || "",
+        location: user?.location || "",
         password: "",
         confirm_password: ""
     });
@@ -21,6 +24,7 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                 email: user.email || "",
                 phone: user.phone || "",
                 department: user.department || "",
+                location: user.location || "",
             }));
         }
     }, [user]);
@@ -47,7 +51,8 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                 full_name: formData.full_name,
                 email: formData.email,
                 phone: formData.phone,
-                department: formData.department
+                department: formData.department,
+                location: formData.location || undefined
             };
 
             if (formData.password) {
@@ -101,7 +106,7 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                             <FiMapPin className="icon" />
                             <div className="text">
                                 <label>Location</label>
-                                <span>{user?.location || "Not assigned"}</span>
+                                <span>{formData.location || user?.location || "Not assigned"}</span>
                             </div>
                         </div>
                         <div className="meta-item">
@@ -182,6 +187,23 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                                             value={formData.department}
                                             onChange={handleChange}
                                         />
+                                    </div>
+                                </div>
+                                <div className="input-group">
+                                    <label>Location</label>
+                                    <div className="input-wrapper">
+                                        <FiMapPin className="field-icon" />
+                                        <select
+                                            name="location"
+                                            value={formData.location}
+                                            onChange={handleChange}
+                                            className="location-select"
+                                        >
+                                            <option value="">Not assigned</option>
+                                            {LOCATIONS.map(loc => (
+                                                <option key={loc} value={loc}>{loc}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -411,7 +433,8 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                     pointer-events: none;
                 }
 
-                .input-wrapper input {
+                .input-wrapper input,
+                .input-wrapper .location-select {
                     width: 100%;
                     background: rgba(0, 0, 0, 0.2);
                     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -420,13 +443,21 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                     color: white;
                     font-size: 1rem;
                     transition: all 0.3s;
+                    appearance: none;
+                    cursor: pointer;
                 }
 
-                .input-wrapper input:focus {
+                .input-wrapper input:focus,
+                .input-wrapper .location-select:focus {
                     outline: none;
                     border-color: #3b82f6;
                     background: rgba(0, 0, 0, 0.3);
                     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+                }
+
+                .input-wrapper .location-select option {
+                    background: #0f172a;
+                    color: white;
                 }
 
                 .status-message {

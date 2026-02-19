@@ -134,7 +134,7 @@ router.post('/:id/escalations', authenticate, TicketsController.createEscalation
  * @route GET /api/tickets/:id/audit-log
  * @desc Get ticket audit trail
  */
-router.get('/:id/audit-log', authenticate, authorize(['system_admin', 'it_manager']), TicketsController.getAuditLog);
+router.get('/:id/audit-log', authenticate, authorize(['system_admin', 'it_manager', 'it_agent']), TicketsController.getAuditLog);
 
 /**
  * @route GET /api/tickets/:id

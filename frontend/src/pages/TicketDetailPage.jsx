@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import apiClient from "../api/client";
 import { hasMaxLength, hasMinLength, isBlank } from "../utils/validation";
 import { joinTicket, leaveTicket, onPresenceUpdate } from "../api/socket";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import GlassyTicketLayout from "../components/tickets/GlassyTicketLayout";
+import { stripHtml } from "../utils/validation";
 
 const statusOptions = [
   "New",
@@ -65,7 +68,9 @@ const TicketDetailPage = ({
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
   const isAdmin = user?.role === "system_admin";
-  const canSeeAudit = isAdmin;
+  const canSeeAudit = ["it_agent", "it_manager", "system_admin"].includes(
+    user?.role,
+  );
   const canAddInternal = ["it_agent", "it_manager", "system_admin"].includes(
     user?.role,
   );
@@ -468,7 +473,8 @@ const TicketDetailPage = ({
       setError("Title must be 255 characters or less.");
       return;
     }
-    if (isBlank(editDescription) || !hasMinLength(editDescription, 10)) {
+    const normalizedDesc = stripHtml(editDescription);
+    if (isBlank(normalizedDesc) || !hasMinLength(normalizedDesc, 10)) {
       setError("Description must be at least 10 characters.");
       return;
     }
@@ -683,11 +689,11 @@ const TicketDetailPage = ({
           </label>
           <label className="field">
             <span>Description</span>
-            <textarea
-              rows={4}
+            <ReactQuill
               value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              disabled={!canEditEndUser}
+              onChange={(value) => setEditDescription(value)}
+              readOnly={!canEditEndUser}
+              className="editor"
             />
           </label>
           <label className="field">
