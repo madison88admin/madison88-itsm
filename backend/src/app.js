@@ -18,27 +18,20 @@ const app = express();
 app.use(helmet());
 
 // CORS Configuration
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL,
-        process.env.FRONTEND_PROD_URL,
-        'https://m88itsm.netlify.app'
-      ];
+const corsOptions = {
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.FRONTEND_PROD_URL || 'https://itsm.madison88.com',
+    'https://m88itsm.netlify.app'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Idempotency-Key']
+};
 
-      // allow requests with no origin (like Postman, curl)
-      if (!origin) return callback(null, true);
+console.log('CORS options:', corsOptions);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true
-  })
-);
+app.use(cors(corsOptions));
 
 // Compression
 app.use(compression());
