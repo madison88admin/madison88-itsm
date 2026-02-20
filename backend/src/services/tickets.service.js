@@ -635,8 +635,13 @@ const TicketsService = {
   },
 
   async getTicketDetails({ ticketId, user }) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!ticketId || !uuidRegex.test(ticketId)) {
+      throw new AppError('Invalid ticket ID format', 400);
+    }
+
     const ticket = await TicketsModel.getTicketById(ticketId);
-    if (!ticket) throw new Error('Ticket not found');
+    if (!ticket) throw new AppError('Ticket not found', 404);
     if (user.role === 'end_user' && ticket.user_id !== user.user_id) throw new Error('Forbidden');
     if (user.role === 'it_agent') {
       const isAssigned = ticket.assigned_to === user.user_id || ticket.user_id === user.user_id;

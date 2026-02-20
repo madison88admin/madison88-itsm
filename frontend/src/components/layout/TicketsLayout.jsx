@@ -8,7 +8,7 @@ const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTi
     const { ticketId } = useParams();
 
     // ticketId is a UUID string from the URL param
-    const selectedTicketId = ticketId || null;
+    const selectedTicketId = (ticketId && ticketId !== 'null') ? ticketId : null;
 
     const handleSelectTicket = (id) => {
         const basePath = viewMode === 'team' ? '/team-queue' : '/tickets';

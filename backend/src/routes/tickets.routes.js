@@ -17,6 +17,15 @@ const TicketsController = require('../controllers/tickets.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const router = express.Router();
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const validateId = (req, res, next) => {
+  if (req.params.id && !uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ status: 'error', message: 'Invalid ID format' });
+  }
+  next();
+};
+
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -68,84 +77,84 @@ router.post('/bulk-assign', authenticate, TicketsController.bulkAssign);
  * @route POST /api/tickets/:id/confirm-resolution
  * @desc User confirms ticket resolution
  */
-router.post('/:id/confirm-resolution', authenticate, TicketsController.confirmResolution);
+router.post('/:id/confirm-resolution', authenticate, validateId, TicketsController.confirmResolution);
 
 /**
  * @route POST /api/tickets/:id/reopen
  * @desc Reopen a resolved/closed ticket
  */
-router.post('/:id/reopen', authenticate, TicketsController.reopenTicket);
+router.post('/:id/reopen', authenticate, validateId, TicketsController.reopenTicket);
 
 /**
  * @route GET /api/tickets/:id/status-history
  * @desc Get ticket status history
  */
-router.get('/:id/status-history', authenticate, TicketsController.getStatusHistory);
+router.get('/:id/status-history', authenticate, validateId, TicketsController.getStatusHistory);
 
 /**
  * @route GET /api/tickets/:id/priority-override-requests
  * @desc List priority override requests
  */
-router.get('/:id/priority-override-requests', authenticate, TicketsController.listPriorityOverrideRequests);
+router.get('/:id/priority-override-requests', authenticate, validateId, TicketsController.listPriorityOverrideRequests);
 
 /**
  * @route POST /api/tickets/:id/priority-override-requests
  * @desc Request priority override
  */
-router.post('/:id/priority-override-requests', authenticate, TicketsController.requestPriorityOverride);
+router.post('/:id/priority-override-requests', authenticate, validateId, TicketsController.requestPriorityOverride);
 
 /**
  * @route PATCH /api/tickets/:id/priority-override-requests/:requestId
  * @desc Approve/reject priority override
  */
-router.patch('/:id/priority-override-requests/:requestId', authenticate, TicketsController.reviewPriorityOverride);
+router.patch('/:id/priority-override-requests/:requestId', authenticate, validateId, TicketsController.reviewPriorityOverride);
 
 /**
  * @route GET /api/tickets/:id/comments
  * @desc Get ticket comments
  */
-router.get('/:id/comments', authenticate, TicketsController.getComments);
+router.get('/:id/comments', authenticate, validateId, TicketsController.getComments);
 
 /**
  * @route POST /api/tickets/:id/comments
  * @desc Add comment to ticket
  */
-router.post('/:id/comments', authenticate, TicketsController.addComment);
+router.post('/:id/comments', authenticate, validateId, TicketsController.addComment);
 
 /**
  * @route POST /api/tickets/:id/attachments
  * @desc Upload attachment to ticket
  */
-router.post('/:id/attachments', authenticate, upload.array('files', 5), TicketsController.addAttachments);
+router.post('/:id/attachments', authenticate, validateId, upload.array('files', 5), TicketsController.addAttachments);
 
 /**
  * @route GET /api/tickets/:id/escalations
  * @desc List ticket escalations
  */
-router.get('/:id/escalations', authenticate, TicketsController.listEscalations);
+router.get('/:id/escalations', authenticate, validateId, TicketsController.listEscalations);
 
 /**
  * @route POST /api/tickets/:id/escalations
  * @desc Create ticket escalation
  */
-router.post('/:id/escalations', authenticate, TicketsController.createEscalation);
+router.post('/:id/escalations', authenticate, validateId, TicketsController.createEscalation);
 
 /**
  * @route GET /api/tickets/:id/audit-log
  * @desc Get ticket audit trail
  */
-router.get('/:id/audit-log', authenticate, authorize(['system_admin', 'it_manager', 'it_agent']), TicketsController.getAuditLog);
+router.get('/:id/audit-log', authenticate, validateId, authorize(['system_admin', 'it_manager', 'it_agent']), TicketsController.getAuditLog);
 
 /**
  * @route GET /api/tickets/:id
  * @desc Get single ticket details
  */
-router.get('/:id', authenticate, TicketsController.getTicket);
+router.get('/:id', authenticate, validateId, TicketsController.getTicket);
 
 /**
  * @route PATCH /api/tickets/:id
  * @desc Update ticket
  */
-router.patch('/:id', authenticate, TicketsController.updateTicket);
+router.patch('/:id', authenticate, validateId, TicketsController.updateTicket);
 
 module.exports = router;

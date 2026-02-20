@@ -83,7 +83,7 @@ const TicketDetailPage = ({
   const canEscalate = !!isAssignedToUser;
 
   useEffect(() => {
-    if (!ticketId) return;
+    if (!ticketId || ticketId === 'null') return;
     setManuallyConfirmed(false);
     const fetchDetails = async () => {
       setLoading(true);

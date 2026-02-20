@@ -15,6 +15,13 @@ async function authenticate(req, res, next) {
   if (!token) return res.status(401).json({ status: 'error', message: 'Missing token' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+
+    // Validate UUID format to prevent DB syntax errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!payload.user_id || !uuidRegex.test(payload.user_id)) {
+      return res.status(401).json({ status: 'error', message: 'Invalid user ID format' });
+    }
+
     const user = await UserModel.findById(payload.user_id);
     if (!user || !user.is_active) return res.status(401).json({ status: 'error', message: 'Invalid user' });
     req.user = user;

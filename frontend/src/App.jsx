@@ -200,7 +200,21 @@ function App() {
         item.id === notification.id ? { ...item, read: true } : item,
       ),
     );
-    navigate(`/tickets/${notification.ticketId}`);
+
+    // If it's a broadcast or has no valid ticket ID, show a toast instead of navigating
+    if (!notification.ticketId || notification.ticketId === 'null' || notification.type === 'broadcast') {
+      pushToast({
+        id: `info-${Date.now()}`,
+        title: notification.title || "Notification",
+        message: notification.message || notification.title,
+      });
+      return;
+    }
+
+    // Navigate to the most appropriate path based on user role
+    const isStaff = ["it_agent", "it_manager", "system_admin"].includes(user?.role);
+    const path = isStaff ? `/team-queue/${notification.ticketId}` : `/tickets/${notification.ticketId}`;
+    navigate(path);
   };
 
   const unreadCount = notifications.filter((item) => !item.read).length;
