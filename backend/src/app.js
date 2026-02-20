@@ -21,13 +21,13 @@ app.use(helmet());
 const corsOptions = {
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.FRONTEND_PROD_URL || 'https://itsm.madison88.com'
+    process.env.FRONTEND_PROD_URL || 'https://itsm.madison88.com',
+    'https://m88itsm.netlify.app' 
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Idempotency-Key']
 };
-
 app.use(cors(corsOptions));
 
 // Compression
