@@ -31,6 +31,11 @@ function getEmailJsConfig() {
   };
 }
 
+function getTicketUrl(ticketId) {
+  const baseUrl = process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+  return `${baseUrl.replace(/\/$/, '')}/tickets?id=${ticketId}`;
+}
+
 function getTransporter() {
   if (transporter) return transporter;
 
@@ -168,15 +173,18 @@ async function sendEscalationNotice({ ticket, escalation, requester, assignee })
   if (requester?.email) recipients.push(requester.email);
   if (!recipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `Ticket Escalated: ${ticket.ticket_number}`;
   const text = [
     `Ticket ${ticket.ticket_number} has been escalated.`,
     `Title: ${ticket.title}`,
     `Severity: ${escalation.severity}`,
     `Reason: ${escalation.reason}`,
+    '',
+    `View ticket details: ${ticketUrl}`,
   ].join('\n');
 
-  return sendEmail({ to: recipients.join(','), subject, text });
+  return sendEmail({ to: recipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } });
 }
 
 async function sendSlaEscalationNotice({ ticket, escalation, assignee, leads }) {
@@ -190,6 +198,7 @@ async function sendSlaEscalationNotice({ ticket, escalation, assignee, leads }) 
   const uniqueRecipients = Array.from(new Set(recipients));
   if (!uniqueRecipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `SLA Escalation: ${ticket.ticket_number}`;
   const text = [
     `Ticket ${ticket.ticket_number} reached SLA threshold.`,
@@ -197,14 +206,17 @@ async function sendSlaEscalationNotice({ ticket, escalation, assignee, leads }) 
     `Priority: ${ticket.priority}`,
     `Severity: ${escalation.severity}`,
     `Reason: ${escalation.reason}`,
+    '',
+    `View ticket details: ${ticketUrl}`,
   ].join('\n');
 
-  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } });
 }
 
 async function sendTicketResolvedNotice({ ticket, requester }) {
   if (!requester?.email) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `Ticket Resolved: ${ticket.ticket_number}`;
   const text = [
     `Your ticket ${ticket.ticket_number} has been resolved.`,
@@ -212,6 +224,8 @@ async function sendTicketResolvedNotice({ ticket, requester }) {
     `Resolution Summary: ${ticket.resolution_summary || 'No summary provided.'}`,
     `Category: ${ticket.resolution_category || 'Uncategorized'}`,
     `Root Cause: ${ticket.root_cause || 'Not specified'}`,
+    '',
+    `View details or confirm resolution: ${ticketUrl}`,
   ].join('\n');
 
   return sendEmail({
@@ -224,6 +238,7 @@ async function sendTicketResolvedNotice({ ticket, requester }) {
       resolution_summary: ticket.resolution_summary || 'No summary provided.',
       resolution_category: ticket.resolution_category || 'Uncategorized',
       root_cause: ticket.root_cause || 'Not specified',
+      ticket_url: ticketUrl,
     },
   });
 }
@@ -279,6 +294,7 @@ async function sendNewTicketNotice({ ticket, requester, recipients }) {
   const uniqueRecipients = collectRecipientEmails(allRecipients);
   if (!uniqueRecipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `New Ticket: ${ticket.ticket_number}`;
   const text = [
     `A new ticket has been created: ${ticket.ticket_number}.`,
@@ -287,9 +303,11 @@ async function sendNewTicketNotice({ ticket, requester, recipients }) {
     `Category: ${ticket.category}`,
     requester?.full_name ? `Requester: ${requester.full_name}` : null,
     requester?.email ? `Requester Email: ${requester.email}` : null,
+    '',
+    `View ticket details: ${ticketUrl}`,
   ].filter(Boolean).join('\n');
 
-  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } });
 }
 
 async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
@@ -297,6 +315,7 @@ async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
   const uniqueRecipients = collectRecipientEmails(recipients);
   if (!uniqueRecipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `Ticket Assigned: ${ticket.ticket_number} - ${ticket.title}`;
   const text = [
     `Hello,`,
@@ -307,6 +326,8 @@ async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
     `Priority: ${ticket.priority}`,
     `Category: ${ticket.category}`,
     `Location: ${ticket.location}`,
+    '',
+    `View details: ${ticketUrl}`,
     '',
     `Please log in to the Madison88 ITSM Platform to review the ticket details.`,
   ].filter(Boolean).join('\n');
@@ -321,6 +342,7 @@ async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
       priority: ticket.priority,
       assignee_name: assignee?.full_name,
       assignee_email: assignee?.email,
+      ticket_url: ticketUrl,
     },
   });
 }
@@ -337,21 +359,26 @@ async function sendTicketReopenedNotice({ ticket, requester, assignee, reopenedB
   const uniqueRecipients = collectRecipientEmails(rawRecipients);
   if (!uniqueRecipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `Ticket Reopened: ${ticket.ticket_number}`;
   const text = [
     `Ticket ${ticket.ticket_number} has been reopened.`,
     `Title: ${ticket.title}`,
     `Reopened by: ${reopenedBy?.full_name || reopenedBy?.email || 'User'}`,
+    '',
+    `View details: ${ticketUrl}`,
+    '',
     `Please review the ticket and provide a resolution.`,
   ].join('\n');
 
-  return sendEmail({ to: uniqueRecipients.join(','), subject, text });
+  return sendEmail({ to: uniqueRecipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } });
 }
 
 async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
   const uniqueRecipients = collectRecipientEmails(recipients);
   if (!uniqueRecipients.length) return false;
 
+  const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `🔥 CRITICAL ALERT: ${ticket.ticket_number} - ${ticket.title}`;
   const text = [
     `URGENT: A P1 (Critical) ticket has been opened and requires IMMEDIATE attention.`,
@@ -361,6 +388,8 @@ async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
     `Category: ${ticket.category}`,
     `Location: ${ticket.location}`,
     requester?.full_name ? `Requester: ${requester.full_name}` : null,
+    `--------------------------------------------------`,
+    `View details: ${ticketUrl}`,
     `--------------------------------------------------`,
     `Description:`,
     ticket.description,
@@ -374,7 +403,8 @@ async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
     text,
     templateParams: {
       is_critical: true,
-      priority: 'P1'
+      priority: 'P1',
+      ticket_url: ticketUrl,
     }
   });
 }

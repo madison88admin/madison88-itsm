@@ -129,7 +129,7 @@ function mapPriorityToSeverity(priority) {
   }
 }
 
-async function buildSla(priority, category, location = 'Default') {
+async function buildSla(priority, category, location = 'Default', baseDate = new Date()) {
   // 1. Try to find a rule matching both priority AND category
   let rule = await TicketsModel.getSlaRule(priority, category);
 
@@ -138,12 +138,11 @@ async function buildSla(priority, category, location = 'Default') {
     rule = await TicketsModel.getSlaRule(priority, null);
   }
 
-  const now = new Date();
   const responseHours = rule ? rule.response_time_hours : DEFAULT_RESPONSE_HOURS;
   const resolutionHours = rule ? rule.resolution_time_hours : DEFAULT_RESOLUTION_HOURS;
 
-  const responseDue = SlaUtils.addBusinessHours(now, responseHours, location);
-  const resolutionDue = SlaUtils.addBusinessHours(now, resolutionHours, location);
+  const responseDue = SlaUtils.addBusinessHours(baseDate, responseHours, location);
+  const resolutionDue = SlaUtils.addBusinessHours(baseDate, resolutionHours, location);
 
   const escalation_threshold_percent = rule ? rule.escalation_threshold_percent : 100;
 
@@ -565,17 +564,17 @@ const TicketsService = {
     // Only show resolved/closed tickets when:
     // 1. User specifically filters by status = "Resolved" or "Closed", OR
     // 2. User has "include_archived" checked
-    if (include_archived !== 'true') {
+    // 3. User is system_admin (Universal Visibility)
+    if (include_archived !== 'true' && user.role !== 'system_admin') {
       if (['Resolved', 'Closed'].includes(status)) {
         // If specifically looking for Resolved/Closed, show them even if archived
         filters.exclude_archived = false;
       } else {
-        // For all users: exclude archived and exclude Resolved/Closed unless specifically filtered
+        // For standard users: exclude archived and exclude Resolved/Closed unless specifically filtered
         filters.exclude_archived = true;
-        // Don't set include_resolved_closed - this will exclude resolved/closed tickets
       }
     } else {
-      // If include_archived is true, show everything
+      // If include_archived is true OR user is system_admin, show everything
       filters.exclude_archived = false;
     }
 
@@ -733,6 +732,21 @@ const TicketsService = {
       if (!value.priority_override_reason) throw new Error('Priority override reason required');
       value.overridden_by = user.user_id;
       value.overridden_at = new Date();
+
+      // SLA Re-calculation: If priority changes, re-calculate SLA from created_at
+      const sla = await buildSla(value.priority, existing.category, existing.location, new Date(existing.created_at));
+
+      // If the ticket was already paused (Resolved/Closed), we need to respect that duration
+      if (existing.sla_paused_at) {
+        // We'll let the existing resume logic handle it if they reopen, 
+        // but for now we update the "baseline" due dates.
+        value.sla_due_date = sla.sla_due_date;
+        value.sla_response_due = sla.sla_response_due;
+      } else {
+        value.sla_due_date = sla.sla_due_date;
+        value.sla_response_due = sla.sla_response_due;
+        value.escalation_threshold_percent = sla.escalation_threshold_percent;
+      }
     }
 
     if (user.role === 'it_agent' || user.role === 'it_manager') {

@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const SlaUtils = require('../utils/sla-utils');
 
 const DashboardService = {
     async getSlaPerformance(location = null) {
@@ -183,10 +184,21 @@ const DashboardService = {
 
     async getAdvancedReporting() {
         const result = await db.query(
-            `SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600) AS mttr_hours
-       FROM tickets WHERE resolved_at IS NOT NULL`
+            `SELECT created_at, resolved_at, location
+             FROM tickets 
+             WHERE resolved_at IS NOT NULL`
         );
-        const mttr_hours = Number(result.rows[0]?.mttr_hours || 0);
+
+        const businessMinutes = result.rows.map(row => {
+            return SlaUtils.getBusinessMinutesBetween(
+                new Date(row.created_at),
+                new Date(row.resolved_at),
+                row.location
+            );
+        });
+
+        const totalBusinessHours = businessMinutes.reduce((sum, min) => sum + (min / 60), 0);
+        const mttr_hours = result.rows.length > 0 ? Number((totalBusinessHours / result.rows.length).toFixed(2)) : 0;
 
         const mttaResult = await db.query(
             `WITH first_response AS (

@@ -499,45 +499,50 @@ const TicketsPage = ({
                 />
               </div>
             )}
-            <div>
+            <div className="ticket-main-info">
               <div className="ticket-title">{ticket.title}</div>
               <div className="ticket-meta">
-                <span>{ticket.ticket_number}</span>
-                <span>•</span>
-                <span>{ticket.category}</span>
+                <span className="meta-item id-hash">{ticket.ticket_number}</span>
+                <span className="meta-sep">•</span>
+                <span className="meta-item category-tag">{ticket.category}</span>
                 {ticket.tags && (
                   <>
-                    <span>•</span>
-                    <span>{ticket.tags}</span>
+                    <span className="meta-sep">•</span>
+                    <span className="meta-item tags-list">{ticket.tags}</span>
                   </>
                 )}
-                <span>•</span>
-                <span>{new Date(ticket.created_at).toLocaleString()}</span>
-                <span>•</span>
-                <span>
-                  SLA Due:{" "}
-                  {ticket.sla_due_date
-                    ? new Date(ticket.sla_due_date).toLocaleString()
-                    : "N/A"}
+                <span className="meta-sep">•</span>
+                <span className="meta-item created-date">
+                  {new Date(ticket.created_at).toLocaleDateString()}
                 </span>
               </div>
             </div>
-            <div className="ticket-badges">
-              <span className={`badge ${priorityColor[ticket.priority] || ""}`}>
-                {ticket.priority}
-              </span>
-              <span className={`badge ${statusColor[ticket.status] || ""}`}>
-                {ticket.status}
-              </span>
-              {ticket.sla_status?.escalated && (
-                <span className="badge badge-sla-escalated">Escalated</span>
-              )}
-              {(() => {
-                const sla = formatSlaCountdown(ticket);
-                return sla ? (
-                  <span className={`badge ${sla.className}`}>{sla.label}</span>
-                ) : null;
-              })()}
+            <div className="ticket-side-info">
+              <div className="ticket-badges">
+                <span className={`badge ${priorityColor[ticket.priority] || ""}`}>
+                  {ticket.priority}
+                </span>
+                <span className={`badge ${statusColor[ticket.status] || ""}`}>
+                  {ticket.status}
+                </span>
+              </div>
+              <div className="sla-info">
+                {ticket.sla_status?.escalated && (
+                  <span className="badge badge-sla-escalated">Escalated</span>
+                )}
+                {(() => {
+                  const sla = formatSlaCountdown(ticket);
+                  return sla ? (
+                    <span className={`badge ${sla.className}`}>{sla.label}</span>
+                  ) : (
+                    ticket.sla_due_date && (
+                      <span className="badge badge-sla-static">
+                        Due: {new Date(ticket.sla_due_date).toLocaleDateString()}
+                      </span>
+                    )
+                  );
+                })()}
+              </div>
             </div>
           </button>
         ))}

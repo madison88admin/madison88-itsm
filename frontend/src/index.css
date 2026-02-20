@@ -1,21 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --navy-950: #050b1f;
-  --navy-900: #0a1635;
-  --navy-800: #0f2048;
-  --navy-700: #1b2d5f;
-  --blue-500: #2b6bff;
-  --cyan-400: #2fd7ff;
-  --cyan-300: #6fe6ff;
-  --slate-100: #f4f7ff;
-  --slate-200: #dbe4ff;
-  --slate-300: #c1ccea;
-  --slate-500: #8b97ba;
-  --danger: #ff5d6c;
-  --success: #37d996;
-  --warning: #ffb547;
-  --shadow: 0 24px 60px rgba(5, 11, 31, 0.35);
+  --navy-950: #020617;
+  --navy-900: #0a1128;
+  --navy-800: #111a3b;
+  --navy-700: #1e2952;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --cyan-400: #22d3ee;
+  --cyan-300: #67e8f9;
+  --slate-100: #f8fafc;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --glass: rgba(15, 23, 42, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -1898,24 +1902,34 @@ textarea {
 }
 
 .ticket-card {
-  border: 1px solid rgba(47, 215, 255, 0.12);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 24px 28px;
-  background: rgba(10, 22, 53, 0.75);
-  display: flex;
-  justify-content: space-between;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   text-align: left;
   color: inherit;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   gap: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .ticket-card:hover {
-  background: rgba(47, 215, 255, 0.08);
-  border-color: rgba(47, 215, 255, 0.3);
-  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(34, 211, 238, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.ticket-card.active {
+  background: rgba(34, 211, 238, 0.05);
+  border-color: var(--cyan-400);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
 }
 
 .team-queue-panel .ticket-filters {
@@ -1964,68 +1978,128 @@ textarea {
   box-shadow: 0 0 0 1px rgba(47, 215, 255, 0.3);
 }
 
-.ticket-card:hover {
-  border-color: rgba(47, 215, 255, 0.35);
-  transform: translateY(-1px);
-}
-
-.ticket-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.ticket-meta {
-  display: flex;
-  gap: 8px;
-  color: var(--slate-500);
-  font-size: 12px;
-  flex-wrap: wrap;
-}
-
-.ticket-badges {
-  display: flex;
-  gap: 8px;
-}
-
 .bulk-assign-bar {
   margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(10, 22, 53, 0.7);
-  border: 1px solid rgba(47, 215, 255, 0.18);
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .bulk-assign-bar span {
-  font-size: 12px;
-  color: var(--slate-300);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan-400);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .bulk-assign-bar select {
-  min-width: 180px;
-  background: rgba(10, 22, 53, 0.85);
-  border: 1px solid rgba(47, 215, 255, 0.2);
+  min-width: 200px;
+  background: var(--navy-900);
+  border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   color: var(--slate-100);
+  font-size: 14px;
+  cursor: pointer;
 }
 
-.ticket-select {
-  margin-right: 12px;
+.bulk-assign-bar .btn.primary {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.team-queue-panel .ticket-card {
+  border-left: 4px solid var(--cyan-400);
+}
+
+@media (max-width: 768px) {
+  .ticket-card {
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .ticket-side-info {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .sla-info {
+    flex-direction: row;
+    gap: 10px;
+  }
+}
+
+
+.ticket-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ticket-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--slate-100);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-meta {
   display: flex;
   align-items: center;
+  gap: 10px;
+  color: var(--slate-500);
+  font-size: 13px;
+  flex-wrap: wrap;
 }
 
-.ticket-select input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--cyan-300);
+.meta-item.id-hash {
+  color: var(--cyan-300);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-family: monospace;
+}
+
+.meta-sep {
+  opacity: 0.3;
+}
+
+.ticket-side-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.sla-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.badge-sla-static {
+  background: rgba(148, 163, 184, 0.05);
+  color: var(--slate-400);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  font-size: 11px;
 }
 
 .badge {
@@ -2036,49 +2110,59 @@ textarea {
 }
 
 .badge-new {
-  background: rgba(47, 215, 255, 0.2);
-  color: var(--cyan-300);
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--cyan-400);
+  border: 1px solid rgba(34, 211, 238, 0.2);
 }
 
 .badge-progress {
-  background: rgba(43, 107, 255, 0.2);
-  color: #8ab0ff;
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .badge-pending {
-  background: rgba(255, 181, 71, 0.2);
+  background: rgba(245, 158, 11, 0.1);
   color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .badge-resolved,
 .badge-closed {
-  background: rgba(55, 217, 150, 0.2);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badge-reopened {
-  background: rgba(255, 93, 108, 0.2);
+  background: rgba(239, 68, 68, 0.1);
   color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .badge-p1 {
-  background: rgba(255, 93, 108, 0.2);
+  background: rgba(239, 68, 68, 0.15);
   color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
 }
 
 .badge-p2 {
-  background: rgba(255, 181, 71, 0.2);
+  background: rgba(245, 158, 11, 0.15);
   color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .badge-p3 {
-  background: rgba(47, 215, 255, 0.2);
-  color: var(--cyan-300);
+  background: rgba(34, 211, 238, 0.15);
+  color: var(--cyan-400);
+  border: 1px solid rgba(34, 211, 238, 0.3);
 }
 
 .badge-p4 {
-  background: rgba(139, 151, 186, 0.2);
-  color: var(--slate-500);
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--slate-400);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .empty-state {

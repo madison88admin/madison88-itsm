@@ -248,6 +248,67 @@ function computeSlaStatus(ticket, rule) {
     };
 }
 
+/**
+ * Calculate the number of business minutes between two dates.
+ */
+function getBusinessMinutesBetween(startDate, endDate, location = 'Default') {
+    if (!startDate || !endDate || startDate >= endDate) return 0;
+
+    let totalMinutes = 0;
+    const current = new Date(startDate.getTime());
+    const tz = getTimezoneForLocation(location);
+
+    // Initial business minutes for the starting day
+    const remainingToday = getRemainingBusinessMinutesToday(current, location);
+    if (remainingToday > 0) {
+        const msToEndOfDay = remainingToday * 60000;
+        const endOfDayAt = new Date(current.getTime() + msToEndOfDay);
+
+        if (endDate <= endOfDayAt) {
+            // Both dates fall within the same business window on the same day
+            const diffMs = endDate - current;
+            return Math.max(0, Math.floor(diffMs / 60000));
+        }
+
+        totalMinutes += remainingToday;
+        // Advance current to start of next day (simplified jump)
+        current.setTime(endOfDayAt.getTime());
+    }
+
+    // Process full days efficiently
+    const businessMinutesPerDay = getBusinessMinutesPerDay();
+    const start = parseTime('08:00');
+    const end = parseTime('17:00');
+
+    while (current < endDate) {
+        // Move to start of next day
+        current.setDate(current.getDate() + 1);
+        current.setHours(start.hours, start.minutes, 0, 0);
+
+        if (current >= endDate) break;
+
+        const localTime = getDateInTimezone(current, tz);
+        const isoDay = jsToIsoDayOfWeek(localTime.dayOfWeek);
+        const businessDays = [1, 2, 3, 4, 5];
+
+        if (businessDays.includes(isoDay)) {
+            const endOfCurrentDay = new Date(current.getTime());
+            endOfCurrentDay.setHours(end.hours, end.minutes, 0, 0);
+
+            if (endDate >= endOfCurrentDay) {
+                totalMinutes += businessMinutesPerDay;
+                current.setTime(endOfCurrentDay.getTime());
+            } else {
+                const diffMs = endDate - current;
+                totalMinutes += Math.max(0, Math.floor(diffMs / 60000));
+                break;
+            }
+        }
+    }
+
+    return totalMinutes;
+}
+
 module.exports = {
     addBusinessHours,
     addBusinessDays,
@@ -255,6 +316,7 @@ module.exports = {
     isBusinessTime,
     getBusinessMinutesPerDay,
     getRemainingBusinessMinutesToday,
+    getBusinessMinutesBetween,
     getDateInTimezone,
     parseTime,
 };
