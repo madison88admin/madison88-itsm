@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../api/client";
 import brandLogo from "../assets/Madison-88-Logo-250.png";
 import { isBlank, isEmail } from "../utils/validation";
 
@@ -69,7 +69,7 @@ const LoginPage = ({ onLogin }) => {
 
     setLoading(true);
     try {
-      const res = await axios.post("/api/auth/login", { email, password });
+      const res = await apiClient.post("/auth/login", { email, password });
       onLogin(res.data.token, res.data.user);
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");

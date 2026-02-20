@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import apiClient from "../api/client";
 import { useNavigate, Link } from "react-router-dom";
 import brandLogo from "../assets/Madison-88-Logo-250.png";
 import { isBlank, isEmail } from "../utils/validation";
@@ -71,7 +71,7 @@ const SignupPage = () => {
 
         setLoading(true);
         try {
-            await axios.post("/api/auth/register", {
+            await apiClient.post("/auth/register", {
                 email: formData.email,
                 full_name: formData.fullName,
                 password: formData.password,
