@@ -382,9 +382,9 @@ const TicketsModel = {
 
   async createAttachment(data) {
     const result = await db.query(
-      `INSERT INTO ticket_attachments (ticket_id, file_name, file_path, file_size, file_type, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [data.ticket_id, data.file_name, data.file_path, data.file_size, data.file_type, data.uploaded_by]
+      `INSERT INTO ticket_attachments (ticket_id, file_name, file_path, file_size, file_type, uploaded_by, comment_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [data.ticket_id, data.file_name, data.file_path, data.file_size, data.file_type, data.uploaded_by, data.comment_id || null]
     );
     return result.rows[0];
   },

@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const path = require('path');
+const db = require('../config/database');
 const AppError = require('../utils/AppError');
 const TicketsModel = require('../models/tickets.model');
 const AssetsModel = require('../models/assets.model');
@@ -677,6 +678,18 @@ const TicketsService = {
     const slaRuleMap = await getSlaRuleMap();
     const sla_status = computeSlaStatus(ticket, slaRuleMap[ticket.priority]);
     const comments = await TicketsModel.getComments(ticketId);
+    // Merge comment-linked attachments
+    const commentAttResult = await db.query(
+      `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY created_at ASC`,
+      [ticketId]
+    );
+    const attByComment = {};
+    for (const att of commentAttResult.rows) {
+      if (!attByComment[att.comment_id]) attByComment[att.comment_id] = [];
+      attByComment[att.comment_id].push(att);
+    }
+    for (const c of comments) { c.attachments = attByComment[c.comment_id] || []; }
+
     const visibleComments = user.role === 'end_user'
       ? comments.filter((comment) => !comment.is_internal)
       : comments;
@@ -1066,6 +1079,22 @@ const TicketsService = {
     }
 
     const comments = await TicketsModel.getComments(ticketId);
+
+    // Fetch comment-linked attachments in one query
+    const attachmentsResult = await db.query(
+      `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY created_at ASC`,
+      [ticketId]
+    );
+    const attachmentsByComment = {};
+    for (const att of attachmentsResult.rows) {
+      if (!attachmentsByComment[att.comment_id]) attachmentsByComment[att.comment_id] = [];
+      attachmentsByComment[att.comment_id].push(att);
+    }
+    // Merge attachments into comments
+    for (const comment of comments) {
+      comment.attachments = attachmentsByComment[comment.comment_id] || [];
+    }
+
     const visibleComments = user.role === 'end_user'
       ? comments.filter((comment) => !comment.is_internal)
       : comments;
@@ -1073,7 +1102,7 @@ const TicketsService = {
     return { comments: visibleComments };
   },
 
-  async addComment({ ticketId, payload, user, meta }) {
+  async addComment({ ticketId, payload, user, files = [], meta }) {
     const { error, value } = commentSchema.validate(payload, { abortEarly: false });
     if (error) throw new Error(error.details.map((d) => d.message).join(', '));
 
@@ -1099,6 +1128,25 @@ const TicketsService = {
       is_internal: value.is_internal,
     });
 
+    // Save any image attachments linked to this comment
+    const commentAttachments = [];
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const fileName = file.filename || path.basename(file.path || '');
+        const filePath = fileName ? `uploads/${fileName}` : file.path;
+        const attachment = await TicketsModel.createAttachment({
+          ticket_id: ticketId,
+          file_name: file.originalname,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.mimetype,
+          uploaded_by: user.user_id,
+          comment_id: comment.comment_id,
+        });
+        commentAttachments.push(attachment);
+      }
+    }
+
     await TicketsModel.createAuditLog({
       ticket_id: ticketId,
       user_id: user.user_id,
@@ -1106,13 +1154,13 @@ const TicketsService = {
       entity_type: 'ticket_comment',
       entity_id: comment.comment_id,
       new_value: JSON.stringify(comment),
-      description: 'Comment added',
+      description: files.length > 0 ? `Comment added with ${files.length} image(s)` : 'Comment added',
       ip_address: meta.ip,
       user_agent: meta.userAgent,
       session_id: meta.sessionId,
     });
 
-    return { comment };
+    return { comment: { ...comment, attachments: commentAttachments } };
   },
 
   async addAttachments({ ticketId, files, user, meta }) {

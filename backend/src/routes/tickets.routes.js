@@ -43,17 +43,44 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+// --- Rate Limiting for Ticket Creation ---
+const ticketRateLimitMap = new Map();
+const TICKET_RATE_LIMIT = 5;        // max tickets
+const TICKET_RATE_WINDOW = 15 * 60 * 1000; // per 15 minutes
+
+const ticketRateLimiter = (req, res, next) => {
+  // IT staff are exempt
+  if (['it_agent', 'it_manager', 'system_admin'].includes(req.user?.role)) return next();
+  const userId = req.user?.user_id;
+  if (!userId) return next();
+
+  const now = Date.now();
+  const entry = ticketRateLimitMap.get(userId) || { timestamps: [] };
+  // Remove expired timestamps
+  entry.timestamps = entry.timestamps.filter(t => now - t < TICKET_RATE_WINDOW);
+
+  if (entry.timestamps.length >= TICKET_RATE_LIMIT) {
+    return res.status(429).json({
+      status: 'error',
+      message: `You can only create ${TICKET_RATE_LIMIT} tickets every 15 minutes. Please try again later.`,
+    });
+  }
+  entry.timestamps.push(now);
+  ticketRateLimitMap.set(userId, entry);
+  next();
+};
+
 /**
  * @route POST /api/tickets
  * @desc Create a new ticket (JSON body)
  */
-router.post('/', authenticate, authorize(['end_user']), TicketsController.createTicket);
+router.post('/', authenticate, authorize(['end_user']), ticketRateLimiter, TicketsController.createTicket);
 
 /**
  * @route POST /api/tickets/with-attachments
  * @desc Create a new ticket with attachments in one request (multipart/form-data). Use to avoid orphan tickets if attachment upload fails.
  */
-router.post('/with-attachments', authenticate, authorize(['end_user']), upload.array('files', 5), TicketsController.createTicketWithAttachments);
+router.post('/with-attachments', authenticate, authorize(['end_user']), ticketRateLimiter, upload.array('files', 5), TicketsController.createTicketWithAttachments);
 
 /**
  * @route GET /api/tickets/check-duplicates
@@ -117,9 +144,9 @@ router.get('/:id/comments', authenticate, validateId, TicketsController.getComme
 
 /**
  * @route POST /api/tickets/:id/comments
- * @desc Add comment to ticket
+ * @desc Add comment to ticket (supports image attachments via multipart/form-data)
  */
-router.post('/:id/comments', authenticate, validateId, TicketsController.addComment);
+router.post('/:id/comments', authenticate, validateId, upload.array('images', 5), TicketsController.addComment);
 
 /**
  * @route POST /api/tickets/:id/attachments

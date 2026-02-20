@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/api\/?$/, "");
+
 const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {
     const [newComment, setNewComment] = useState("");
     const [isInternal, setIsInternal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [selectedImages, setSelectedImages] = useState([]);
     const scrollRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const cannedResponses = [
         "Hello, I'm looking into your issue and will update you shortly.",
@@ -34,17 +38,48 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
         }
     }, [timeline]);
 
+    const handleImageSelect = (e) => {
+        const files = Array.from(e.target.files || []);
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return;
+        setSelectedImages(prev => [...prev, ...imageFiles].slice(0, 5));
+        // Reset so the same file can be selected again
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const removeImage = (index) => {
+        setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!newComment.trim()) return;
+        if (!newComment.trim() && selectedImages.length === 0) return;
 
         try {
             setSubmitting(true);
-            const res = await apiClient.post(`/tickets/${ticketId}/comments`, {
-                comment_text: newComment,
-                is_internal: isInternal,
-            });
+
+            let res;
+            if (selectedImages.length > 0) {
+                // Use FormData for multipart upload
+                const formData = new FormData();
+                formData.append('comment_text', newComment);
+                formData.append('is_internal', isInternal);
+                for (const img of selectedImages) {
+                    formData.append('images', img);
+                }
+                res = await apiClient.post(`/tickets/${ticketId}/comments`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+            } else {
+                // Standard JSON
+                res = await apiClient.post(`/tickets/${ticketId}/comments`, {
+                    comment_text: newComment,
+                    is_internal: isInternal,
+                });
+            }
+
             setNewComment("");
+            setSelectedImages([]);
             if (onCommentAdded) onCommentAdded(res.data.data.comment);
         } catch (err) {
             console.error("Failed to post comment:", err);
@@ -52,6 +87,15 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             setSubmitting(false);
         }
     };
+
+    const buildAttachmentUrl = (filePath) => {
+        if (!filePath) return '';
+        if (filePath.startsWith('http')) return filePath;
+        const clean = filePath.replace(/^\/+/, '');
+        return `${API_BASE}/${clean}`;
+    };
+
+    const [lightboxImg, setLightboxImg] = useState(null);
 
     return (
         <div className="ticket-conversation glass">
@@ -79,6 +123,22 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
                             <div className="comment-body">
                                 {item.comment_text}
                             </div>
+                            {/* Inline images */}
+                            {item.attachments && item.attachments.length > 0 && (
+                                <div className="comment-images">
+                                    {item.attachments
+                                        .filter(att => att.file_type && att.file_type.startsWith('image/'))
+                                        .map((att) => (
+                                            <img
+                                                key={att.attachment_id}
+                                                src={buildAttachmentUrl(att.file_path)}
+                                                alt={att.file_name}
+                                                className="comment-image-thumb"
+                                                onClick={() => setLightboxImg(buildAttachmentUrl(att.file_path))}
+                                            />
+                                        ))}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
@@ -110,16 +170,50 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
                             </select>
                         </div>
                     </div>
+
+                    {/* Image Preview Strip */}
+                    {selectedImages.length > 0 && (
+                        <div className="image-preview-strip">
+                            {selectedImages.map((img, idx) => (
+                                <div key={idx} className="preview-thumb-wrap">
+                                    <img src={URL.createObjectURL(img)} alt={`preview-${idx}`} className="preview-thumb" />
+                                    <button type="button" className="remove-thumb" onClick={() => removeImage(idx)}>✕</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="action-row">
-                        <button type="button" className="attach-btn" disabled>
-                            📎 ATTACH
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            multiple
+                            style={{ display: 'none' }}
+                            onChange={handleImageSelect}
+                        />
+                        <button
+                            type="button"
+                            className="attach-btn"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={submitting}
+                        >
+                            📎 ATTACH IMAGE
                         </button>
-                        <button type="submit" className="send-btn" disabled={submitting || !newComment.trim()}>
+                        <button type="submit" className="send-btn" disabled={submitting || (!newComment.trim() && selectedImages.length === 0)}>
                             {submitting ? 'SENDING...' : 'SEND MESSAGE'}
                         </button>
                     </div>
                 </form>
             </div>
+
+            {/* Lightbox */}
+            {lightboxImg && (
+                <div className="lightbox-overlay" onClick={() => setLightboxImg(null)}>
+                    <img src={lightboxImg} alt="Full size" className="lightbox-image" />
+                    <button className="lightbox-close" onClick={() => setLightboxImg(null)}>✕</button>
+                </div>
+            )}
 
             <style>{`
         .ticket-conversation {
@@ -198,6 +292,94 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             line-height: 1.7;
             white-space: pre-wrap;
             font-size: 1rem;
+        }
+
+        /* Comment inline images */
+        .comment-images {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .comment-image-thumb {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .comment-image-thumb:hover {
+            transform: scale(1.05);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+        }
+
+        /* Image preview strip */
+        .image-preview-strip {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .preview-thumb-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .preview-thumb {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid rgba(59,130,246,0.3);
+        }
+        .remove-thumb {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* Lightbox */
+        .lightbox-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .lightbox-image {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 1.5rem; right: 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 1.2rem;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
         }
 
         .comment-input-area {
@@ -295,8 +477,10 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             cursor: pointer;
             font-size: 0.75rem;
             font-weight: 700;
+            transition: all 0.2s;
         }
-        .attach-btn:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+        .attach-btn:hover:not(:disabled) { border-color: rgba(59,130,246,0.4); color: #60a5fa; background: rgba(59,130,246,0.05); }
+        .attach-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .send-btn {
             background: linear-gradient(to bottom right, #3b82f6, #2563eb);
@@ -330,7 +514,7 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             }
             .comments-list {
                 padding: 1rem !important;
-                max-height: 500px !important; /* Allow some scrolling but not fixed 100% height */
+                max-height: 500px !important;
             }
             .comment-input-area {
                 padding: 1rem !important;

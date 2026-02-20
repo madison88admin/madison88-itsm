@@ -203,6 +203,7 @@ const TicketsController = {
         ticketId: req.params.id,
         payload: req.body,
         user: req.user,
+        files: req.files || [],
         meta: {
           ip: req.ip,
           userAgent: req.headers['user-agent'] || '',
