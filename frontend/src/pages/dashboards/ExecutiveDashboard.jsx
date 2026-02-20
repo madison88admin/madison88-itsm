@@ -3,292 +3,308 @@ import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { onDashboardRefresh } from "../../api/socket";
 import {
-    FiActivity,
-    FiAlertCircle,
-    FiCheckCircle,
-    FiDatabase,
-    FiFileText,
-    FiMessageSquare,
-    FiZap
+  FiActivity,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiDatabase,
+  FiFileText,
+  FiMessageSquare,
+  FiZap
 } from "react-icons/fi";
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
 ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
 );
 
 const ExecutiveDashboard = ({ loadDetailView }) => {
-    const navigate = useNavigate();
-    const [data, setData] = useState({
-        summary: { open: 0, resolved: 0, compliance: 0 },
-        health: { status: 'optimal', text: 'All systems operational' },
-        recentEvents: [],
-        trends: { labels: [], datasets: [] }
-    });
-    const [loading, setLoading] = useState(true);
-    const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const navigate = useNavigate();
+  const [data, setData] = useState({
+    summary: { open: 0, resolved: 0, compliance: 0 },
+    health: { status: 'optimal', text: 'All systems operational' },
+    recentEvents: [],
+    trends: { labels: [], datasets: [] }
+  });
+  const [loading, setLoading] = useState(true);
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
 
-    const fetchData = async () => {
-        try {
-            const [statusRes, reportingRes, pulseRes] = await Promise.all([
-                apiClient.get("/dashboard/status-summary"),
-                apiClient.get("/dashboard/advanced-reporting"),
-                apiClient.get("/dashboard/pulse")
-            ]);
+  const fetchData = async () => {
+    try {
+      const [statusRes, reportingRes, pulseRes] = await Promise.all([
+        apiClient.get("/dashboard/status-summary"),
+        apiClient.get("/dashboard/advanced-reporting"),
+        apiClient.get("/dashboard/pulse")
+      ]);
 
-            const status = statusRes.data.data.summary || {};
-            const advanced = reportingRes.data.data || {};
-            const pulse = pulseRes.data.data || {};
+      const status = statusRes.data.data.summary || {};
+      const advanced = reportingRes.data.data || {};
+      const pulse = pulseRes.data.data || {};
 
-            // Process Trend Data
-            const trendData = advanced.trends?.tickets_by_day || [];
-            const labels = trendData.map(d => new Date(d.day).toLocaleDateString('en-US', { weekday: 'short' }));
-            const counts = trendData.map(d => parseInt(d.count));
+      // Process Trend Data
+      const trendData = advanced.trends?.tickets_by_day || [];
+      const labels = trendData.map(d => new Date(d.day).toLocaleDateString('en-US', { weekday: 'short' }));
+      const counts = trendData.map(d => parseInt(d.count));
 
-            setData({
-                summary: {
-                    open: status.open || 0,
-                    resolved: (status.resolved || 0) + (status.closed || 0),
-                    compliance: advanced.trends?.sla_compliance_by_week?.[0]?.compliance || 100
-                },
-                health: pulse.systemHealth || { status: 'optimal', text: 'Systems Operational' },
-                recentEvents: pulse.events?.slice(0, 5) || [],
-                trends: {
-                    labels,
-                    datasets: [
-                        {
-                            label: 'Daily Ticket Volume',
-                            data: counts,
-                            fill: true,
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderColor: '#3b82f6',
-                            tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#3b82f6',
-                        }
-                    ]
-                }
-            });
-        } catch (err) {
-            console.error("Failed to fetch executive data", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-        const unsubscribe = onDashboardRefresh(() => fetchData());
-        return unsubscribe;
-    }, []);
-
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                mode: 'index',
-                intersect: false,
-                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                titleColor: '#94a3b8',
-                bodyColor: '#fff',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                borderWidth: 1,
-                padding: 12,
-                displayColors: false
-            }
+      setData({
+        summary: {
+          open: status.open || 0,
+          resolved: (status.resolved || 0) + (status.closed || 0),
+          compliance: advanced.trends?.sla_compliance_by_week?.[0]?.compliance || 100
         },
-        scales: {
-            x: {
-                grid: { display: false },
-                ticks: { color: '#64748b', font: { size: 10 } }
-            },
-            y: {
-                grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                ticks: { color: '#64748b', font: { size: 10 }, stepSize: 5 }
+        health: pulse.systemHealth || { status: 'optimal', text: 'Systems Operational' },
+        recentEvents: pulse.events?.slice(0, 5) || [],
+        trends: {
+          labels,
+          datasets: [
+            {
+              label: 'Daily Ticket Volume',
+              data: counts,
+              fill: true,
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              borderColor: '#3b82f6',
+              tension: 0.4,
+              pointRadius: 4,
+              pointBackgroundColor: '#3b82f6',
             }
+          ]
         }
-    };
+      });
+    } catch (err) {
+      console.error("Failed to fetch executive data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleKpiClick = (filter) => {
-        const params = new URLSearchParams(filter);
-        navigate(`/tickets?${params.toString()}`);
-    };
+  useEffect(() => {
+    fetchData();
+    const unsubscribe = onDashboardRefresh(() => fetchData());
+    return unsubscribe;
+  }, []);
 
-    const handleExport = () => {
-        const token = localStorage.getItem('token');
-        const url = `${process.env.REACT_APP_API_URL || ''}/api/dashboard/export?format=csv&token=${token}`;
-        window.open(url, '_blank');
-    };
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+        titleColor: '#94a3b8',
+        bodyColor: '#fff',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: false
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: '#64748b', font: { size: 10 } }
+      },
+      y: {
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+        ticks: { color: '#64748b', font: { size: 10 }, stepSize: 5 }
+      }
+    }
+  };
 
-    const handleBroadcast = async () => {
-        const message = window.prompt("Enter the broadcast message for all agents:");
-        if (!message) return;
-        try {
-            await apiClient.post('/dashboard/broadcast', { message });
-            window.alert('Broadcast sent successfully!');
-        } catch (err) {
-            window.alert('Failed to send broadcast');
-        }
-    };
+  const handleKpiClick = (filter) => {
+    const params = new URLSearchParams(filter);
+    navigate(`/tickets?${params.toString()}`);
+  };
 
-    const handleBulkEscalate = async () => {
-        try {
-            const res = await apiClient.post('/dashboard/bulk-escalate-p1');
-            window.alert(res.data.message);
-            fetchData();
-        } catch (err) {
-            window.alert('Failed to escalate tickets');
-        } finally {
-            setShowEscalateModal(false);
-        }
-    };
+  const handleExport = () => {
+    const token = localStorage.getItem('token');
+    const url = `${process.env.REACT_APP_API_URL || ''}/api/dashboard/export?format=csv&token=${token}`;
+    window.open(url, '_blank');
+  };
 
-    return (
-        <div className="exec-dashboard animate-fadeIn">
-            {/* Header / System Heartbeat */}
-            <header className="exec-header">
-                <div className="exec-title">
-                    <h1>Command Center</h1>
-                    <p>Global System Oversight</p>
-                </div>
+  const handleBroadcast = async () => {
+    const message = window.prompt("Enter the broadcast message for all agents:");
+    if (!message) return;
+    try {
+      await apiClient.post('/dashboard/broadcast', { message });
+      window.alert('Broadcast sent successfully!');
+    } catch (err) {
+      window.alert('Failed to send broadcast');
+    }
+  };
 
-                <div className={`system-heartbeat ${data.health.status}`}>
-                    <div className="heartbeat-pulse"></div>
-                    <div className="heartbeat-info">
-                        <span className="heartbeat-label">System Status</span>
-                        <strong className="heartbeat-text">{data.health.text}</strong>
-                    </div>
-                </div>
-            </header>
+  const handleBulkEscalate = async () => {
+    try {
+      const res = await apiClient.post('/dashboard/bulk-escalate-p1');
+      window.alert(res.data.message);
+      fetchData();
+    } catch (err) {
+      window.alert('Failed to escalate tickets');
+    } finally {
+      setShowEscalateModal(false);
+    }
+  };
 
-            {/* Main Grid */}
-            <div className="exec-grid">
-                <div className="exec-main-content">
-                    {/* KPI Row */}
-                    <div className="kpi-row">
-                        <div className="kpi-card hover-lift" onClick={() => handleKpiClick({ status: 'Open' })}>
-                            <div className="kpi-icon active"><FiActivity /></div>
-                            <div className="kpi-data">
-                                <span>Active Issues</span>
-                                <strong>{data.summary.open}</strong>
-                            </div>
-                        </div>
+  return (
+    <div className="exec-dashboard animate-fadeIn">
+      {/* Header / System Heartbeat */}
+      <header className="exec-header">
+        <div className="exec-title">
+          <h1>Command Center</h1>
+          <p>Global System Oversight</p>
+        </div>
 
-                        <div className="kpi-card hover-lift">
-                            <div className="kpi-icon compliance"><FiZap /></div>
-                            <div className="kpi-data">
-                                <span>SLA Compliance</span>
-                                <strong>{Math.round(data.summary.compliance)}%</strong>
-                            </div>
-                        </div>
+        <div className={`system-heartbeat ${loading ? 'loading' : data.health.status}`}>
+          <div className="heartbeat-pulse"></div>
+          <div className="heartbeat-info">
+            <span className="heartbeat-label">System Status</span>
+            {loading ? (
+              <div className="skeleton-shimmer" style={{ height: '24px', width: '120px', marginTop: '4px', borderRadius: '4px' }} />
+            ) : (
+              <strong className="heartbeat-text">{data.health.text}</strong>
+            )}
+          </div>
+        </div>
+      </header>
 
-                        <div className="kpi-card hover-lift" onClick={() => handleKpiClick({ status: 'Resolved' })}>
-                            <div className="kpi-icon resolved"><FiCheckCircle /></div>
-                            <div className="kpi-data">
-                                <span>Resolved Today</span>
-                                <strong>{data.summary.resolved}</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Performance Trend */}
-                    <section className="trend-section glass-panel">
-                        <div className="section-header">
-                            <h3>Performance Trend</h3>
-                            <span className="muted">Last 7 Days</span>
-                        </div>
-                        <div className="chart-container" style={{ height: '200px', position: 'relative' }}>
-                            {data.trends.labels.length > 0 ? (
-                                <Line data={data.trends} options={chartOptions} />
-                            ) : (
-                                <div className="skeleton-shimmer" style={{ height: '100%', borderRadius: '12px' }} />
-                            )}
-                        </div>
-                    </section>
-
-                    {/* Activity Pulse */}
-                    <section className="pulse-section glass-panel">
-                        <div className="section-header">
-                            <h3>Live Activity Pulse</h3>
-                            <FiDatabase className="muted" />
-                        </div>
-                        <div className="pulse-list">
-                            {data.recentEvents.map((event, idx) => (
-                                <div key={idx} className="pulse-item cascade-item" style={{ animationDelay: `${idx * 0.1}s` }}>
-                                    <div className={`pulse-dot ${event.type}`}></div>
-                                    <div className="pulse-content">
-                                        <p>{event.text}</p>
-                                        <small>{new Date(event.timestamp).toLocaleTimeString()}</small>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                </div>
-
-                {/* Sidebar Actions */}
-                <aside className="exec-sidebar">
-                    <div className="sidebar-group glass-panel">
-                        <h3>Executive Actions</h3>
-                        <button className="exec-action-btn hover-lift" onClick={handleExport}>
-                            <FiFileText /> Generate Summary Report
-                        </button>
-                        <button className="exec-action-btn hover-lift" onClick={handleBroadcast}>
-                            <FiMessageSquare /> Broadcast to All Agents
-                        </button>
-                        <button className="exec-action-btn alert hover-lift" onClick={() => setShowEscalateModal(true)}>
-                            <FiAlertCircle /> Priority Escalate All P1s
-                        </button>
-                    </div>
-
-                    <div className="sidebar-group glass-panel view-toggle">
-                        <h3>Interface Mode</h3>
-                        <button className="mode-toggle-btn active">Simplified Executive View</button>
-                        <button className="mode-toggle-btn" onClick={loadDetailView}>Switch to Detailed View</button>
-                    </div>
-                </aside>
+      {/* Main Grid */}
+      <div className="exec-grid">
+        <div className="exec-main-content">
+          {/* KPI Row */}
+          <div className="kpi-row">
+            <div className="kpi-card hover-lift" onClick={() => handleKpiClick({ status: 'Open' })}>
+              <div className="kpi-icon active"><FiActivity /></div>
+              <div className="kpi-data">
+                <span>Active Issues</span>
+                {loading ? (
+                  <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '8px', borderRadius: '8px' }} />
+                ) : (
+                  <strong>{data.summary.open}</strong>
+                )}
+              </div>
             </div>
 
-            {/* Confirmation Modal */}
-            {showEscalateModal && (
-                <div className="modal-overlay animate-fadeIn">
-                    <div className="modal-content glass-panel animate-slideUp">
-                        <div className="modal-header">
-                            <FiAlertCircle className="icon-warning" />
-                            <h2>Priority Escalation</h2>
-                        </div>
-                        <div className="modal-body">
-                            <p>Are you sure you want to escalate all P1 tickets? If yes, then it's gonna escalate; if no, then wag.</p>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn-secondary" onClick={() => setShowEscalateModal(false)}>No</button>
-                            <button className="btn-danger" onClick={handleBulkEscalate}>Yes, Escalate Now</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="kpi-card hover-lift">
+              <div className="kpi-icon compliance"><FiZap /></div>
+              <div className="kpi-data">
+                <span>SLA Compliance</span>
+                {loading ? (
+                  <div className="skeleton-shimmer" style={{ height: '32px', width: '80px', marginTop: '8px', borderRadius: '8px' }} />
+                ) : (
+                  <strong>{Math.round(data.summary.compliance)}%</strong>
+                )}
+              </div>
+            </div>
 
-            <style>{`
+            <div className="kpi-card hover-lift" onClick={() => handleKpiClick({ status: 'Resolved' })}>
+              <div className="kpi-icon resolved"><FiCheckCircle /></div>
+              <div className="kpi-data">
+                <span>Resolved Today</span>
+                {loading ? (
+                  <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '8px', borderRadius: '8px' }} />
+                ) : (
+                  <strong>{data.summary.resolved}</strong>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Performance Trend */}
+          <section className="trend-section glass-panel">
+            <div className="section-header">
+              <h3>Performance Trend</h3>
+              <span className="muted">Last 7 Days</span>
+            </div>
+            <div className="chart-container" style={{ height: '200px', position: 'relative' }}>
+              {data.trends.labels.length > 0 ? (
+                <Line data={data.trends} options={chartOptions} />
+              ) : (
+                <div className="skeleton-shimmer" style={{ height: '100%', borderRadius: '12px' }} />
+              )}
+            </div>
+          </section>
+
+          {/* Activity Pulse */}
+          <section className="pulse-section glass-panel">
+            <div className="section-header">
+              <h3>Live Activity Pulse</h3>
+              <FiDatabase className="muted" />
+            </div>
+            <div className="pulse-list">
+              {data.recentEvents.map((event, idx) => (
+                <div key={idx} className="pulse-item cascade-item" style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <div className={`pulse-dot ${event.type}`}></div>
+                  <div className="pulse-content">
+                    <p>{event.text}</p>
+                    <small>{new Date(event.timestamp).toLocaleTimeString()}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Sidebar Actions */}
+        <aside className="exec-sidebar">
+          <div className="sidebar-group glass-panel">
+            <h3>Executive Actions</h3>
+            <button className="exec-action-btn hover-lift" onClick={handleExport}>
+              <FiFileText /> Generate Summary Report
+            </button>
+            <button className="exec-action-btn hover-lift" onClick={handleBroadcast}>
+              <FiMessageSquare /> Broadcast to All Agents
+            </button>
+            <button className="exec-action-btn alert hover-lift" onClick={() => setShowEscalateModal(true)}>
+              <FiAlertCircle /> Priority Escalate All P1s
+            </button>
+          </div>
+
+          <div className="sidebar-group glass-panel view-toggle">
+            <h3>Interface Mode</h3>
+            <button className="mode-toggle-btn active">Simplified Executive View</button>
+            <button className="mode-toggle-btn" onClick={loadDetailView}>Switch to Detailed View</button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showEscalateModal && (
+        <div className="modal-overlay animate-fadeIn">
+          <div className="modal-content glass-panel animate-slideUp">
+            <div className="modal-header">
+              <FiAlertCircle className="icon-warning" />
+              <h2>Priority Escalation</h2>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to escalate all P1 tickets? If yes, then it's gonna escalate; if no, then wag.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowEscalateModal(false)}>No</button>
+              <button className="btn-danger" onClick={handleBulkEscalate}>Yes, Escalate Now</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
         .exec-dashboard {
           padding: 2rem;
           color: #fff;
@@ -562,8 +578,8 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
           }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default ExecutiveDashboard;

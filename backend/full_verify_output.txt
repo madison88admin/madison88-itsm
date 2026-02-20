@@ -1,0 +1,23 @@
+﻿--- Starting Full Executive Action Verification ---
+Using Admin User ID: ec94933b-0e96-484f-a26a-2ddd79efa9d6 (Role: it_manager)
+
+[1/3] Testing Report Export (CSV)...
+Γ£à Export Successful!
+Sample Data: ticket_number,category,priority,status,location,created_at,resolved_at,sla_due_date
+
+[2/3] Testing Broadcast...
+Γ£à Broadcast Success: Broadcast sent to 11 staff members.
+
+[3/3] Testing Bulk Escalation...
+node : DIAGNOSTIC-FAILURE: Forbidden: insufficient permissions
+At line:1 char:1
++ node full_verify.js 2>&1 | Out-File -FilePath 
+full_verify_output.txt  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (DIAGNOSTIC-FAIL...ent pe 
+   rmissions:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Status: 403
+Data: {"status":"error","message":"Forbidden: insufficient 
+permissions"}

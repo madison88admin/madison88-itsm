@@ -1,14 +1,24 @@
---- Users Identity Debug ---
-Found 11 users:
-ID: 731cfeb1-4fe5-472b-8207-a6c09b7b4020 | Email: "johncarlomanalo165@gmail.com" | Auth0: NO | Role: end_user | Active: true
-ID: 72353266-7cd8-48fb-a52b-6def8004a9a2 | Email: "enduser_1771468602457@test.com" | Auth0: NO | Role: it_agent | Active: false
-ID: a6f58249-6f65-4857-94d3-6e0b031a7240 | Email: "agent_1771468602457@test.com" | Auth0: NO | Role: it_agent | Active: false
-ID: df00b4b6-8dca-46b3-af44-641c0fdc6508 | Email: "johnsedrick.madison88@outlook.com" | Auth0: NO | Role: it_agent | Active: true
-ID: fdf3367f-2d1b-40cc-9c4f-4451fc97d2de | Email: "jc.madison88@outlook.com" | Auth0: NO | Role: end_user | Active: false
-ID: c713a78d-5f0b-4106-b3e6-0ea288853471 | Email: "22-31173@g.batstate-u.edu.ph" | Auth0: NO | Role: end_user | Active: false
-ID: 929f92f7-db03-4446-a16a-043872bd87ca | Email: "manalojohncarlo707@gmail.com" | Auth0: NO | Role: end_user | Active: false
-ID: 62530f75-a4d6-4d57-9778-0eae86e00f12 | Email: "adminmadison88@gmail.com" | Auth0: NO | Role: system_admin | Active: true
-ID: ec94933b-0e96-484f-a26a-2ddd79efa9d6 | Email: "manager88@gmail.com" | Auth0: NO | Role: it_manager | Active: true
-ID: ff026e3b-d11d-47ca-a5e3-6e10df9abda7 | Email: "usermadison88@gmail.com" | Auth0: NO | Role: end_user | Active: true
-ID: 944142e0-0b8f-46a4-a174-39109ebb7b68 | Email: "itmadison88@gmail.com" | Auth0: NO | Role: it_agent | Active: true
-Users with NULL email: 0
+﻿--- Testing DashboardService.getTicketVolume ---
+[2026-02-20T03:37:14.966Z] [INFO] Database connection established 
+[2026-02-20T03:37:14.968Z] [INFO] Database connection established 
+[2026-02-20T03:37:14.969Z] [INFO] Database connection established 
+[2026-02-20T03:37:14.970Z] [INFO] Database connection established 
+[2026-02-20T03:37:14.994Z] [INFO] Database connection established 
+[2026-02-20T03:37:15.066Z] [INFO] Database connection test successful: { now: 2026-02-20T03:37:15.038Z }
+Success! Result keys: [ 'by_status', 'by_category', 'by_priority', 'by_location' ]
+Status counts: [
+  { key: 'New', value: 1 },
+  { key: 'Resolved', value: 13 },
+  { key: 'Closed', value: 1 }
+]
+
+--- Testing DashboardService.getAdvancedReporting ---
+[2026-02-20T03:37:15.711Z] [INFO] Database connection established 
+[2026-02-20T03:37:15.712Z] [INFO] Database connection established 
+Success! Advanced Reporting fetched in 842ms
+Summary: {
+  mttr_hours: 1.8,
+  mtta_hours: 3.1936899482407406,
+  reopen_rate: 20,
+  avg_reopen_count: 0.26666666666666666
+}

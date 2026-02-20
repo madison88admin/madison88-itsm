@@ -1,0 +1,13 @@
+﻿--- Verifying Executive Actions ---
+
+[1/3] Testing Report Export (CSV)...
+node : DIAGNOSTIC-FAILURE: Invalid or expired token
+At line:1 char:1
++ node verify_executive_actions.js 2>&1 | Out-File -FilePath 
+verify_act ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (DIAGNOSTIC-FAIL...r expi 
+   red token:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Status: 401

@@ -1,5 +1,6 @@
 const DashboardService = require('../services/dashboard.service');
 const PulseService = require('../services/pulse.service');
+const logger = require('../utils/logger');
 
 const DashboardController = {
     async getSlaPerformance(req, res, next) {
@@ -8,6 +9,7 @@ const DashboardController = {
             const sla_performance = await DashboardService.getSlaPerformance(location);
             res.json({ status: 'success', data: { sla_performance } });
         } catch (err) {
+            logger.error(`Dashboard Error [getSlaPerformance]: ${err.message}`, err);
             next(err);
         }
     },
@@ -21,6 +23,7 @@ const DashboardController = {
                 data: { ticket_volume },
             });
         } catch (err) {
+            logger.error(`Dashboard Error [getTicketVolume]: ${err.message}`, err);
             next(err);
         }
     },
@@ -31,6 +34,7 @@ const DashboardController = {
             const team_performance = await DashboardService.getTeamPerformance(location);
             res.json({ status: 'success', data: { team_performance } });
         } catch (err) {
+            logger.error(`Dashboard Error [getTeamPerformance]: ${err.message}`, err);
             next(err);
         }
     },
@@ -41,6 +45,7 @@ const DashboardController = {
             const aging_report = await DashboardService.getAgingReport(location);
             res.json({ status: 'success', data: { aging_report } });
         } catch (err) {
+            logger.error(`Dashboard Error [getAgingReport]: ${err.message}`, err);
             next(err);
         }
     },
@@ -51,6 +56,7 @@ const DashboardController = {
             const result = await DashboardService.getStatusSummary(location);
             res.json({ status: 'success', data: result });
         } catch (err) {
+            logger.error(`Dashboard Error [getStatusSummary]: ${err.message}`, err);
             next(err);
         }
     },
@@ -61,6 +67,7 @@ const DashboardController = {
             const summary = await DashboardService.getSlaSummary(location);
             res.json({ status: 'success', data: { summary } });
         } catch (err) {
+            logger.error(`Dashboard Error [getSlaSummary]: ${err.message}`, err);
             next(err);
         }
     },
@@ -90,6 +97,7 @@ const DashboardController = {
 
             res.json({ status: 'success', data: { tickets } });
         } catch (err) {
+            logger.error(`Dashboard Error [getExportData]: ${err.message}`, err);
             next(err);
         }
     },
@@ -99,6 +107,7 @@ const DashboardController = {
             const result = await DashboardService.getAdvancedReporting();
             res.json({ status: 'success', data: result });
         } catch (err) {
+            logger.error(`Dashboard Error [getAdvancedReporting]: ${err.message}`, err);
             next(err);
         }
     },
@@ -108,6 +117,7 @@ const DashboardController = {
             const data = await PulseService.getPulseEvents();
             res.json({ status: 'success', data });
         } catch (err) {
+            logger.error(`Dashboard Error [getPulse]: ${err.message}`, err);
             next(err);
         }
     },
@@ -121,6 +131,7 @@ const DashboardController = {
                 data: { escalatedTickets }
             });
         } catch (err) {
+            logger.error(`Dashboard Error [bulkEscalateP1]: ${err.message}`, err);
             next(err);
         }
     },
@@ -130,6 +141,7 @@ const DashboardController = {
             const stats = await DashboardService.getAgentStats(req.user.user_id);
             res.json({ status: 'success', data: stats });
         } catch (err) {
+            logger.error(`Dashboard Error [getAgentStats]: ${err.message}`, err);
             next(err);
         }
     },
@@ -151,6 +163,7 @@ const DashboardController = {
                 data: { count }
             });
         } catch (err) {
+            logger.error(`Dashboard Error [broadcast]: ${err.message}`, err);
             next(err);
         }
     }

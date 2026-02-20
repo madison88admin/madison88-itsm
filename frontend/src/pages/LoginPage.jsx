@@ -18,7 +18,11 @@ const LoginPage = ({ onLogin }) => {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.state?.message) {
+    const params = new URLSearchParams(location.search);
+    const msgParam = params.get('msg');
+    if (msgParam) {
+      setSuccessMsg(msgParam);
+    } else if (location.state?.message) {
       setSuccessMsg(location.state.message);
     }
   }, [location]);

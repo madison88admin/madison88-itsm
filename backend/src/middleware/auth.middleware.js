@@ -4,8 +4,14 @@ const UserModel = require('../models/user.model');
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 async function authenticate(req, res, next) {
+  let token;
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+
   if (!token) return res.status(401).json({ status: 'error', message: 'Missing token' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
