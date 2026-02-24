@@ -8,9 +8,11 @@ const logger = require('../utils/logger');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20,
+  max: 10,                          // reduced from 20 (Render free tier limit)
+  min: 2,                           // keep minimum connections alive
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
+  allowExitOnIdle: false,           // keep pool alive
 });
 
 // Log client connect at DEBUG level to avoid noisy INFO logs during normal operation
@@ -19,17 +21,32 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  logger.error('Unexpected error on idle client', err);
+  logger.error('Unexpected error on idle client', { error: err.message });
 });
 
-// Test connection on startup
-// Test connection on startup once and report at INFO level
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    logger.error('Database connection test failed', { error: err.message });
-  } else {
-    logger.info('Database connection test successful', { now: res.rows[0] });
+// Test connection with retry on startup
+const testConnection = async (retries = 5, delay = 3000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT NOW()');
+      client.release();
+      logger.info('Database connection established');
+      return true;
+    } catch (err) {
+      logger.warn(`Database connection attempt ${i + 1}/${retries} failed`, {
+        error: err.message,
+      });
+      if (i < retries - 1) {
+        logger.info(`Retrying in ${delay / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
-});
+  logger.error('Database connection failed after all retries');
+  return false;
+};
+
+testConnection();
 
 module.exports = pool;
