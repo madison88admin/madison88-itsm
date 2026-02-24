@@ -14,6 +14,9 @@ const compression = require('compression');
 
 const app = express();
 
+// 🔧 Trust proxy (required for Render behind load balancer; fixes rate limiter client IP detection)
+app.set('trust proxy', 1);
+
 // Security Middleware
 app.use(helmet());
 
