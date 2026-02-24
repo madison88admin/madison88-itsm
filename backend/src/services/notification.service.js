@@ -126,28 +126,29 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
     }
   }
 
+  // Prefer Brevo HTTP API when configured; fall back to SMTP if Brevo fails
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (brevoKey) {
+    try {
+      const brevoRes = await sendViaBrevo({ to: finalTo, subject, text, templateParams });
+      logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject, brevoResponse: brevoRes });
+      return true;
+    } catch (err) {
+      logger.error('Brevo API send failed', {
+        error: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+        to: finalTo,
+        subject,
+      });
+      // If SMTP is not configured, we will return false below.
+      // Otherwise, fall through to attempt SMTP send as a backup.
+    }
+  }
+
   const mailer = getTransporter();
   if (!mailer) {
-    // If SMTP isn't configured, try Brevo HTTP API when the API key is present
-    const brevoKey = process.env.BREVO_API_KEY;
-    if (brevoKey) {
-      try {
-        await sendViaBrevo({ to: finalTo, subject, text, templateParams });
-        logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject });
-        return true;
-      } catch (err) {
-        logger.error('Brevo API send failed', {
-          error: err.message,
-          status: err.response?.status,
-          data: err.response?.data,
-          to: finalTo,
-          subject,
-        });
-        // fallthrough to warn and return false
-      }
-    }
-
-    logger.warn('SMTP not configured. Skipping email.', { subject, to });
+    logger.warn('SMTP not configured and Brevo send failed or not configured. Skipping email.', { subject, to });
     return false;
   }
 

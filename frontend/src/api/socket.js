@@ -1,8 +1,9 @@
 import { io } from "socket.io-client";
 
-const host = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || 'http://localhost:3000';
-// Use ws/wss protocol for socket.io
-const socketUrl = host.replace(/^http/, host.startsWith('https') ? 'wss' : 'ws').replace(/\/$/, '');
+const resolvedApiBase = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? (window.location.origin) : 'http://localhost:3000');
+const host = resolvedApiBase.replace(/\/$/, '');
+// Convert http(s) -> ws(s) for socket connections
+const socketUrl = host.replace(/^http/, host.startsWith('https') ? 'wss' : 'ws');
 let socket = null;
 
 export function getSocket() {

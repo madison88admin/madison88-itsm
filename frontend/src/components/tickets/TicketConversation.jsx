@@ -1,7 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/api\/?$/, "");
+const API_BASE = (() => {
+    const env = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL;
+    if (env) return env.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    if (typeof window !== 'undefined') {
+        // If running the dev frontend (3000), default API dev server is often 3001
+        if (window.location.port === '3000') {
+            return `${window.location.protocol}//${window.location.hostname}:3001`;
+        }
+        return window.location.origin;
+    }
+    return 'http://localhost:3001';
+})();
 
 const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {
     const [newComment, setNewComment] = useState("");
