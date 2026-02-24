@@ -44,6 +44,7 @@ const updateSchema = Joi.object({
 
 router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin', 'end_user']), async (req, res, next) => {
   try {
+    const cache = req.app.get('cache');
     const { status, asset_type, assigned_user_id } = req.query;
     const userAssignedId = req.user.role === 'end_user' ? req.user.user_id : assigned_user_id;
 
@@ -52,8 +53,18 @@ router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin
       location = req.user.location;
     }
 
+    // Create cache key based on filters and user
+    const cacheKey = `assets:list:${req.user.user_id}:${status || 'all'}:${asset_type || 'all'}:${userAssignedId || 'all'}:${location || 'all'}`;
+
+    // Try to get from cache
+    let scored = await cache.get(cacheKey);
+    if (scored) {
+      return res.json({ status: 'success', data: { assets: scored }, cached: true });
+    }
+
+    // Fetch from database
     const assets = await AssetsModel.listAssets({ status, asset_type, assigned_user_id: userAssignedId, location });
-    const scored = assets.map((asset) => {
+    scored = assets.map((asset) => {
       const openCount = asset.open_ticket_count || 0;
       const avgAge = Number(asset.avg_open_age_days || 0);
       const rawScore = 100 - (openCount * 12 + avgAge * 3);
@@ -65,6 +76,10 @@ router.get('/', authenticate, authorize(['it_agent', 'it_manager', 'system_admin
         health_label,
       };
     });
+
+    // Cache for 2 minutes (120 seconds) since asset data changes more frequently
+    await cache.set(cacheKey, scored, 120);
+
     res.json({ status: 'success', data: { assets: scored } });
   } catch (err) {
     next(err);
@@ -128,6 +143,11 @@ router.post('/', authenticate, authorize(['it_manager', 'system_admin']), async 
       currency: value.currency || 'USD',
       status: value.status || 'active',
     });
+
+    // Invalidate assets cache
+    const cache = req.app.get('cache');
+    await cache.clear('assets:list:*');
+
     res.status(201).json({ status: 'success', data: { asset } });
   } catch (err) {
     if (err.code === '23505') {
@@ -158,6 +178,11 @@ router.patch('/:id', authenticate, authorize(['it_manager', 'system_admin']), as
     }
 
     const asset = await AssetsModel.updateAsset(req.params.id, value);
+
+    // Invalidate assets cache
+    const cache = req.app.get('cache');
+    await cache.clear('assets:list:*');
+
     res.json({ status: 'success', data: { asset } });
   } catch (err) {
     next(err);

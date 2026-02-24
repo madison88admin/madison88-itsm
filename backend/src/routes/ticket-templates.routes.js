@@ -27,8 +27,22 @@ const templateUpdateSchema = Joi.object({
 
 router.get('/', authenticate, async (req, res, next) => {
   try {
+    const cache = req.app.get('cache');
+    const cacheKey = `templates:list:${req.user.role}`;
+
+    // Try to get from cache
+    let templates = await cache.get(cacheKey);
+    if (templates) {
+      return res.json({ status: 'success', data: { templates }, cached: true });
+    }
+
+    // Fetch from database
     const includeInactive = ['it_manager', 'system_admin'].includes(req.user.role);
-    const templates = await TicketTemplatesModel.listTemplates({ includeInactive });
+    templates = await TicketTemplatesModel.listTemplates({ includeInactive });
+
+    // Cache for 5 minutes (300 seconds)
+    await cache.set(cacheKey, templates, 300);
+
     res.json({ status: 'success', data: { templates } });
   } catch (err) {
     next(err);
@@ -45,6 +59,11 @@ router.post('/', authenticate, authorize(['it_manager', 'system_admin']), async 
       ...value,
       created_by: req.user.user_id,
     });
+
+    // Invalidate cache
+    const cache = req.app.get('cache');
+    await cache.clear('templates:list:*');
+
     res.status(201).json({ status: 'success', data: { template } });
   } catch (err) {
     next(err);
@@ -65,6 +84,11 @@ router.patch('/:id', authenticate, authorize(['it_manager', 'system_admin']), as
     if (!template) {
       return res.status(404).json({ status: 'error', message: 'Template not found' });
     }
+
+    // Invalidate cache
+    const cache = req.app.get('cache');
+    await cache.clear('templates:list:*');
+
     res.json({ status: 'success', data: { template } });
   } catch (err) {
     next(err);
@@ -78,6 +102,11 @@ router.delete('/:id', authenticate, authorize(['it_manager', 'system_admin']), a
       return res.status(404).json({ status: 'error', message: 'Template not found' });
     }
     await TicketTemplatesModel.deleteTemplate(req.params.id);
+
+    // Invalidate cache
+    const cache = req.app.get('cache');
+    await cache.clear('templates:list:*');
+
     res.json({ status: 'success', message: 'Template deleted' });
   } catch (err) {
     next(err);

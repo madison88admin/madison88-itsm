@@ -160,4 +160,9 @@ try {
 }
 app.set('redis', redisClient);
 
+// Initialize cache manager
+const CacheManager = require('./utils/cache');
+const cache = new CacheManager(redisClient);
+app.set('cache', cache);
+
 module.exports = app;
