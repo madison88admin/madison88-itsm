@@ -9,49 +9,24 @@
 
 ---
 
-## ✅ Solution: Update DATABASE_URL on Render
+## ✅ Quick Fix (3 Steps)
 
-### Step 1: Verify Supabase Credentials
-1. Go to [app.supabase.com](https://app.supabase.com)
-2. Select your project
-3. Click **Settings** → **Database** (left sidebar)
-4. Look for **Connection Pooler** section
-5. Copy the connection string:
-   - **Host**: `aws-1-ap-south-1.pooler.supabase.com`
-   - **Port**: `6543` (Session Pooler port — this is key!)
-   - **User**: `postgres.ktduabpfsqlubqpweiot`
-   - **Password**: `Hir@imomo20`
-
-### Step 2: Go to Render Dashboard
-1. Navigate to [dashboard.render.com](https://dashboard.render.com)
-2. Find your backend service: **madison88-itsm** (or similar)
-3. Click on the service name
-4. Go to the **Environment** tab
-
-### Step 3: Update DATABASE_URL
-
-**Find the current `DATABASE_URL` and replace it with:**
+### Step 1: Copy the New DATABASE_URL
 ```
 postgresql://postgres.ktduabpfsqlubqpweiot:Hir%40imomo20@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```
 
-**Critical Details:**
-- **Port**: `6543` (NOT 5432 — this is for the Connection Pooler)
-- **Password encoding**: `@` encoded as `%40` (already correct above)
-- **sslmode**: `require` (required by Supabase)
-- **Remove**: `pgbouncer=true`, `connection_limit`, `connect_timeout` (not needed with Connection Pooler)
+### Step 2: Update Render Dashboard
+1. Go to [dashboard.render.com](https://dashboard.render.com)
+2. Click your backend service (**madison88-itsm**)
+3. Go to **Environment** tab
+4. Find `DATABASE_URL` and paste the URL above
+5. Click **Save**
 
-### Step 4: Save & Redeploy
-1. Click **Save** at the bottom of the Environment tab
-2. Render will auto-redeploy (watch the **Deploys** tab)
-3. Wait for deployment to complete (green checkmark)
-4. Check logs for database connection success
-
-### Step 3: Save & Redeploy
-
-1. Click **Save** at the bottom of the Environment tab
-2. The service will **auto-redeploy** (watch the Deploys tab for progress)
-3. Once deployment completes, test the connection
+### Step 3: Wait for Redeploy
+- Render will auto-redeploy (watch **Deploys** tab)
+- Wait for green checkmark
+- Check logs — should see `Database connection established`
 
 ---
 

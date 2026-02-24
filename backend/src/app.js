@@ -23,17 +23,50 @@ app.use(helmet());
 // CORS Configuration
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allowed origins for CORS
-    const allowedOrigins = [
+    // Allow requests with no origin (like curl, mobile apps, or server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Build allowed origins list from env vars
+    const defaultAllowed = [
       process.env.FRONTEND_URL || 'http://localhost:3000',
       process.env.FRONTEND_PROD_URL || 'https://m88itsm.netlify.app',
     ];
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS policy: origin not allowed'));
+    const extra = (process.env.ADDITIONAL_CORS_ORIGINS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const allowedOrigins = Array.from(new Set([...defaultAllowed, ...extra]));
+
+    // Quick debug override to allow all origins when necessary (set in env)
+    if (process.env.CORS_ALLOW_ALL === 'true') return callback(null, true);
+
+    // Direct match first
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow same-host or wildcard subdomain matches (e.g. allow *.example.com)
+    try {
+      const originHost = new URL(origin).hostname;
+      for (const a of allowedOrigins) {
+        try {
+          const allowedHost = new URL(a).hostname;
+          if (originHost === allowedHost || originHost.endsWith(`.${allowedHost}`)) {
+            return callback(null, true);
+          }
+        } catch (e) {
+          // If allowed origin is not a full URL, compare raw strings
+          if (a && (origin === a || originHost === a || originHost.endsWith(`.${a}`))) {
+            return callback(null, true);
+          }
+        }
+      }
+    } catch (e) {
+      // If URL parsing fails, fall through to deny
     }
+
+    // Not allowed
+    const err = new Error('CORS policy: origin not allowed');
+    err.allowed = allowedOrigins;
+    callback(err);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -99,6 +132,7 @@ app.use('/api/bi', require('./routes/bi.routes'));
 app.use('/api/audit', require('./routes/audit.routes'));
 app.use('/api/ticket-templates', require('./routes/ticket-templates.routes'));
 app.use('/api/notifications', require('./routes/notifications.routes'));
+app.use('/api/admin', require('./routes/user-activity.routes'));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

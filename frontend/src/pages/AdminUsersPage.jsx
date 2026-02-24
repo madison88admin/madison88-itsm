@@ -47,7 +47,9 @@ const StatCard = ({ title, value, sub, color }) => (
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingActive, setLoadingActive] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -57,7 +59,44 @@ const AdminUsersPage = () => {
   const [undoInfo, setUndoInfo] = useState(null); // { userId, timerId }
   const [resetToast, setResetToast] = useState(null);
 
+  // Debug helper: open the page with ?debug_active=1 to simulate currently active users
+  const debugActive = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug_active') === '1';
+
   const abortControllerRef = React.useRef(null);
+
+  // Load active users (logged in within last 15 minutes)
+  const loadActiveUsers = useCallback(async () => {
+    try {
+      setLoadingActive(true);
+      const res = await apiClient.get('/admin/active-users?withinMinutes=15');
+      setActiveUsers(res.data.data.activeUsers || []);
+      
+      // Log location context for debugging
+      if (res.data.data.location && res.data.data.location !== 'All Locations') {
+        console.log(`[User Activity] Viewing users from: ${res.data.data.location}`);
+      }
+    } catch (err) {
+      console.error('Failed to load active users:', err);
+      // Don't show error toast for active users - it's secondary info
+    } finally {
+      setLoadingActive(false);
+    }
+  }, []);
+
+  // If debug flag is set, simulate active users after the users list is loaded
+  useEffect(() => {
+    if (!debugActive) return;
+    if (users.length === 0) return;
+
+    // Mark first two users as active for visual verification
+    const mock = users.slice(0, 2).map(u => ({
+      user_id: u.user_id,
+      activity_timestamp: new Date().toISOString(),
+      minutes_since_activity: 0,
+    }));
+    setActiveUsers(mock);
+    setLoadingActive(false);
+  }, [debugActive, users]);
 
   const load = useCallback(async () => {
     // Cancel previous request
@@ -95,6 +134,13 @@ const AdminUsersPage = () => {
     const timer = setTimeout(load, 300);
     return () => clearTimeout(timer);
   }, [load]);
+
+  // Load active users on mount and refresh every 30 seconds
+  useEffect(() => {
+    loadActiveUsers();
+    const interval = setInterval(loadActiveUsers, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [loadActiveUsers]);
 
   const updateUser = async (id, updates) => {
     try {
@@ -197,6 +243,7 @@ const AdminUsersPage = () => {
     admins: users.filter(u => u.role === 'system_admin').length,
     managers: users.filter(u => u.role === 'it_manager').length,
     agents: users.filter(u => u.role === 'it_agent').length,
+    activeNow: activeUsers.length,
   };
 
   return (
@@ -210,6 +257,7 @@ const AdminUsersPage = () => {
 
       <div className="stats-grid">
         <StatCard title="Total Directory" value={stats.total} sub="Active Staff" color="#2fd7ff" />
+        <StatCard title="Currently Active" value={stats.activeNow} sub="Using System Now" color="#37d996" />
         <StatCard title="Regional Management" value={stats.managers} sub="IT Managers" color="#ffb547" />
         <StatCard title="Technical Support" value={stats.agents} sub="IT Agents" color="#37d996" />
         <StatCard title="System Control" value={stats.admins} sub="Super Admins" color="#ff5d6c" />
@@ -300,9 +348,15 @@ const AdminUsersPage = () => {
               <span>USER IDENTITY</span>
               <span>ROLE & STATUS</span>
               <span>LOCATION ASSIGNMENT</span>
+              <span>ACTIVITY</span>
               <span style={{ textAlign: 'right' }}>ACTIONS</span>
             </div>
-            {users.map((user) => (
+            {users.map((user) => {
+              const isActive = activeUsers.find(u => u.user_id === user.user_id);
+              const lastActivityTime = isActive?.activity_timestamp ? new Date(isActive.activity_timestamp) : null;
+              const minutesSinceActivity = isActive?.minutes_since_activity;
+              
+              return (
               <div key={user.user_id} className={`user-row ${!user.is_active ? 'inactive' : ''}`}>
                 <div className="user-info">
                   <UserAvatar name={user.full_name} color={getRoleColor(user.role)} />
@@ -359,6 +413,28 @@ const AdminUsersPage = () => {
                   </select>
                 </div>
 
+                <div className="user-activity" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: '0.25rem' }}>
+                  {isActive ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#37d996', boxShadow: '0 0 6px #37d996' }}></span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#37d996' }}>ACTIVE NOW</span>
+                      </div>
+                      <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                        {minutesSinceActivity === 0 ? 'Just now' : `${minutesSinceActivity}m ago`}
+                      </small>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', opacity: '0.5' }}></span>
+                        <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>OFFLINE</span>
+                      </div>
+                      <small style={{ color: '#64748b', fontSize: '0.75rem' }}>No recent activity</small>
+                    </>
+                  )}
+                </div>
+
                 <div className="user-actions">
                   {editingUserId === user.user_id ? (
                     <>
@@ -397,7 +473,8 @@ const AdminUsersPage = () => {
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>
@@ -516,30 +593,39 @@ const AdminUsersPage = () => {
         .table-container { padding: 0.5rem; min-height: 400px; }
         .list-header {
           display: grid;
-          grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+          grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1.5fr;
           padding: 1rem 1.5rem;
           color: #64748b;
           font-size: 0.75rem;
           font-weight: 700;
           letter-spacing: 0.05em;
           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          gap: 1rem;
         }
         
         .user-row {
           display: grid;
-          grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+          grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1.5fr;
           padding: 1.2rem 1.5rem;
           align-items: center;
           border-bottom: 1px solid rgba(255, 255, 255, 0.03);
           transition: background 0.2s;
+          gap: 1rem;
         }
         .user-row:hover { background: rgba(255, 255, 255, 0.02); }
         .user-row.inactive { opacity: 0.6; }
 
-        .user-info { display: flex; gap: 1rem; align-items: center; flex: 1; }
-        .user-info small { display: block; color: #64748b; }
+        .user-info { display: flex; gap: 1rem; align-items: center; flex: 1; min-width: 0; }
+        .user-info strong { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-info small { display: block; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .edit-inputs { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+        .user-role { display: flex; flex-direction: column; gap: 0.25rem; }
+        
+        .user-location { display: flex; width: 100%; }
+        
+        .user-activity { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0.25rem; }
+
+        .edit-inputs { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 0; }
         .inline-input {
           background: rgba(0, 0, 0, 0.2);
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -548,7 +634,6 @@ const AdminUsersPage = () => {
           color: #fff;
           font-size: 0.85rem;
           width: 100%;
-          max-width: 250px;
         }
         .inline-input:focus { outline: none; border-color: #3b82f6; }
 
@@ -560,12 +645,16 @@ const AdminUsersPage = () => {
           border-radius: 6px;
           border: 1px solid;
           letter-spacing: 0.05em;
+          display: inline-block;
+          white-space: nowrap;
         }
         .status-badge {
           font-size: 0.7rem;
           color: #94a3b8;
           font-weight: 700;
-          margin-left: 0.8rem;
+          margin-top: 0.25rem;
+          display: inline-block;
+          white-space: nowrap;
         }
 
         .location-select, .role-select {
@@ -575,19 +664,23 @@ const AdminUsersPage = () => {
           font-family: 'Sora', sans-serif;
           font-size: 0.9rem;
           cursor: pointer;
+          width: 100%;
+          max-width: 100%;
         }
         .location-select option, .role-select option { background: #0f172a; }
 
-        .user-actions { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; }
+        .user-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
         .text-action {
           background: none;
           border: none;
           font-weight: 700;
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           cursor: pointer;
           opacity: 0.7;
           transition: opacity 0.2s;
           letter-spacing: 0.05em;
+          white-space: nowrap;
+          padding: 0.25rem 0;
         }
         .text-action:hover { opacity: 1; text-decoration: underline; }
         .text-action.primary { color: #3b82f6; opacity: 1; }

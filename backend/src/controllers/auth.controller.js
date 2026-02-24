@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const AuthService = require('../services/auth.service');
+const UserActivityService = require('../services/user-activity.service');
 const jwt = require('jsonwebtoken');
 
 const registerSchema = Joi.object({
@@ -72,6 +73,19 @@ const AuthController = {
       }
       const { email, password } = value;
       const { token, user } = await AuthService.login({ email, password });
+      
+      // Log user login activity
+      const ipAddress = req.ip || req.connection.remoteAddress || 'UNKNOWN';
+      const userAgent = req.headers['user-agent'] || 'UNKNOWN';
+      const location = req.body.location || user.location || null;
+      
+      try {
+        await UserActivityService.logLogin(user.user_id, ipAddress, userAgent, location);
+      } catch (logErr) {
+        // Don't fail login if activity logging fails
+        console.error('Failed to log login activity:', logErr);
+      }
+      
       res.json({ status: 'success', token, user });
     } catch (err) {
       next(err);
@@ -89,7 +103,17 @@ const AuthController = {
 
   async logout(req, res, next) {
     try {
-      // TODO: Implement logout logic (blacklist token, etc.)
+      // Log user logout activity
+      const userId = req.user?.user_id;
+      if (userId) {
+        try {
+          await UserActivityService.logLogout(userId);
+        } catch (logErr) {
+          // Don't fail logout if activity logging fails
+          console.error('Failed to log logout activity:', logErr);
+        }
+      }
+      
       res.json({
         status: 'success',
         message: 'Logout successful'

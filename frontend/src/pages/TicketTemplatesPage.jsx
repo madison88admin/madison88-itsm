@@ -160,13 +160,11 @@ const TicketTemplatesPage = () => {
         <div className="template-grid">
           <div className="template-list">
             {templates.map((template) => (
-              <button
+              <div
                 key={template.template_id}
-                className={`template-card ${selectedId === template.template_id ? "active" : ""
-                  }`}
-                onClick={() => setSelectedId(template.template_id)}
+                className={`template-card ${selectedId === template.template_id ? "active" : ""}`}
               >
-                <div>
+                <div style={{ cursor: 'pointer' }} onClick={() => setSelectedId(template.template_id)}>
                   <strong>{template.name}</strong>
                   <span>{template.category}</span>
                 </div>
@@ -174,7 +172,25 @@ const TicketTemplatesPage = () => {
                   <span>{template.priority}</span>
                   <span>{template.is_active ? "Active" : "Inactive"}</span>
                 </div>
-              </button>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                  <a
+                    href={`/new-ticket?template=${template.template_id}`}
+                    className="btn ghost"
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  >
+                    Use Template
+                  </a>
+                  <button
+                    className="btn ghost"
+                    onClick={() => {
+                      setSelectedId(template.template_id);
+                    }}
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
             ))}
             {templates.length === 0 && (
               <div className="empty-state">No templates yet.</div>

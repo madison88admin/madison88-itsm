@@ -95,8 +95,14 @@ const NewTicketPage = ({ onCreated, user }) => {
     // Pre-fill ticket type from query param
     const params = new URLSearchParams(location.search);
     const typeParam = params.get("type");
+    const templateParam = params.get("template") || params.get("template_id");
     if (typeParam && ["incident", "request"].includes(typeParam)) {
       setForm((prev) => ({ ...prev, ticket_type: typeParam }));
+    }
+
+    // If a template ID was provided in the URL, select it so it will be applied
+    if (templateParam) {
+      setSelectedTemplateId(templateParam);
     }
   }, [location.search]);
 
