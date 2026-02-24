@@ -1,9 +1,18 @@
 import { io } from "socket.io-client";
 
-const resolvedApiBase = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? (window.location.origin) : 'http://localhost:3000');
-const host = resolvedApiBase.replace(/\/$/, '');
-// Convert http(s) -> ws(s) for socket connections
-const socketUrl = host.replace(/^http/, host.startsWith('https') ? 'wss' : 'ws');
+const resolvedApiBase = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+let socketUrl;
+try {
+  // Ensure we have a valid URL; if env lacks protocol, the URL constructor will resolve against origin
+  const parsed = new URL(resolvedApiBase, (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'));
+  const socketProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+  socketUrl = `${socketProtocol}//${parsed.host}`;
+} catch (err) {
+  // Fallback: best-effort replacement
+  const host = String(resolvedApiBase).replace(/\/$/, '');
+  const proto = host.startsWith('https') ? 'wss:' : 'ws:';
+  socketUrl = host.replace(/^https?:/, proto);
+}
 let socket = null;
 
 export function getSocket() {
