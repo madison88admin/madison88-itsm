@@ -55,8 +55,8 @@ const UsersService = {
     /**
      * List users with optional filtering
      */
-    async listUsers({ role, location, search }) {
-        return await UserModel.listUsers({ role, location, search });
+    async listUsers({ role, location, search, archived = null }) {
+        return await UserModel.listUsers({ role, location, search, archived });
     },
 
     /**
@@ -78,7 +78,7 @@ const UsersService = {
      * Update user details
      * Handles complex logic for role changes, location updates, and password updates
      */
-    async updateUser(userId, payload) {
+    async updateUser(userId, payload, actingUser = null) {
         // 1. Check if user exists
         const currentUser = await UserModel.findById(userId);
         if (!currentUser) {
@@ -137,7 +137,23 @@ const UsersService = {
             await UserModel.updatePassword(userId, passwordHash);
         }
 
-        // 3. Update other fields
+        // 3. Archive handling: if an admin deactivates a user, mark archived_at/archived_by
+        if (Object.prototype.hasOwnProperty.call(updates, 'is_active')) {
+            // If actingUser is provided and is a system_admin performing a deactivation
+            if (actingUser && actingUser.role === 'system_admin') {
+                if (updates.is_active === false && currentUser.is_active === true) {
+                    updates.archived_at = new Date();
+                    updates.archived_by = actingUser.user_id;
+                }
+                // If re-activating a user, clear archived fields
+                if (updates.is_active === true) {
+                    updates.archived_at = null;
+                    updates.archived_by = null;
+                }
+            }
+        }
+
+        // 4. Update other fields
         // Refined Identity Sync Logic
         // 1. Sync first/last names if full_name is provided and not an email
         if (updates.full_name && !updates.full_name.includes('@')) {

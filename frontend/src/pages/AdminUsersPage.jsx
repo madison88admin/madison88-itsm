@@ -51,6 +51,7 @@ const AdminUsersPage = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [archivedFilter, setArchivedFilter] = useState("");
   const [tempPasswordInfo, setTempPasswordInfo] = useState(null);
 
   const abortControllerRef = React.useRef(null);
@@ -69,6 +70,7 @@ const AdminUsersPage = () => {
       if (search.trim()) params.append("search", search.trim());
       if (roleFilter) params.append("role", roleFilter);
       if (locationFilter) params.append("location", locationFilter);
+      if (archivedFilter) params.append("archived", archivedFilter);
 
       const res = await apiClient.get(`/users?${params.toString()}`, { signal });
       setUsers(res.data.data.users || []);
@@ -183,6 +185,11 @@ const AdminUsersPage = () => {
             <option value="">All Locations</option>
             {locationOptions.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
+          <select value={archivedFilter} onChange={(e) => setArchivedFilter(e.target.value)}>
+            <option value="">All Statuses</option>
+            <option value="false">Only Active</option>
+            <option value="true">Only Archived</option>
+          </select>
           {(search || roleFilter || locationFilter) && (
             <button className="text-btn" onClick={() => { setSearch(""); setRoleFilter(""); setLocationFilter(""); }}>
               CLEAR FILTERS
@@ -251,7 +258,8 @@ const AdminUsersPage = () => {
                   <span className="role-badge" style={{ color: getRoleColor(user.role), borderColor: `${getRoleColor(user.role)}40`, background: `${getRoleColor(user.role)}10` }}>
                     {user.role.replace('_', ' ')}
                   </span>
-                  {!user.is_active && <span className="status-badge">INACTIVE</span>}
+                      {!user.is_active && <span className="status-badge">INACTIVE</span>}
+                      {user.archived_at && <span className="status-badge">ARCHIVED</span>}
                 </div>
 
                 <div className="user-location">

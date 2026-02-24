@@ -46,13 +46,15 @@ const UsersController = {
             const role = req.query.role || null;
             let location = req.query.location || null;
             const search = req.query.search || null;
+            // archived: expected values: 'true' | 'false' | undefined
+            const archived = typeof req.query.archived !== 'undefined' ? req.query.archived : null;
 
             // Strict isolation: IT Managers only see users in their own location
             if (req.user.role === 'it_manager' && req.user.location) {
                 location = req.user.location;
             }
 
-            const users = await UsersService.listUsers({ role, location, search });
+            const users = await UsersService.listUsers({ role, location, search, archived });
             res.json({ status: 'success', data: { users } });
         } catch (err) {
             next(err);
@@ -131,7 +133,7 @@ const UsersController = {
                 throw err;
             }
 
-            const result = await UsersService.updateUser(req.params.id, value);
+            const result = await UsersService.updateUser(req.params.id, value, req.user);
 
             // result contains user, temporary_password (optional), message (optional)
             res.json({

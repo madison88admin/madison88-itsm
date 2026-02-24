@@ -23,7 +23,7 @@ const UserModel = {
     await db.query('UPDATE users SET last_login = NOW() WHERE user_id = $1', [userId]);
   },
 
-  async listUsers({ role, location, search } = {}) {
+  async listUsers({ role, location, search, archived = null } = {}) {
     const conditions = [];
     const values = [];
 
@@ -42,10 +42,17 @@ const UserModel = {
       conditions.push(`(email ILIKE $${values.length} OR full_name ILIKE $${values.length})`);
     }
 
+    // archived: 'true' => archived_at IS NOT NULL, 'false' => archived_at IS NULL, null => no filter
+    if (archived === 'true') {
+      conditions.push(`archived_at IS NOT NULL`);
+    } else if (archived === 'false') {
+      conditions.push(`archived_at IS NULL`);
+    }
+
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await db.query(
-      `SELECT user_id, email, full_name, role, department, location, phone, is_active, created_at 
+      `SELECT user_id, email, full_name, role, department, location, phone, is_active, archived_at, archived_by, created_at 
        FROM users ${whereClause} ORDER BY created_at DESC`,
       values
     );
