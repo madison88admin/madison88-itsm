@@ -12,8 +12,8 @@ BACKEND:      https://madison88-itsm-platform.onrender.com
 DATABASE:     aws-1-ap-south-1.pooler.supabase.com
 SMTP SERVER:  smtp-relay.brevo.com:587
 SMTP LOGIN:   a2fb04001@smtp-brevo.com
-SMTP KEY:     xsmtpsib-410213093fe8d37e82e5a2866895b2472f1705c85f1e41a51a8324cdf1bbc2d4-iMH3z6nT65QbI8cA
-API KEY:      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
+SMTP KEY:     your-smtp-password-here
+API KEY:      your-brevo-api-key-here
 ```
 
 ---
@@ -51,7 +51,7 @@ JWT_SECRET=[PASTE-YOUR-SECRET-HERE]
 SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=a2fb04001@smtp-brevo.com
-SMTP_PASSWORD=xsmtpsib-410213093fe8d37e82e5a2866895b2472f1705c85f1e41a51a8324cdf1bbc2d4-iMH3z6nT65QbI8cA
+SMTP_PASSWORD=your-smtp-password-here
 SMTP_FROM_EMAIL=itsmmadison@gmail.com
 SMTP_FROM_NAME=Madison88 ITSM Support
 ADMIN_NOTIFICATION_EMAIL=itsmmadison@gmail.com
