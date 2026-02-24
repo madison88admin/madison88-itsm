@@ -10,12 +10,17 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,      // Supabase uses valid certificates
   },
-  max: 10,                          // reduced from 20 (Render free tier limit)
-  min: 2,                           // keep minimum connections alive
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000,   // increased to 30s for slow connections
+  // Aggressive pooling for free tier (small concurrency)
+  max: 5,                           // Match free tier limit (max 5 concurrent)
+  min: 1,                           // Keep 1 connection alive
+  idleTimeoutMillis: 10000,         // Release idle connections quickly (10s not 30s)
+  connectionTimeoutMillis: 5000,    // Fail fast on timeout (5s not 30s)
   application_name: 'madison88-itsm-backend',
-  allowExitOnIdle: false,           // keep pool alive
+  allowExitOnIdle: true,            // Allow process to exit when idle
+  
+  // Connection recycling for free tier stability
+  reapIntervalMillis: 1000,         // Check for idle connections every second
+  statementTimeout: 30000,          // 30 second query timeout
 });
 
 // Log client connect at DEBUG level to avoid noisy INFO logs during normal operation
