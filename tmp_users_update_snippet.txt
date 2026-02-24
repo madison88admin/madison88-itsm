@@ -1,0 +1,34 @@
+const { password, ...updates } = payload;
+let temporaryPassword = null;
+let message = null;
+
+// 2. Check for role change to privileged role
+const isChangingToPrivilegedRole = updates.role &&
+    ['it_agent', 'it_manager', 'system_admin'].includes(updates.role) &&
+    currentUser.role === 'end_user';
+
+if (isChangingToPrivilegedRole) {
+    if (password) {
+        // Admin provided a password - use it
+        const passwordHash = await bcrypt.hash(password, 10);
+        await UserModel.updatePassword(userId, passwordHash);
+    } else {
+        // No password provided - generate temporary password
+        temporaryPassword = crypto.randomBytes(8).toString('hex');
+        const tempPasswordHash = await bcrypt.hash(temporaryPassword, 10);
+        await UserModel.updatePassword(userId, tempPasswordHash);
+
+        // Send Email Notice (Non-blocking)
+        NotificationService.sendPasswordResetNotice({
+            user: currentUser,
+            temporaryPassword
+        }).catch(err => {
+            console.error('Failed to send role change password notice:', err);
+        });
+
+        message = 'User role changed to privileged role. A temporary password has been generated and sent to the user via email.';
+    }
+} else if (password) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    await UserModel.updatePassword(userId, passwordHash);
+}

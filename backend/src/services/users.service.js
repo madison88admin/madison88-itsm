@@ -90,18 +90,26 @@ const UsersService = {
         let temporaryPassword = null;
         let message = null;
 
-        // 2. Check for role change to privileged role
+        // Treat password as provided only when a non-empty string is given
+        const passwordProvided = typeof password === 'string' && password.trim() !== '';
+
+        // Prevent accidental overwrite of internal password hash via payload
+        if (Object.prototype.hasOwnProperty.call(updates, 'password_hash')) {
+            delete updates.password_hash;
+        }
+
+        // 2. Check for role change to privileged role (promotion from end_user)
         const isChangingToPrivilegedRole = updates.role &&
             ['it_agent', 'it_manager', 'system_admin'].includes(updates.role) &&
             currentUser.role === 'end_user';
 
         if (isChangingToPrivilegedRole) {
-            if (password) {
-                // Admin provided a password - use it
+            if (passwordProvided) {
+                // Admin provided an explicit non-empty password - use it
                 const passwordHash = await bcrypt.hash(password, 10);
                 await UserModel.updatePassword(userId, passwordHash);
             } else {
-                // No password provided - generate temporary password
+                // Only generate temporary passwords for promotions (end_user -> privileged)
                 temporaryPassword = crypto.randomBytes(8).toString('hex');
                 const tempPasswordHash = await bcrypt.hash(temporaryPassword, 10);
                 await UserModel.updatePassword(userId, tempPasswordHash);
@@ -116,7 +124,7 @@ const UsersService = {
 
                 message = 'User role changed to privileged role. A temporary password has been generated and sent to the user via email.';
             }
-        } else if (password) {
+        } else if (passwordProvided) {
             const passwordHash = await bcrypt.hash(password, 10);
             await UserModel.updatePassword(userId, passwordHash);
         }
