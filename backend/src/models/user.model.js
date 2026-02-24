@@ -29,24 +29,24 @@ const UserModel = {
 
     if (role) {
       values.push(role);
-      conditions.push(`role = $${values.length}`);
+      conditions.push(`u.role = $${values.length}`);
     }
 
     if (location) {
       values.push(location);
-      conditions.push(`location = $${values.length}`);
+      conditions.push(`u.location = $${values.length}`);
     }
 
     if (search) {
       values.push(`%${search}%`);
-      conditions.push(`(email ILIKE $${values.length} OR full_name ILIKE $${values.length})`);
+      conditions.push(`(u.email ILIKE $${values.length} OR u.full_name ILIKE $${values.length})`);
     }
 
     // archived: 'true' => archived_at IS NOT NULL, 'false' => archived_at IS NULL, null => no filter
     if (archived === 'true') {
-      conditions.push(`archived_at IS NOT NULL`);
+      conditions.push(`u.archived_at IS NOT NULL`);
     } else if (archived === 'false') {
-      conditions.push(`archived_at IS NULL`);
+      conditions.push(`u.archived_at IS NULL`);
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
