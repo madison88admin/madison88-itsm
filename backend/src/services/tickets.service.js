@@ -679,8 +679,8 @@ const TicketsService = {
     const sla_status = computeSlaStatus(ticket, slaRuleMap[ticket.priority]);
     const comments = await TicketsModel.getComments(ticketId);
     // Merge comment-linked attachments
-    const commentAttResult = await db.query(
-      `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY created_at ASC`,
+      const commentAttResult = await db.query(
+        `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY uploaded_at ASC`,
       [ticketId]
     );
     const attByComment = {};
@@ -1082,7 +1082,7 @@ const TicketsService = {
 
     // Fetch comment-linked attachments in one query
     const attachmentsResult = await db.query(
-      `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY created_at ASC`,
+      `SELECT * FROM ticket_attachments WHERE ticket_id = $1 AND comment_id IS NOT NULL ORDER BY uploaded_at ASC`,
       [ticketId]
     );
     const attachmentsByComment = {};
