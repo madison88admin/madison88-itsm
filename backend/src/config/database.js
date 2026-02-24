@@ -5,10 +5,20 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
+// Modify connection string for self-signed certificates (Neon pooler)
+let databaseUrl = process.env.DATABASE_URL;
+if (databaseUrl && databaseUrl.includes('neon.tech')) {
+  // For Neon pooler, replace sslmode=require with sslmode=no-verify to handle self-signed certs
+  databaseUrl = databaseUrl.replace(/[?&]sslmode=[^&]+/, '').replace('?', '?sslmode=no-verify');
+  if (!databaseUrl.includes('sslmode=')) {
+    databaseUrl += (databaseUrl.includes('?') ? '&' : '?') + 'sslmode=no-verify';
+  }
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   ssl: {
-    rejectUnauthorized: false,      // Neon pooler uses self-signed certs
+    rejectUnauthorized: false,      // Allow self-signed certificates
     requestCert: true,
   },
   max: 10,                          // reduced from 20 (Render free tier limit)
