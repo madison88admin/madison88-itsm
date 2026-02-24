@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/api\/?$/, "");
+// Get API base URL from environment variable or current origin (production-safe)
+const API_BASE = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/api\/?$/, "");
 
 const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {
     const [newComment, setNewComment] = useState("");

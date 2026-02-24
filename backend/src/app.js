@@ -19,17 +19,27 @@ app.use(helmet());
 
 // CORS Configuration
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.FRONTEND_PROD_URL || 'https://itsm.madison88.com',
-    'https://m88itsm.netlify.app'
-  ],
+  origin: (origin, callback) => {
+    // Allowed origins for CORS
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.FRONTEND_PROD_URL || 'https://m88itsm.netlify.app',
+    ];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: origin not allowed'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Idempotency-Key']
 };
 
-console.log('CORS options:', corsOptions);
+if (process.env.NODE_ENV === 'development') {
+  console.log('CORS options:', corsOptions);
+}
 
 app.use(cors(corsOptions));
 

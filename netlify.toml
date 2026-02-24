@@ -8,9 +8,11 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://madison88-itsm-platform.onrender.com/api/:splat"
+  to = "/.netlify/functions/proxy-api?path=:splat"
   status = 200
   force = true
+  # NOTE: In production, set BACKEND_URL environment variable in Netlify
+  # or update this to point to your Render backend URL
 
 [[redirects]]
   from = "/*"

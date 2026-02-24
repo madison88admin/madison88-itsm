@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 
-const socketUrl = process.env.REACT_APP_API_URL || "https://madison88-itsm-platform.onrender.com";
+// Use VITE_API_URL for Vite builds or derive from window.location (production-safe)
+const socketUrl = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || window.location.origin;
 let socket = null;
 
 export function getSocket() {
