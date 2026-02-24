@@ -1,18 +1,30 @@
 import { io } from "socket.io-client";
 
-const resolvedApiBase = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+// ✅ FIXED: Properly resolve API URL for Vite (production) and fallback
+const PRODUCTION_URL = 'https://madison88-itsm.onrender.com';
+
+const resolvedApiBase = 
+  import.meta.env?.VITE_API_URL ||           // Vite env var (production/netlify)
+  import.meta.env?.VITE_BACKEND_URL ||        // alternative Vite var
+  (import.meta.env?.MODE === 'development'    // dev mode fallback
+    ? 'http://localhost:3000' 
+    : PRODUCTION_URL);                         // hardcoded production fallback
+
 let socketUrl;
 try {
-  // Ensure we have a valid URL; if env lacks protocol, the URL constructor will resolve against origin
-  const parsed = new URL(resolvedApiBase, (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'));
+  const parsed = new URL(resolvedApiBase);
   const socketProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
   socketUrl = `${socketProtocol}//${parsed.host}`;
 } catch (err) {
-  // Fallback: best-effort replacement
-  const host = String(resolvedApiBase).replace(/\/$/, '');
-  const proto = host.startsWith('https') ? 'wss:' : 'ws:';
-  socketUrl = host.replace(/^https?:/, proto);
+  // Fallback to production URL if parsing fails
+  socketUrl = 'wss://madison88-itsm.onrender.com';
 }
+
+// Debug log (only in development)
+if (import.meta.env?.MODE === 'development') {
+  console.log('[Socket] Connecting to:', socketUrl);
+}
+
 let socket = null;
 
 export function getSocket() {
@@ -21,7 +33,17 @@ export function getSocket() {
       path: "/socket.io",
       autoConnect: true,
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
     });
+
+    // Connection event logs (dev only)
+    if (import.meta.env?.MODE === 'development') {
+      socket.on('connect', () => console.log('[Socket] Connected:', socket.id));
+      socket.on('disconnect', () => console.log('[Socket] Disconnected'));
+      socket.on('connect_error', (err) => console.error('[Socket] Error:', err.message));
+    }
   }
   return socket;
 }
