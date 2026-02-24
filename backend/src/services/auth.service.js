@@ -77,6 +77,48 @@ const AuthService = {
 
     return { token: 'new_jwt_token' };
   },
+
+  async consumeResetToken({ token, password }) {
+    const db = require('../config/database');
+    const bcrypt = require('bcryptjs');
+    // Find token row
+    const result = await db.query('SELECT * FROM password_reset_tokens WHERE token = $1 LIMIT 1', [token]);
+    const row = result.rows[0];
+    if (!row) {
+      const err = new Error('Invalid or expired reset token');
+      err.status = 400;
+      throw err;
+    }
+    if (row.used) {
+      const err = new Error('This reset token has already been used');
+      err.status = 400;
+      throw err;
+    }
+    if (new Date(row.expires_at) < new Date()) {
+      const err = new Error('Reset token has expired');
+      err.status = 400;
+      throw err;
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Update user password
+    await db.query('UPDATE users SET password_hash = $1, password_changed_at = NOW(), updated_at = NOW() WHERE user_id = $2', [passwordHash, row.user_id]);
+
+    // Mark token used
+    await db.query('UPDATE password_reset_tokens SET used = true WHERE id = $1', [row.id]);
+
+    // Optionally, notify user of password change (non-blocking)
+    try {
+      const NotificationService = require('./notification.service');
+      NotificationService.sendWelcomeNotice({ user: { user_id: row.user_id, email: (await db.query('SELECT email, full_name FROM users WHERE user_id = $1', [row.user_id])).rows[0].email } }).catch(() => null);
+    } catch (e) {
+      // ignore notification errors
+    }
+
+    return { message: 'Password has been reset successfully' };
+  },
 };
 
 module.exports = AuthService;

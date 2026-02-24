@@ -52,8 +52,10 @@ const UserModel = {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await db.query(
-      `SELECT user_id, email, full_name, role, department, location, phone, is_active, archived_at, archived_by, created_at 
-       FROM users ${whereClause} ORDER BY created_at DESC`,
+      `SELECT u.user_id, u.email, u.full_name, u.role, u.department, u.location, u.phone, u.is_active, u.archived_at, u.archived_by, u.created_at, a.full_name as archived_by_name
+       FROM users u
+       LEFT JOIN users a ON u.archived_by = a.user_id
+       ${whereClause} ORDER BY u.created_at DESC`,
       values
     );
     return result.rows;

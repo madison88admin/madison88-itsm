@@ -13,6 +13,7 @@ import NewTicketPage from "./pages/NewTicketPage";
 import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 import KnowledgeBaseEditor from "./pages/KnowledgeBaseEditor";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import ResetPasswordPage from "./pages/ResetPassword";
 import AdminSlaPage from "./pages/AdminSlaPage";
 import ChangeManagementPage from "./pages/ChangeManagementPage";
 import AssetsPage from "./pages/AssetsPage";
@@ -298,6 +299,7 @@ function App() {
             )
           }
         />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/signup"
           element={

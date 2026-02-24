@@ -53,6 +53,9 @@ const AdminUsersPage = () => {
   const [locationFilter, setLocationFilter] = useState("");
   const [archivedFilter, setArchivedFilter] = useState("");
   const [tempPasswordInfo, setTempPasswordInfo] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, user: null });
+  const [undoInfo, setUndoInfo] = useState(null); // { userId, timerId }
+  const [resetToast, setResetToast] = useState(null);
 
   const abortControllerRef = React.useRef(null);
 
@@ -105,8 +108,10 @@ const AdminUsersPage = () => {
         setTimeout(() => setTempPasswordInfo(null), 30000);
       }
       load();
+      return res.data;
     } catch (err) {
       alert(err.response?.data?.message || "Failed to update user");
+      throw err;
     }
   };
 
@@ -121,8 +126,51 @@ const AdminUsersPage = () => {
         });
         setTimeout(() => setTempPasswordInfo(null), 30000);
       }
+      // Show a short success toast telling admin that a reset link was sent
+      setResetToast({ message: `Reset link sent to ${user.email}` });
+      setTimeout(() => setResetToast(null), 5000);
     } catch (err) {
       alert(err.response?.data?.message || "Failed to reset password");
+    }
+  };
+
+  // Open confirmation modal for deactivate/activate
+  const handleConfirmToggle = (user) => {
+    setConfirmModal({ open: true, user });
+  };
+
+  const clearUndo = () => {
+    if (undoInfo?.timerId) clearTimeout(undoInfo.timerId);
+    setUndoInfo(null);
+  };
+
+  const performToggle = async () => {
+    const user = confirmModal.user;
+    if (!user) return setConfirmModal({ open: false, user: null });
+    const targetState = !user.is_active;
+    try {
+      await updateUser(user.user_id, { is_active: targetState });
+      // After successful toggle, show undo toast (only when deactivating)
+      if (targetState === false) {
+        const timerId = setTimeout(() => setUndoInfo(null), 8000);
+        setUndoInfo({ userId: user.user_id, timerId });
+      }
+      load();
+    } catch (err) {
+      // error already alerted in updateUser
+    } finally {
+      setConfirmModal({ open: false, user: null });
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoInfo?.userId) return;
+    try {
+      await updateUser(undoInfo.userId, { is_active: true });
+      clearUndo();
+      load();
+    } catch (err) {
+      // ignore, updateUser shows alert
     }
   };
 
@@ -166,6 +214,35 @@ const AdminUsersPage = () => {
         <StatCard title="Technical Support" value={stats.agents} sub="IT Agents" color="#37d996" />
         <StatCard title="System Control" value={stats.admins} sub="Super Admins" color="#ff5d6c" />
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmModal.open && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <h3>{confirmModal.user && confirmModal.user.is_active ? 'Deactivate user?' : 'Activate user?'}</h3>
+            <p>{confirmModal.user ? `${confirmModal.user.full_name} (${confirmModal.user.email})` : ''}</p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+              <button className="text-action" onClick={() => setConfirmModal({ open: false, user: null })}>Cancel</button>
+              <button className="text-action danger" onClick={performToggle}>{confirmModal.user && confirmModal.user.is_active ? 'Deactivate' : 'Activate'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo Toast */}
+      {undoInfo && (
+        <div className="toast undo-toast">
+          <span>User deactivated</span>
+          <button className="text-action" onClick={handleUndo}>UNDO</button>
+        </div>
+      )}
+
+      {/* Reset success toast */}
+      {resetToast && (
+        <div className="toast success-toast">
+          <span>{resetToast.message}</span>
+        </div>
+      )}
 
       <div className="glass controls-bar">
         <div className="search-wrapper">
@@ -259,7 +336,14 @@ const AdminUsersPage = () => {
                     {user.role.replace('_', ' ')}
                   </span>
                       {!user.is_active && <span className="status-badge">INACTIVE</span>}
-                      {user.archived_at && <span className="status-badge">ARCHIVED</span>}
+                      {user.archived_at && (
+                        <>
+                          <span className="status-badge">ARCHIVED</span>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                            {new Date(user.archived_at).toLocaleString()} {user.archived_by_name ? `· by ${user.archived_by_name}` : ''}
+                          </div>
+                        </>
+                      )}
                 </div>
 
                 <div className="user-location">
@@ -298,12 +382,17 @@ const AdminUsersPage = () => {
                         <button className="text-action warning" onClick={() => handleResetPassword(user)}>RESET PW</button>
                       )}
 
-                      <button
-                        className={`text-action ${user.is_active ? 'danger' : 'success'}`}
-                        onClick={() => updateUser(user.user_id, { is_active: !user.is_active })}
-                      >
-                        {user.is_active ? 'DEACTIVATE' : 'ACTIVATE'}
-                      </button>
+                      {user.archived_at ? (
+                        <button className="text-action success" onClick={() => updateUser(user.user_id, { is_active: true })}>RESTORE</button>
+                      ) : (
+                        <button
+                          className={`text-action ${user.is_active ? 'danger' : 'success'}`}
+                          onClick={() => handleConfirmToggle(user)}
+                          aria-label={user.is_active ? 'Deactivate user' : 'Activate user'}
+                        >
+                          {user.is_active ? 'DEACTIVATE' : 'ACTIVATE'}
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -510,6 +599,17 @@ const AdminUsersPage = () => {
         
         .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Modal styles */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(2,6,23,0.6); display:flex; align-items:center; justify-content:center; z-index:1200; }
+        .modal { background: #0b1220; border: 1px solid rgba(255,255,255,0.06); padding: 1.25rem; border-radius: 12px; width: 420px; color: #fff; box-shadow: 0 10px 40px rgba(2,6,23,0.7); }
+        .modal h3 { margin: 0 0 0.25rem 0; font-size: 1.1rem; }
+        .modal p { margin: 0; color: #94a3b8; }
+
+        /* Toasts */
+        .toast { position: fixed; right: 1rem; bottom: 1rem; background: rgba(15,23,42,0.9); color: #fff; padding: 0.75rem 1rem; border-radius: 8px; display:flex; gap:0.75rem; align-items:center; z-index:1300; box-shadow: 0 6px 24px rgba(2,6,23,0.6); }
+        .toast button { background: none; border: none; color: #7dd3fc; font-weight:700; cursor:pointer; }
+        .undo-toast { background: rgba(17, 24, 39, 0.95); }
+        .success-toast { background: rgba(34,197,94,0.95); color: #022c22; }
       `}</style>
     </div>
   );

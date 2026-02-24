@@ -63,7 +63,7 @@ function getTransporter() {
   return transporter;
 }
 
-async function sendEmail({ to, subject, text, templateParams = {} }) {
+async function sendEmail({ to, subject, text, templateParams = {}, html = null }) {
   if (!isEmailEnabled()) {
     logger.info('Email notifications disabled. Skipping email.', { subject, to });
     return false;
@@ -130,7 +130,7 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
   const brevoKey = process.env.BREVO_API_KEY;
   if (brevoKey) {
     try {
-      const brevoRes = await sendViaBrevo({ to: finalTo, subject, text, templateParams });
+      const brevoRes = await sendViaBrevo({ to: finalTo, subject, text, templateParams, html });
       logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject, brevoResponse: brevoRes });
       return true;
     } catch (err) {
@@ -178,7 +178,9 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
   const from = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
   try {
-    const info = await mailer.sendMail({ from, to: finalTo, subject, text });
+    const mailOptions = { from, to: finalTo, subject, text };
+    if (html) mailOptions.html = html;
+    const info = await mailer.sendMail(mailOptions);
     logger.info('SMTP email sent successfully', { messageId: info.messageId, to: finalTo });
     return true;
   } catch (err) {
@@ -455,7 +457,7 @@ async function sendPasswordResetNotice({ user, temporaryPassword, token }) {
     const text = [
       `Hello ${user.full_name || 'user'},`,
       '',
-      `A request to reset your password was received. If you initiated this request, click the link below to set a new password. This link will expire in 24 hours.`,
+      `A request to reset your password was received. If you initiated this request, open the link below to set a new password. This link will expire in 24 hours.`,
       '',
       `${resetLink}`,
       '',
@@ -465,10 +467,38 @@ async function sendPasswordResetNotice({ user, temporaryPassword, token }) {
       `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
     ].join('\n');
 
+    // HTML template with CTA button (inline styles for email clients)
+    const html = `
+      <div style="font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#0b1220; background:#f7fafc; padding:24px;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e6eef8;">
+          <div style="padding:20px 24px;background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff">
+            <h2 style="margin:0;font-size:18px;">${appName}</h2>
+          </div>
+          <div style="padding:20px 24px;">
+            <p style="margin:0 0 12px 0;color:#0f172a;font-size:16px;">Hello ${user.full_name || 'there'},</p>
+            <p style="color:#334155; margin:0 0 16px 0;font-size:14px;">We received a request to reset your password. Click the button below to set a new password. This link will expire in 24 hours.</p>
+            <div style="text-align:center; margin: 20px 0;">
+              <a href="${resetLink}" style="display:inline-block;padding:12px 24px;border-radius:8px;background:linear-gradient(90deg,#0ea5e9,#6366f1);color:#fff;text-decoration:none;font-weight:700;font-size:14px;">
+                Reset Password
+              </a>
+            </div>
+            <p style="color:#94a3b8;font-size:12px;margin-top:16px;">If the button doesn't work, copy and paste this URL into your browser:</p>
+            <pre style="white-space:pre-wrap;word-wrap:break-word;color:#0f172a;background:#f1f5f9;padding:10px;border-radius:6px;overflow:auto;font-size:12px;">${resetLink}</pre>
+            <p style="color:#94a3b8;font-size:12px;margin-top:12px;">If you did not request this, please contact IT support immediately.</p>
+            <p style="color:#94a3b8;font-size:12px;margin-top:12px;">Best regards,<br/>${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}</p>
+          </div>
+          <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e6eef8;text-align:center;font-size:11px;color:#94a3b8;">
+            <p style="margin:0;">© 2026 ${appName}. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
     return sendEmail({
       to: user.email,
       subject,
       text,
+      html,
       templateParams: {
         user_name: user.full_name,
         reset_link: resetLink,
@@ -512,7 +542,7 @@ async function sendPasswordResetNotice({ user, temporaryPassword, token }) {
 /**
  * Send email via Brevo (HTTP API) fallback. Requires `BREVO_API_KEY` env var.
  */
-async function sendViaBrevo({ to, subject, text, templateParams = {} }) {
+async function sendViaBrevo({ to, subject, text, templateParams = {}, html = null }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY not configured');
 
@@ -534,7 +564,7 @@ async function sendViaBrevo({ to, subject, text, templateParams = {} }) {
     to: recipients,
     subject,
     textContent: text,
-    htmlContent: (text || '').replace(/\n/g, '<br/>'),
+    htmlContent: html || (text || '').replace(/\n/g, '<br/>'),
   };
 
   const res = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {

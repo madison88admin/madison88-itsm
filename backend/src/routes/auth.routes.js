@@ -45,6 +45,12 @@ router.post('/logout', AuthController.logout);
 router.post('/refresh-token', AuthController.refreshToken);
 
 /**
+ * @route POST /api/auth/reset-password
+ * @desc Consume password reset token and set new password
+ */
+router.post('/reset-password', AuthController.resetPassword);
+
+/**
  * @route GET /api/auth/me
  * @desc Get current user profile
  */
