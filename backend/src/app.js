@@ -55,7 +55,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Rate Limiting (configurable via env)
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const RATE_LIMIT_MAX_PROD = Number(process.env.RATE_LIMIT_MAX_PROD) || 100;
+const RATE_LIMIT_MAX_PROD = Number(process.env.RATE_LIMIT_MAX_PROD) || 500;
 const RATE_LIMIT_MAX_DEV = Number(process.env.RATE_LIMIT_MAX_DEV) || 2000;
 
 const apiLimiter = rateLimit({

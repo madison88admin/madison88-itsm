@@ -1,6 +1,9 @@
 import { io } from "socket.io-client";
 
-const socketUrl = process.env.REACT_APP_API_URL || "https://madison88-itsm-platform.onrender.com";
+const resolvedApiBase = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? (window.location.origin) : 'http://localhost:3000');
+const host = resolvedApiBase.replace(/\/$/, '');
+// Convert http(s) -> ws(s) for socket connections
+const socketUrl = host.replace(/^http/, host.startsWith('https') ? 'wss' : 'ws');
 let socket = null;
 
 export function getSocket() {
