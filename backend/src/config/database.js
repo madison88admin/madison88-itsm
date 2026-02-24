@@ -11,7 +11,7 @@ const pool = new Pool({
   max: 10,                          // reduced from 20 (Render free tier limit)
   min: 2,                           // keep minimum connections alive
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
   allowExitOnIdle: false,           // keep pool alive
 });
 
