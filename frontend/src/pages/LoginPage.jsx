@@ -148,9 +148,11 @@ const LoginPage = ({ onLogin }) => {
           </button>
         </form>
 
-        <p className="auth-note">
-          Don't have an account? <Link to="/signup" className="terms-link">Sign Up</Link>
-        </p>
+        <div className="auth-links">
+          <p className="auth-note" style={{ margin: 0 }}>
+            Don't have an account? <Link to="/signup" className="terms-link">Sign Up</Link>
+          </p>
+        </div>
 
         <p className="terms-notice">
           By logging in, you agree to our{' '}

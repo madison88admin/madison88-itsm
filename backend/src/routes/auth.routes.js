@@ -49,6 +49,11 @@ router.post('/refresh-token', AuthController.refreshToken);
  * @desc Consume password reset token and set new password
  */
 router.post('/reset-password', AuthController.resetPassword);
+/**
+ * @route POST /api/auth/request-reset
+ * @desc Request a password reset link (public)
+ */
+router.post('/request-reset', AuthController.requestReset);
 
 /**
  * @route GET /api/auth/me

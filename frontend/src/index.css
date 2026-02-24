@@ -2174,11 +2174,12 @@ textarea {
 }
 
 .auth-shell {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   padding: 32px;
+  box-sizing: border-box;
 }
 
 .tickets-layout {
@@ -2313,6 +2314,14 @@ textarea {
   gap: 16px;
 }
 
+/* Ensure the auth card is centered and consistent across auth pages */
+.auth-shell > .auth-card {
+  margin: 0 auto;
+  max-width: 420px; /* match login visual scale */
+  padding: 28px; /* slightly tighter */
+  min-width: 320px;
+}
+
 .auth-header {
   display: flex;
   align-items: center;
@@ -2380,6 +2389,32 @@ textarea {
   line-height: 1.5;
   color: var(--slate-500);
   text-align: center;
+}
+
+/* Links row on auth pages (Sign up / Forgot password) */
+.auth-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.auth-links .auth-note {
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .auth-links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .auth-links .auth-note {
+    text-align: left;
+  }
+  .auth-links p:last-child {
+    text-align: left;
+  }
 }
 
 .terms-notice {

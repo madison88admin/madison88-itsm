@@ -162,6 +162,42 @@ const AuthController = {
         next(err);
       }
     },
+
+    async requestReset(req, res, next) {
+      try {
+        const schema = Joi.object({ email: Joi.string().email().required() });
+        const { error, value } = schema.validate(req.body, { abortEarly: false });
+        if (error) {
+          return res.status(400).json({ status: 'error', message: error.details.map(d => d.message).join(', ') });
+        }
+
+        const { email } = value;
+        // Non-enumeration response: always return success message
+        const UserModel = require('../models/user.model');
+        const NotificationService = require('../services/notification.service');
+        const db = require('../config/database');
+        const crypto = require('crypto');
+
+        const user = await UserModel.findByEmail(email);
+        if (user) {
+          const token = crypto.randomBytes(32).toString('hex');
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          try {
+            await db.query('INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)', [user.user_id, token, expiresAt]);
+          } catch (err) {
+            console.error('Failed to store password reset token:', err);
+          }
+
+          NotificationService.sendPasswordResetNotice({ user, token }).catch(err => {
+            console.error('Failed to send password reset notice:', err);
+          });
+        }
+
+        return res.json({ status: 'success', message: 'If an account exists for this email, a password reset link has been sent.' });
+      } catch (err) {
+        next(err);
+      }
+    },
 };
 
 module.exports = AuthController;

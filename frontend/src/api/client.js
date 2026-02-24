@@ -13,8 +13,22 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Helpful runtime debug: show final request URL in console when debugging
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const url = new URL(config.url, config.baseURL || window.location.origin);
+      console.debug('[apiClient] request ->', config.method?.toUpperCase(), url.toString());
+    } catch (e) {
+      // ignore
+    }
+  }
   return config;
 });
+
+// Log resolved API base to aid debugging when deployments forget to set VITE_API_URL
+if (process.env.NODE_ENV !== 'production') {
+  console.info('[apiClient] API_BASE resolved to:', API_BASE);
+}
 
 apiClient.interceptors.response.use(
   (response) => response,

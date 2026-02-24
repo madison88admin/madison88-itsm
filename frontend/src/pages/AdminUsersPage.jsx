@@ -46,6 +46,12 @@ const StatCard = ({ title, value, sub, color }) => (
 );
 
 const AdminUsersPage = () => {
+  const STRINGS = (typeof window !== 'undefined' && window.__APP_STRINGS__ && window.__APP_STRINGS__.adminUsers) || {
+    prevButton: '← Previous',
+    nextButton: 'Next',
+    pageLabel: 'Page'
+  };
+
   const [users, setUsers] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +60,8 @@ const AdminUsersPage = () => {
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [archivedFilter, setArchivedFilter] = useState("");
+  const [pageIndex, setPageIndex] = useState(0);
+  const PAGE_SIZE = 5;
   const [tempPasswordInfo, setTempPasswordInfo] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, user: null });
   const [undoInfo, setUndoInfo] = useState(null); // { userId, timerId }
@@ -128,12 +136,17 @@ const AdminUsersPage = () => {
         setLoading(false);
       }
     }
-  }, [search, roleFilter, locationFilter]);
+  }, [search, roleFilter, locationFilter, archivedFilter]);
 
   useEffect(() => {
     const timer = setTimeout(load, 300);
     return () => clearTimeout(timer);
   }, [load]);
+
+  // Reset pagination when filters/search change or when users list updates
+  useEffect(() => {
+    setPageIndex(0);
+  }, [search, roleFilter, locationFilter, archivedFilter, users.length]);
 
   // Load active users on mount and refresh every 30 seconds
   useEffect(() => {
@@ -248,9 +261,9 @@ const AdminUsersPage = () => {
 
   return (
     <div className="admin-page animate-fadeIn">
-      <header className="page-header">
+      <header className="topbar">
         <div>
-          <h1>User Management</h1>
+          <h2>User Management</h2>
           <p>Global Directory & Access Control</p>
         </div>
       </header>
@@ -315,8 +328,8 @@ const AdminUsersPage = () => {
             <option value="false">Only Active</option>
             <option value="true">Only Archived</option>
           </select>
-          {(search || roleFilter || locationFilter) && (
-            <button className="text-btn" onClick={() => { setSearch(""); setRoleFilter(""); setLocationFilter(""); }}>
+          {(search || roleFilter || locationFilter || archivedFilter) && (
+            <button className="text-btn" onClick={() => { setSearch(""); setRoleFilter(""); setLocationFilter(""); setArchivedFilter(""); }}>
               CLEAR FILTERS
             </button>
           )}
@@ -343,7 +356,28 @@ const AdminUsersPage = () => {
         ) : users.length === 0 ? (
           <div className="empty-state">No personnel records found.</div>
         ) : (
-          <div className="users-list">
+          (() => {
+            // Client-side filtering for archived/active statuses in case backend doesn't support the param
+            const filteredUsers = users.filter((user) => {
+              if (archivedFilter === "false") {
+                // Only Active: not archived and is_active true
+                return !user.archived_at && user.is_active;
+              }
+              if (archivedFilter === "true") {
+                // Only Archived: archived_at exists
+                return !!user.archived_at;
+              }
+              return true; // All statuses
+            });
+
+            const total = filteredUsers.length;
+            const start = pageIndex * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, total);
+            const pageUsers = filteredUsers.slice(start, end);
+
+            return (
+              <div>
+                <div className="users-list">
             <div className="list-header">
               <span>USER IDENTITY</span>
               <span>ROLE & STATUS</span>
@@ -351,7 +385,7 @@ const AdminUsersPage = () => {
               <span>ACTIVITY</span>
               <span style={{ textAlign: 'right' }}>ACTIONS</span>
             </div>
-            {users.map((user) => {
+            {pageUsers.map((user) => {
               const isActive = activeUsers.find(u => u.user_id === user.user_id);
               const lastActivityTime = isActive?.activity_timestamp ? new Date(isActive.activity_timestamp) : null;
               const minutesSinceActivity = isActive?.minutes_since_activity;
@@ -475,27 +509,52 @@ const AdminUsersPage = () => {
               </div>
             );
             })}
-          </div>
+                </div>
+
+                {/* Pagination controls (styled to match system) */}
+                <div className="pagination-row">
+                  <button
+                    className="pagination-btn prev"
+                    onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+                    disabled={pageIndex === 0}
+                    aria-label="Previous page"
+                  >
+                    {STRINGS.prevButton} {PAGE_SIZE}
+                  </button>
+
+                  <div className="pagination-info">
+                    {STRINGS.pageLabel} {Math.max(1, Math.min(Math.ceil(total / PAGE_SIZE) || 1, pageIndex + 1))} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+                  </div>
+
+                  <button
+                    className="pagination-btn primary next"
+                    onClick={() => setPageIndex(pageIndex + 1)}
+                    disabled={end >= total}
+                    aria-label="Next page"
+                  >
+                    {STRINGS.nextButton} {PAGE_SIZE} →
+                  </button>
+                </div>
+              </div>
+            );
+          })()
+          )}
         )}
       </div>
 
       <style>{`
-        .admin-page { padding: 2rem; max-width: 1400px; margin: 0 auto; color: #fff; }
-        
-        .page-header h1 { 
-          font-size: 2.5rem; 
-          font-weight: 800; 
-          background: linear-gradient(to right, #fff, #94a3b8);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          margin: 0;
-        }
-        .page-header p { color: #64748b; font-size: 1.1rem; margin-top: 0.5rem; margin-bottom: 2.5rem; }
+        .admin-page { max-width: 1400px; margin: 0 auto; color: #fff; }
 
+        /* Use shared topbar styles from the system for consistent headings */
+        .topbar { padding: 0; margin-bottom: 0; }
+        .topbar h2 { margin: 0 0 4px 0; }
+        .topbar p { margin: 0; }
+
+        /* Prefer global design tokens for glass surfaces */
         .glass {
-          background: rgba(15, 23, 42, 0.4);
+          background: var(--glass);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--glass-border);
           border-radius: 20px;
         }
 
@@ -703,6 +762,44 @@ const AdminUsersPage = () => {
         .toast button { background: none; border: none; color: #7dd3fc; font-weight:700; cursor:pointer; }
         .undo-toast { background: rgba(17, 24, 39, 0.95); }
         .success-toast { background: rgba(34,197,94,0.95); color: #022c22; }
+
+        /* Pagination styles matching system design */
+        .pagination-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 1.25rem;
+          margin-top: 1rem;
+        }
+        .pagination-info {
+          color: var(--slate-100);
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .pagination-btn {
+          background: rgba(7, 12, 28, 0.6);
+          border: 1px solid rgba(255,255,255,0.04);
+          color: var(--slate-100);
+          padding: 0.55rem 0.9rem;
+          border-radius: 10px;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+          transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .pagination-btn:not(:disabled):hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 14px 36px rgba(2,6,23,0.6); }
+        .pagination-btn:not(:disabled):active { transform: translateY(0) scale(0.98); }
+        .pagination-btn:disabled { opacity: 0.45; cursor: default; }
+        .pagination-btn.primary {
+          background: linear-gradient(180deg, #4f8bff, #2b6bff);
+          border: none;
+          color: white;
+          box-shadow: 0 8px 28px rgba(43,107,255,0.28), 0 2px 6px rgba(43,107,255,0.12) inset;
+          padding: 0.6rem 1.05rem;
+        }
+        .pagination-btn.primary:not(:disabled):hover { transform: translateY(-6px) scale(1.035); box-shadow: 0 18px 46px rgba(43,107,255,0.34); }
+        .pagination-btn.primary:not(:disabled):active { transform: translateY(0) scale(0.985); }
+        .pagination-btn.primary:disabled { opacity: 0.5; }
       `}</style>
     </div>
   );

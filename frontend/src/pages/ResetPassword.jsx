@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/client';
 
 function useQuery() {
@@ -15,6 +15,8 @@ const ResetPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const t = query.get('token') || '';
@@ -39,8 +41,26 @@ const ResetPasswordPage = () => {
     }
   };
 
+  const strengthScore = (pw) => {
+    let score = 0;
+    if (!pw) return 0;
+    if (pw.length >= 8) score++;
+    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    return score;
+  };
+
+  const strengthText = (s) => {
+    if (s === 0) return '';
+    if (s <= 1) return 'Very weak';
+    if (s === 2) return 'Weak';
+    if (s === 3) return 'Good';
+    return 'Strong';
+  };
+
   return (
-    <div className="auth-page">
+    <div className="auth-shell">
       <div className="auth-card">
         <h2>Reset Password</h2>
         {error && <div className="panel error">{error}</div>}
@@ -48,12 +68,32 @@ const ResetPasswordPage = () => {
         {!success && (
           <form onSubmit={handleSubmit}>
             <label>New password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <label>Confirm</label>
-            <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-            <div style={{ marginTop: '1rem' }}>
-              <button type="submit" className="btn primary" disabled={loading}>{loading ? 'Saving...' : 'Set Password'}</button>
+            <div className="password-field">
+              <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword(p => !p)}>{showPassword ? 'Hide' : 'Show'}</button>
             </div>
+
+            <div style={{ marginTop: 8, marginBottom: 8 }}>
+              <div style={{ height: 6, background: '#0f172a', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${(strengthScore(password) / 4) * 100}%`, height: '100%', background: strengthScore(password) >= 3 ? '#06b6d4' : '#f97316', transition: 'width 160ms ease' }} />
+              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{strengthText(strengthScore(password))}</div>
+            </div>
+
+            <label>Confirm</label>
+            <div className="password-field">
+              <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <button type="button" className="password-toggle" onClick={() => setShowConfirm(p => !p)}>{showConfirm ? 'Hide' : 'Show'}</button>
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+              <button type="submit" className="btn primary" disabled={loading || !password || password.length < 6 || password !== confirm}>{loading ? 'Saving...' : 'Set Password'}</button>
+            </div>
+            {!token && (
+              <div style={{ marginTop: 12 }}>
+                <p style={{ color: '#94a3b8' }}>Missing or invalid token? Please contact your system administrator to request a password reset.</p>
+              </div>
+            )}
           </form>
         )}
       </div>
