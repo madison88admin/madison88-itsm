@@ -27,19 +27,25 @@ const buildConnectionString = () => {
 
 const connectionString = buildConnectionString();
 
+// Env-driven pool and retry configuration
+const MAX_CONN = Number(process.env.DB_MAX_CONN) || Number(process.env.DB_POOL_MAX) || 4;
+const MIN_CONN = Number(process.env.DB_MIN_CONN) || 0;
+const IDLE_TIMEOUT_MS = Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000;
+const CONNECTION_TIMEOUT_MS = Number(process.env.DB_CONN_TIMEOUT_MS) || 30000;
+const STATEMENT_TIMEOUT_MS = Number(process.env.DB_STATEMENT_TIMEOUT_MS) || 60000;
+const RETRY_COUNT = Number(process.env.DB_RETRY_COUNT) || 5;
+const RETRY_DELAY_MS = Number(process.env.DB_RETRY_DELAY_MS) || 3000;
+
 const pool = new Pool({
   connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-  max: 5,                          // Increase concurrent connections
-  min: 1,                           // Keep more connections alive
-  idleTimeoutMillis: 30000,         // Standard idle timeout
-  connectionTimeoutMillis: 10000,   // Longer timeout for slower networks
+  ssl: { rejectUnauthorized: false },
+  max: MAX_CONN,
+  min: MIN_CONN,
+  idleTimeoutMillis: IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
   application_name: 'madison88-itsm-backend',
   allowExitOnIdle: true,
-  reapIntervalMillis: 1000,
-  statementTimeout: 60000,          // Increase query timeout to 60s
+  statementTimeout: STATEMENT_TIMEOUT_MS,
 });
 
 // Log client connect at DEBUG level to avoid noisy INFO logs during normal operation
@@ -52,7 +58,7 @@ pool.on('error', (err) => {
 });
 
 // Test connection with retry on startup
-const testConnection = async (retries = 5, delay = 3000) => {
+const testConnection = async (retries = RETRY_COUNT, delay = RETRY_DELAY_MS) => {
   for (let i = 0; i < retries; i++) {
     try {
       const client = await pool.connect();
@@ -74,6 +80,13 @@ const testConnection = async (retries = 5, delay = 3000) => {
   return false;
 };
 
-testConnection();
+// Kick off connection test but do not block module load
+testConnection().then((ok) => {
+  if (!ok) {
+    logger.error('Initial DB connection attempts failed — check DATABASE_URL, credentials, network rules and pool settings');
+  }
+}).catch((e) => {
+  logger.error('DB connection test threw unexpected error', { error: e.message });
+});
 
 module.exports = pool;
