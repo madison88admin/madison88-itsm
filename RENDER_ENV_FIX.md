@@ -1,38 +1,51 @@
 # Render Environment Configuration Fix
 
-## Problem: Database Timeout Issues
+## Problem: Database Connection Issues
 
-The current `DATABASE_URL` includes `pgbouncer=true` which is incompatible with Supabase's Session Pooler. This causes connection timeouts and pooling errors.
+**Current Error**: `ENETUNREACH` — Render cannot reach your Supabase database. This happens when:
+1. `DATABASE_URL` hasn't been updated in Render environment
+2. DNS resolution issues (rare, but possible)
+3. Old credentials or incorrect pooler endpoint
 
 ---
 
 ## ✅ Solution: Update DATABASE_URL on Render
 
-### Step 1: Go to Render Dashboard
-1. Navigate to [render.com](https://render.com)
+### Step 1: Verify Supabase Credentials
+1. Go to [app.supabase.com](https://app.supabase.com)
+2. Select your project
+3. Click **Settings** → **Database** (left sidebar)
+4. Look for **Connection Pooler** section
+5. Copy the connection string:
+   - **Host**: `aws-1-ap-south-1.pooler.supabase.com`
+   - **Port**: `6543` (Session Pooler port — this is key!)
+   - **User**: `postgres.ktduabpfsqlubqpweiot`
+   - **Password**: `Hir@imomo20`
+
+### Step 2: Go to Render Dashboard
+1. Navigate to [dashboard.render.com](https://dashboard.render.com)
 2. Find your backend service: **madison88-itsm** (or similar)
 3. Click on the service name
+4. Go to the **Environment** tab
 
-### Step 2: Update Environment Variables
+### Step 3: Update DATABASE_URL
 
-In the **Environment** tab:
-
-**OLD DATABASE_URL (Remove):**
+**Find the current `DATABASE_URL` and replace it with:**
 ```
-postgresql://postgres.ktduabpfsqlubqpweiot:Hir%40imomo20@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?pgbouncer=true&sslmode=no-verify
-```
-
-**NEW DATABASE_URL (Replace with):**
-```
-postgresql://postgres.ktduabpfsqlubqpweiot:Hir%40imomo20@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&connection_limit=10&connect_timeout=30
+postgresql://postgres.ktduabpfsqlubqpweiot:Hir%40imomo20@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```
 
-### Key Changes:
-- `pgbouncer=true` → **removed** (not compatible with Session Pooler)
-- Port `5432` → `6543` (Supabase Session Pooler port)
-- `sslmode=no-verify` → `sslmode=require` (more secure for Supabase)
-- Added `connection_limit=10` (optimal for serverless, prevents connection exhaustion)
-- Added `connect_timeout=30` (30 second timeout for slow connections)
+**Critical Details:**
+- **Port**: `6543` (NOT 5432 — this is for the Connection Pooler)
+- **Password encoding**: `@` encoded as `%40` (already correct above)
+- **sslmode**: `require` (required by Supabase)
+- **Remove**: `pgbouncer=true`, `connection_limit`, `connect_timeout` (not needed with Connection Pooler)
+
+### Step 4: Save & Redeploy
+1. Click **Save** at the bottom of the Environment tab
+2. Render will auto-redeploy (watch the **Deploys** tab)
+3. Wait for deployment to complete (green checkmark)
+4. Check logs for database connection success
 
 ### Step 3: Save & Redeploy
 

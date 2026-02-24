@@ -11,7 +11,8 @@ const pool = new Pool({
   max: 10,                          // reduced from 20 (Render free tier limit)
   min: 2,                           // keep minimum connections alive
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000,
+  connectionTimeoutMillis: 30000,   // increased to 30s for slow connections
+  application_name: 'madison88-itsm-backend',
   allowExitOnIdle: false,           // keep pool alive
 });
 
