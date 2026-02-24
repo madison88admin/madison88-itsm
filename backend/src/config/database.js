@@ -3,28 +3,12 @@
  */
 
 const { Pool } = require('pg');
-const { URL } = require('url');
 const logger = require('../utils/logger');
 
-// Modify connection string for self-signed certificates (Neon pooler)
-let databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl && databaseUrl.includes('neon.tech')) {
-  try {
-    const url = new URL(databaseUrl);
-    // Remove sslmode parameter and add sslmode=no-verify
-    url.searchParams.delete('sslmode');
-    url.searchParams.set('sslmode', 'no-verify');
-    databaseUrl = url.toString();
-    logger.debug('Modified connection string for Neon SSL');
-  } catch (err) {
-    logger.warn('Failed to parse DATABASE_URL, using as-is', { error: err.message });
-  }
-}
-
 const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false,      // Allow self-signed certificates
+    rejectUnauthorized: false,      // Supabase uses valid certificates
   },
   max: 10,                          // reduced from 20 (Render free tier limit)
   min: 2,                           // keep minimum connections alive
