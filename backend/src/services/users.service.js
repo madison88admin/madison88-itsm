@@ -3,6 +3,7 @@ const AuthService = require('./auth.service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const NotificationService = require('./notification.service');
+const db = require('../config/database');
 
 const UsersService = {
     /**
@@ -109,20 +110,27 @@ const UsersService = {
                 const passwordHash = await bcrypt.hash(password, 10);
                 await UserModel.updatePassword(userId, passwordHash);
             } else {
-                // Only generate temporary passwords for promotions (end_user -> privileged)
-                temporaryPassword = crypto.randomBytes(8).toString('hex');
-                const tempPasswordHash = await bcrypt.hash(temporaryPassword, 10);
-                await UserModel.updatePassword(userId, tempPasswordHash);
+                // Generate a password reset token for promotions instead of forcing a password change
+                const token = crypto.randomBytes(32).toString('hex');
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+                try {
+                    await db.query(
+                        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                        [userId, token, expiresAt]
+                    );
+                } catch (err) {
+                    console.error('Failed to store password reset token for promotion:', err);
+                }
 
-                // Send Email Notice (Non-blocking)
+                // Send Email Notice (Non-blocking) with reset link token
                 NotificationService.sendPasswordResetNotice({
                     user: currentUser,
-                    temporaryPassword
+                    token,
                 }).catch(err => {
-                    console.error('Failed to send role change password notice:', err);
+                    console.error('Failed to send role change password reset notice:', err);
                 });
 
-                message = 'User role changed to privileged role. A temporary password has been generated and sent to the user via email.';
+                message = 'User role changed to privileged role. A password reset link has been sent to the user.';
             }
         } else if (passwordProvided) {
             const passwordHash = await bcrypt.hash(password, 10);
@@ -196,25 +204,29 @@ const UsersService = {
             throw error;
         }
 
-        // Generate temporary password
-        const tempPassword = crypto.randomBytes(8).toString('hex');
-        const tempPasswordHash = await bcrypt.hash(tempPassword, 10);
+        // Create a password reset token and send a reset link (do not overwrite password)
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        try {
+            await db.query(
+                'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+                [userId, token, expiresAt]
+            );
+        } catch (err) {
+            console.error('Failed to store password reset token:', err);
+        }
 
-        // Update password
-        await UserModel.updatePassword(userId, tempPasswordHash);
-
-        // Send Email Notice (Non-blocking)
+        // Send Email Notice (Non-blocking) with reset link token
         NotificationService.sendPasswordResetNotice({
             user,
-            temporaryPassword: tempPassword
+            token,
         }).catch(err => {
             console.error('Failed to send password reset notice:', err);
         });
 
         return {
             user,
-            temporary_password: tempPassword,
-            message: 'Password reset successful. A temporary password has been generated and sent to the user via email.'
+            message: 'Password reset initiated. A password reset link has been sent to the user.'
         };
     },
 

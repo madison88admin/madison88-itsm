@@ -443,35 +443,70 @@ async function sendWelcomeNotice({ user }) {
   });
 }
 
-async function sendPasswordResetNotice({ user, temporaryPassword }) {
+async function sendPasswordResetNotice({ user, temporaryPassword, token }) {
   if (!user?.email) return false;
 
-  const subject = `Security: Temporary Password for ${process.env.APP_NAME || 'Madison88 ITSM'}`;
-  const text = [
-    `Hello ${user.full_name},`,
-    '',
-    `A temporary password has been generated for your account.`,
-    '',
-    `Temporary Password: ${temporaryPassword}`,
-    '',
-    `Please log in using the link below and change your password immediately upon entry.`,
-    `${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL}`,
-    '',
-    `Security Tip: Never share your password with anyone, including IT Support.`,
-    '',
-    `Best regards,`,
-    `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
-  ].join('\n');
+  const appName = process.env.APP_NAME || 'Madison88 ITSM';
 
-  return sendEmail({
-    to: user.email,
-    subject,
-    text,
-    templateParams: {
-      user_name: user.full_name,
-      temp_password: temporaryPassword,
-    },
-  });
+  if (token) {
+    const frontendBase = (process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const resetLink = `${frontendBase}/reset-password?token=${encodeURIComponent(token)}`;
+    const subject = `Security: Password Reset for ${appName}`;
+    const text = [
+      `Hello ${user.full_name || 'user'},`,
+      '',
+      `A request to reset your password was received. If you initiated this request, click the link below to set a new password. This link will expire in 24 hours.`,
+      '',
+      `${resetLink}`,
+      '',
+      `If you did not request this, please contact IT support immediately.`,
+      '',
+      `Best regards,`,
+      `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
+    ].join('\n');
+
+    return sendEmail({
+      to: user.email,
+      subject,
+      text,
+      templateParams: {
+        user_name: user.full_name,
+        reset_link: resetLink,
+      },
+    });
+  }
+
+  // Backwards-compatible: temporary password flow
+  if (temporaryPassword) {
+    const subject = `Security: Temporary Password for ${appName}`;
+    const text = [
+      `Hello ${user.full_name},`,
+      '',
+      `A temporary password has been generated for your account.`,
+      '',
+      `Temporary Password: ${temporaryPassword}`,
+      '',
+      `Please log in using the link below and change your password immediately upon entry.`,
+      `${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal'}`,
+      '',
+      `Security Tip: Never share your password with anyone, including IT Support.`,
+      '',
+      `Best regards,`,
+      `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
+    ].join('\n');
+
+    return sendEmail({
+      to: user.email,
+      subject,
+      text,
+      templateParams: {
+        user_name: user.full_name,
+        temp_password: temporaryPassword,
+      },
+    });
+  }
+
+  return false;
 }
 
 /**
