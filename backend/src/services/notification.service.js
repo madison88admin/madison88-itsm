@@ -129,14 +129,20 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
   const mailer = getTransporter();
   if (!mailer) {
     // If SMTP isn't configured, try Brevo HTTP API when the API key is present
-    const brevoKey = process.env.xsmtpsib-410213093fe8d37e82e5a2866895b2472f1705c85f1e41a51a8324cdf1bbc2d4-EdkQSGH4eB7qXXAw ;
+    const brevoKey = process.env.BREVO_API_KEY;
     if (brevoKey) {
       try {
         await sendViaBrevo({ to: finalTo, subject, text, templateParams });
         logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject });
         return true;
       } catch (err) {
-        logger.error('Brevo API send failed', { error: err.message, to: finalTo, subject });
+        logger.error('Brevo API send failed', {
+          error: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          to: finalTo,
+          subject,
+        });
         // fallthrough to warn and return false
       }
     }

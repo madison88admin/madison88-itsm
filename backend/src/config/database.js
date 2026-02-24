@@ -13,8 +13,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
+// Log client connect at DEBUG level to avoid noisy INFO logs during normal operation
 pool.on('connect', () => {
-  logger.info('Database connection established');
+  logger.debug('New database client connected');
 });
 
 pool.on('error', (err) => {
@@ -22,11 +23,12 @@ pool.on('error', (err) => {
 });
 
 // Test connection on startup
+// Test connection on startup once and report at INFO level
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
-    logger.error('Database connection test failed:', err);
+    logger.error('Database connection test failed', { error: err.message });
   } else {
-    logger.info('Database connection test successful:', res.rows[0]);
+    logger.info('Database connection test successful', { now: res.rows[0] });
   }
 });
 
