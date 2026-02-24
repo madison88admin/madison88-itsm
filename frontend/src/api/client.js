@@ -1,8 +1,11 @@
 import axios from "axios";
 
+const API_HOST = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || '';
+const API_BASE = API_HOST ? `${API_HOST.replace(/\/$/, '')}/api` : '/api';
+
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : "/api",
-  timeout: 30000,
+  baseURL: API_BASE,
+  timeout: Number(import.meta.env?.VITE_API_TIMEOUT) || Number(process.env.REACT_APP_API_TIMEOUT) || 30000,
 });
 
 apiClient.interceptors.request.use((config) => {

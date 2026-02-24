@@ -6,9 +6,19 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const AuthController = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const router = express.Router();
+
+// Login rate limiter: 20 requests per 15 minutes
+const loginLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 20,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: (req, res) => res.status(429).json({ status: 'error', message: 'Too many login attempts, please try again later.' })
+});
 
 /**
  * @route POST /api/auth/register
@@ -20,7 +30,7 @@ router.post('/register', AuthController.register);
  * @route POST /api/auth/login
  * @desc Authenticate user and return JWT token
  */
-router.post('/login', AuthController.login);
+router.post('/login', loginLimiter, AuthController.login);
 
 /**
  * @route POST /api/auth/logout
