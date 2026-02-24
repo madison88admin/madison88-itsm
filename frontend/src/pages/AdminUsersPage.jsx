@@ -539,7 +539,6 @@ const AdminUsersPage = () => {
             );
           })()
           )}
-        )}
       </div>
 
       <style>{`
