@@ -530,9 +530,12 @@ const TicketDetailPage = ({
     if (!filePath) return "";
     if (filePath.startsWith("http")) return filePath;
     const normalized = filePath.replace(/\\/g, "/");
-    // Use VITE_API_URL env variable for production, fallback to current origin
-    const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
-    const baseOrigin = apiBase.replace(/\/api\/?$/, "");
+    const env = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL;
+    const baseOrigin = env
+      ? env.replace(/\/$/, '')
+      : (window.location.port === "3000"
+        ? `${window.location.protocol}//${window.location.hostname}:3001`
+        : window.location.origin);
     if (normalized.startsWith("/")) return `${baseOrigin}${normalized}`;
     if (normalized.startsWith("uploads/")) return `${baseOrigin}/${normalized}`;
     const fileName = normalized.split("/").pop();
