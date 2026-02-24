@@ -128,6 +128,25 @@ async function sendEmail({ to, subject, text, templateParams = {} }) {
 
   const mailer = getTransporter();
   if (!mailer) {
+    // If SMTP isn't configured, try Brevo HTTP API when the API key is present
+    const brevoKey = process.env.BREVO_API_KEY;
+    if (brevoKey) {
+      try {
+        await sendViaBrevo({ to: finalTo, subject, text, templateParams });
+        logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject });
+        return true;
+      } catch (err) {
+        logger.error('Brevo API send failed', {
+          error: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          to: finalTo,
+          subject,
+        });
+        // fallthrough to warn and return false
+      }
+    }
+
     logger.warn('SMTP not configured. Skipping email.', { subject, to });
     return false;
   }
@@ -452,6 +471,45 @@ async function sendPasswordResetNotice({ user, temporaryPassword }) {
       temp_password: temporaryPassword,
     },
   });
+}
+
+/**
+ * Send email via Brevo (HTTP API) fallback. Requires `BREVO_API_KEY` env var.
+ */
+async function sendViaBrevo({ to, subject, text, templateParams = {} }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY not configured');
+
+  const sender = {
+    name: process.env.SMTP_FROM_NAME || 'Madison88 Support Team',
+    email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'no-reply@madison88.local',
+  };
+
+  const recipients = (to || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(email => ({ email }));
+
+  if (!recipients.length) throw new Error('No recipients for Brevo send');
+
+  const payload = {
+    sender,
+    to: recipients,
+    subject,
+    textContent: text,
+    htmlContent: (text || '').replace(/\n/g, '<br/>'),
+  };
+
+  const res = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey,
+    },
+    timeout: 10000,
+  });
+
+  return res.data;
 }
 
 module.exports = {

@@ -19,17 +19,27 @@ app.use(helmet());
 
 // CORS Configuration
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.FRONTEND_PROD_URL || 'https://itsm.madison88.com',
-    'https://m88itsm.netlify.app'
-  ],
+  origin: (origin, callback) => {
+    // Allowed origins for CORS
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.FRONTEND_PROD_URL || 'https://m88itsm.netlify.app',
+    ];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: origin not allowed'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Idempotency-Key']
 };
 
-console.log('CORS options:', corsOptions);
+if (process.env.NODE_ENV === 'development') {
+  console.log('CORS options:', corsOptions);
+}
 
 app.use(cors(corsOptions));
 
@@ -43,17 +53,24 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
+// Rate Limiting (configurable via env)
+const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+const RATE_LIMIT_MAX_PROD = Number(process.env.RATE_LIMIT_MAX_PROD) || 100;
+const RATE_LIMIT_MAX_DEV = Number(process.env.RATE_LIMIT_MAX_DEV) || 2000;
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
-  skip: (req) => req.path === '/health' || process.env.NODE_ENV !== 'production'
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: process.env.NODE_ENV === 'production' ? RATE_LIMIT_MAX_PROD : RATE_LIMIT_MAX_DEV,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Always allow health checks
+    if (req.path === '/health') return true;
+    // Allow disabling the limiter explicitly (useful for local debugging)
+    if (process.env.SKIP_RATE_LIMIT === 'true') return true;
+    return false;
+  }
 });
 
 app.use('/api/', apiLimiter);
