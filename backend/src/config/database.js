@@ -7,7 +7,10 @@ const logger = require('../utils/logger');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: {
+    rejectUnauthorized: false,      // Neon pooler uses self-signed certs
+    requestCert: true,
+  },
   max: 10,                          // reduced from 20 (Render free tier limit)
   min: 2,                           // keep minimum connections alive
   idleTimeoutMillis: 30000,
