@@ -4,6 +4,7 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 
 let transporter = null;
+const STAFF_NOTIFICATION_ROLES = ['it_agent', 'it_manager', 'system_admin'];
 
 function isEmailEnabled() {
   const flag = process.env.ENABLE_EMAIL_NOTIFICATIONS;
@@ -190,9 +191,9 @@ async function sendEmail({ to, subject, text, templateParams = {}, html = null }
 }
 
 async function sendEscalationNotice({ ticket, escalation, requester, assignee }) {
-  const recipients = [];
-  if (assignee?.email) recipients.push(assignee.email);
-  if (requester?.email) recipients.push(requester.email);
+  const recipients = collectRecipientEmails([assignee, requester], {
+    allowedRoles: STAFF_NOTIFICATION_ROLES,
+  });
   if (!recipients.length) return false;
 
   const ticketUrl = getTicketUrl(ticket.ticket_id);
@@ -210,14 +211,9 @@ async function sendEscalationNotice({ ticket, escalation, requester, assignee })
 }
 
 async function sendSlaEscalationNotice({ ticket, escalation, assignee, leads }) {
-  const recipients = [];
-  if (assignee?.email) recipients.push(assignee.email);
-  if (leads && leads.length) {
-    leads.forEach((lead) => {
-      if (lead.email) recipients.push(lead.email);
-    });
-  }
-  const uniqueRecipients = Array.from(new Set(recipients));
+  const uniqueRecipients = collectRecipientEmails([assignee, ...(leads || [])], {
+    allowedRoles: STAFF_NOTIFICATION_ROLES,
+  });
   if (!uniqueRecipients.length) return false;
 
   const ticketUrl = getTicketUrl(ticket.ticket_id);
@@ -266,9 +262,13 @@ async function sendTicketResolvedNotice({ ticket, requester }) {
   });
 }
 
-function collectRecipientEmails(recipients = []) {
+function collectRecipientEmails(recipients = [], options = {}) {
+  const { allowedRoles = null } = options;
   // Normalize recipients list - can be array of objects with .email or array of strings
   const emails = recipients.map((r) => {
+    if (allowedRoles && typeof r === 'object' && r !== null) {
+      if (!allowedRoles.includes(r.role)) return null;
+    }
     if (typeof r === 'string') return r.trim();
     return r?.email?.trim();
   }).filter(Boolean);
@@ -378,7 +378,9 @@ async function sendTicketReopenedNotice({ ticket, requester, assignee, reopenedB
 }
 
 async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
-  const uniqueRecipients = collectRecipientEmails(recipients);
+  const uniqueRecipients = collectRecipientEmails(recipients, {
+    allowedRoles: STAFF_NOTIFICATION_ROLES,
+  });
   if (!uniqueRecipients.length) return false;
 
   const ticketUrl = getTicketUrl(ticket.ticket_id);
