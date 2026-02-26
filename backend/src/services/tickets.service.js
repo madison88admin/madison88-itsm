@@ -224,7 +224,7 @@ const TicketsService = {
           user_id: user.user_id,
           category: value.category,
           subcategory: value.subcategory || null,
-          priority: routingRule?.priority_override || priority,
+          priority: finalPriority,
           title: value.title,
           description: value.description,
           business_impact: value.business_impact,
@@ -369,12 +369,13 @@ const TicketsService = {
       role: user.role,
     });
 
-    const sla = await buildSla(priority, value.category, value.location);
     const routingRule = await TicketsModel.getRoutingRule({
       category: value.category,
       subcategory: value.subcategory,
       location: value.location,
     });
+    const finalPriority = routingRule?.priority_override || priority;
+    const sla = await buildSla(finalPriority, value.category, value.location);
 
     const assigned_team = routingRule?.assigned_team || null;
     let assigned_to = null;
@@ -401,7 +402,7 @@ const TicketsService = {
           user_id: user.user_id,
           category: value.category,
           subcategory: value.subcategory || null,
-          priority: routingRule?.priority_override || priority,
+          priority: finalPriority,
           title: value.title,
           description: value.description,
           business_impact: value.business_impact,
@@ -562,9 +563,15 @@ const TicketsService = {
     if (date_to && date_to.trim()) filters.date_to = date_to.trim();
 
     // Apply archive filtering consistently for all roles.
-    // Resolved/Closed tickets are treated as archived in main queue views
-    // and are only visible when include_archived=true.
-    const showArchived = include_archived === 'true' || include_archived === true;
+    // Resolved/Closed tickets are treated as archived in main queue views.
+    // If user explicitly filters by Resolved/Closed, force archived visibility.
+    const statusValues = Array.isArray(resolvedStatus)
+      ? resolvedStatus
+      : (resolvedStatus ? [resolvedStatus] : []);
+    const statusIncludesArchived = statusValues
+      .map((s) => String(s).toLowerCase())
+      .some((s) => s === 'resolved' || s === 'closed');
+    const showArchived = include_archived === 'true' || include_archived === true || statusIncludesArchived;
     filters.exclude_archived = !showArchived;
 
     if (user.role === 'end_user') {

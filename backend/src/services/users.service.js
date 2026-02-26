@@ -103,6 +103,8 @@ const UsersService = {
         const isChangingToPrivilegedRole = updates.role &&
             ['it_agent', 'it_manager', 'system_admin'].includes(updates.role) &&
             currentUser.role === 'end_user';
+        const isDemotingToEndUser = updates.role === 'end_user' &&
+            ['it_agent', 'it_manager', 'system_admin'].includes(currentUser.role);
 
         if (isChangingToPrivilegedRole) {
             if (passwordProvided) {
@@ -180,6 +182,18 @@ const UsersService = {
 
         if (isTargetAgent && (roleChangedToAgent || locationChanged)) {
             await this._assignToRegionalTeams(updatedUser.user_id, updatedUser.location);
+        }
+
+        // When demoting from IT staff back to end_user, remove technical team traces.
+        if (isDemotingToEndUser) {
+            const TicketsModel = require('../models/tickets.model');
+            try {
+                await TicketsModel.deactivateMembershipsForUser(updatedUser.user_id);
+                await TicketsModel.removeUserAsTeamLead(updatedUser.user_id);
+                await TicketsModel.clearAssignmentsForUser(updatedUser.user_id);
+            } catch (cleanupErr) {
+                console.error(`Failed to clean up technical memberships for demoted user ${updatedUser.user_id}:`, cleanupErr);
+            }
         }
 
         return {

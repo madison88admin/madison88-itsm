@@ -562,6 +562,34 @@ const TicketsModel = {
     );
     return result.rows;
   },
+
+  async deactivateMembershipsForUser(userId) {
+    await db.query(
+      'UPDATE team_members SET is_active = false WHERE user_id = $1 AND is_active = true',
+      [userId]
+    );
+  },
+
+  async removeUserAsTeamLead(userId) {
+    await db.query(
+      'UPDATE teams SET team_lead_id = NULL WHERE team_lead_id = $1',
+      [userId]
+    );
+  },
+
+  async clearAssignmentsForUser(userId) {
+    await db.query(
+      `UPDATE tickets
+       SET assigned_to = NULL,
+           assigned_team = NULL,
+           assigned_at = NULL,
+           assigned_by = NULL,
+           updated_at = NOW()
+       WHERE assigned_to = $1
+         AND status NOT IN ('Resolved', 'Closed')`,
+      [userId]
+    );
+  },
 };
 
 module.exports = TicketsModel;

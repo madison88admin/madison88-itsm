@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import apiClient from "../api/client";
 
 const roleOptions = ["end_user", "it_agent", "it_manager", "system_admin"];
@@ -55,7 +55,6 @@ const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingActive, setLoadingActive] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -70,13 +69,12 @@ const AdminUsersPage = () => {
   // Debug helper: open the page with ?debug_active=1 to simulate currently active users
   const debugActive = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug_active') === '1';
 
-  const abortControllerRef = React.useRef(null);
-  const mountedRef = React.useRef(true);
+  const mountedRef = useRef(true);
+  const requestSeqRef = useRef(0);
 
   // Load active users (logged in within last 15 minutes)
   const loadActiveUsers = useCallback(async () => {
     try {
-      if (mountedRef.current) setLoadingActive(true);
       const res = await apiClient.get('/admin/active-users?withinMinutes=15');
       if (mountedRef.current) setActiveUsers(res.data?.data?.activeUsers || []);
 
@@ -89,7 +87,7 @@ const AdminUsersPage = () => {
       console.error('Failed to load active users:', err);
       // Don't show error toast for active users - it's secondary info
     } finally {
-      if (mountedRef.current) setLoadingActive(false);
+      // no-op
     }
   }, []);
 
@@ -105,39 +103,34 @@ const AdminUsersPage = () => {
       minutes_since_activity: 0,
     }));
     setActiveUsers(mock);
-    setLoadingActive(false);
   }, [debugActive, users]);
 
   const load = useCallback(async () => {
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
+    const requestId = ++requestSeqRef.current;
     try {
-      if (mountedRef.current) setLoading(true);
+      setLoading(true);
       const params = new URLSearchParams();
       if (search.trim()) params.append("search", search.trim());
       if (roleFilter) params.append("role", roleFilter);
       if (locationFilter) params.append("location", locationFilter);
       if (archivedFilter) params.append("archived", archivedFilter);
+      // Prevent stale 304 cache responses for admin directory sync.
+      params.append("_ts", String(Date.now()));
 
-      const res = await apiClient.get(`/users?${params.toString()}`, { signal });
-      if (mountedRef.current) setUsers(res.data?.data?.users || []);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-        // Still clear loading on abort
-        if (mountedRef.current) setLoading(false);
-        return;
+      const res = await apiClient.get(`/users?${params.toString()}`, { timeout: 8000 });
+      if (requestId === requestSeqRef.current) {
+        const nextUsers = Array.isArray(res.data?.data?.users)
+          ? res.data.data.users
+          : [];
+        setUsers(nextUsers);
       }
+    } catch (err) {
       console.error("Failed to load users:", err);
-      // Always clear loading on error
-      if (mountedRef.current) setLoading(false);
+      if (requestId === requestSeqRef.current) setUsers([]);
     } finally {
-      // Final safety net: ensure loading is always cleared if component still mounted
-      if (mountedRef.current) setLoading(false);
+      if (requestId === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [search, roleFilter, locationFilter, archivedFilter]);
 
@@ -146,23 +139,9 @@ const AdminUsersPage = () => {
     return () => clearTimeout(timer);
   }, [load]);
 
-  // Fallback: ensure loading is cleared after 5 seconds if still loading
-  useEffect(() => {
-    if (!loading) return;
-    const timeout = setTimeout(() => {
-      if (mountedRef.current) {
-        console.warn('Loading timeout - force clearing');
-        setLoading(false);
-      }
-    }, 5000);
-    return () => clearTimeout(timeout);
-  }, [loading]);
-
-  // Track mounted state and abort outstanding requests on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -416,7 +395,6 @@ const AdminUsersPage = () => {
             </div>
             {pageUsers.map((user) => {
               const isActive = activeUsers.find(u => u.user_id === user.user_id);
-              const lastActivityTime = isActive?.activity_timestamp ? new Date(isActive.activity_timestamp) : null;
               const minutesSinceActivity = isActive?.minutes_since_activity;
               
               return (

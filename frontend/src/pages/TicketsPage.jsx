@@ -273,7 +273,10 @@ const TicketsPage = ({
     return Number.MAX_SAFE_INTEGER;
   };
 
-  const displayedTickets = includeArchived
+  const statusWantsArchived = ["resolved", "closed"].includes(
+    String(statusFilter || "").toLowerCase()
+  );
+  const displayedTickets = includeArchived || statusWantsArchived
     ? tickets
     : tickets.filter(
         (ticket) => !["resolved", "closed"].includes(String(ticket?.status || "").toLowerCase())
