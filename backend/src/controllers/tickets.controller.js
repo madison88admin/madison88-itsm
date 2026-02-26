@@ -23,6 +23,17 @@ function emitTicketUpdate(io, ticketId, event = 'ticket-updated', payload = null
 }
 
 const TicketsController = {
+  async previewSla(req, res, next) {
+    try {
+      const result = await TicketsService.previewSla({
+        payload: req.query,
+      });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async createTicket(req, res, next) {
     try {
       const redisClient = req.app.get('redis');

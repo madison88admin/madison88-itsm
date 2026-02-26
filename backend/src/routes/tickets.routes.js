@@ -89,6 +89,12 @@ router.post('/with-attachments', authenticate, authorize(['end_user']), ticketRa
 router.get('/check-duplicates', authenticate, TicketsController.checkDuplicates);
 
 /**
+ * @route GET /api/tickets/sla-preview
+ * @desc Preview SLA targets based on current form inputs
+ */
+router.get('/sla-preview', authenticate, TicketsController.previewSla);
+
+/**
  * @route GET /api/tickets
  * @desc List all tickets with filters
  */

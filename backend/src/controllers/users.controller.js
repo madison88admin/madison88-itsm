@@ -183,6 +183,38 @@ const UsersController = {
         } catch (err) {
             next(err);
         }
+    },
+
+    async listManagedTeamMembers(req, res, next) {
+        try {
+            const members = await UsersService.listManagedTeamMembers({
+                managerId: req.user.user_id
+            });
+            res.json({
+                status: 'success',
+                data: { users: members }
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async removeTeamMember(req, res, next) {
+        try {
+            const result = await UsersService.removeTeamMember({
+                userId: req.params.id,
+                managerId: req.user.user_id,
+                managerLocation: req.user.role === 'it_manager' ? req.user.location : null
+            });
+
+            res.json({
+                status: 'success',
+                message: 'Agent removed from your team',
+                data: result
+            });
+        } catch (err) {
+            next(err);
+        }
     }
 };
 

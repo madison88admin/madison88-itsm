@@ -55,10 +55,17 @@ const NewTicketPage = ({ onCreated, user }) => {
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
   const [kbSuggestions, setKbSuggestions] = useState([]);
   const [searchingKbSuggestions, setSearchingKbSuggestions] = useState(false);
+  const [kbHasSearched, setKbHasSearched] = useState(false);
+  const [selectedKbArticle, setSelectedKbArticle] = useState(null);
+  const [loadingKbArticle, setLoadingKbArticle] = useState(false);
+  const [slaPreview, setSlaPreview] = useState(null);
+  const [loadingSlaPreview, setLoadingSlaPreview] = useState(false);
   const searchTimeoutRef = useRef(null);
   const kbSearchTimeoutRef = useRef(null);
+  const slaPreviewTimeoutRef = useRef(null);
 
   const location = useLocation();
+  const draftStorageKey = `new-ticket-draft:${user?.user_id || "anon"}`;
 
   const totalSize = useMemo(
     () => files.reduce((sum, file) => sum + file.size, 0),
@@ -108,6 +115,56 @@ const NewTicketPage = ({ onCreated, user }) => {
       setSelectedTemplateId(templateParam);
     }
   }, [location.search]);
+
+  useEffect(() => {
+    if (!user?.location) return;
+    setForm((prev) => {
+      if (prev.location === user.location) return prev;
+      return { ...prev, location: user.location };
+    });
+  }, [user?.location]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft?.form) {
+        setForm((prev) => ({
+          ...prev,
+          ...draft.form,
+          // Keep profile-enforced location authoritative when available.
+          location: user?.location || draft.form.location || prev.location,
+        }));
+      }
+      if (typeof draft?.step === "number") {
+        setStep(Math.max(0, Math.min(2, draft.step)));
+      }
+      if (typeof draft?.selectedTemplateId === "string") {
+        setSelectedTemplateId(draft.selectedTemplateId);
+      }
+      if (typeof draft?.selectedAssetId === "string") {
+        setSelectedAssetId(draft.selectedAssetId);
+      }
+    } catch (err) {
+      // Ignore malformed local drafts
+    }
+  }, [draftStorageKey, user?.location]);
+
+  useEffect(() => {
+    const draft = {
+      form,
+      step,
+      selectedTemplateId,
+      selectedAssetId,
+      saved_at: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+    } catch (err) {
+      // Ignore storage quota issues
+    }
+  }, [draftStorageKey, form, step, selectedTemplateId, selectedAssetId]);
 
   const applyTemplate = React.useCallback((template) => {
     if (!template) return;
@@ -185,9 +242,14 @@ const NewTicketPage = ({ onCreated, user }) => {
   }, [form.title]);
 
   useEffect(() => {
-    const querySeed = `${form.title} ${stripHtml(form.description)}`.trim();
-    if (querySeed.length < 8) {
+    const titleSeed = form.title.trim();
+    const descriptionSeed = stripHtml(form.description).trim();
+    const querySeed = `${titleSeed} ${descriptionSeed}`.trim();
+    const shouldSearch = titleSeed.length >= 4 || descriptionSeed.length >= 8;
+
+    if (!shouldSearch) {
       setKbSuggestions([]);
+      setKbHasSearched(false);
       return;
     }
 
@@ -200,8 +262,10 @@ const NewTicketPage = ({ onCreated, user }) => {
       try {
         const res = await apiClient.get("/kb/search", { params: { q: querySeed } });
         setKbSuggestions((res.data.data.results || []).slice(0, 4));
+        setKbHasSearched(true);
       } catch (err) {
         setKbSuggestions([]);
+        setKbHasSearched(true);
       } finally {
         setSearchingKbSuggestions(false);
       }
@@ -213,6 +277,51 @@ const NewTicketPage = ({ onCreated, user }) => {
       }
     };
   }, [form.title, form.description]);
+
+  useEffect(() => {
+    const effectiveLocation = form.location || user?.location || "";
+    if (!form.category || !effectiveLocation) {
+      setSlaPreview(null);
+      return;
+    }
+
+    if (slaPreviewTimeoutRef.current) {
+      clearTimeout(slaPreviewTimeoutRef.current);
+    }
+
+    slaPreviewTimeoutRef.current = setTimeout(async () => {
+      setLoadingSlaPreview(true);
+      try {
+        const res = await apiClient.get("/tickets/sla-preview", {
+          params: {
+            category: form.category,
+            location: effectiveLocation,
+            priority: form.priority || "",
+            description: stripHtml(form.description || ""),
+            business_impact: form.business_impact || "",
+          },
+        });
+        setSlaPreview(res.data?.data?.preview || null);
+      } catch (err) {
+        setSlaPreview(null);
+      } finally {
+        setLoadingSlaPreview(false);
+      }
+    }, 500);
+
+    return () => {
+      if (slaPreviewTimeoutRef.current) {
+        clearTimeout(slaPreviewTimeoutRef.current);
+      }
+    };
+  }, [
+    form.category,
+    form.location,
+    form.priority,
+    form.description,
+    form.business_impact,
+    user?.location,
+  ]);
 
   const validateIssueDetails = () => {
     const title = form.title.trim();
@@ -336,6 +445,7 @@ const NewTicketPage = ({ onCreated, user }) => {
       setFiles([]);
       setSelectedAssetId("");
       setStep(0);
+      localStorage.removeItem(draftStorageKey);
       if (onCreated) onCreated(ticket);
     } catch (err) {
       if (err.response?.status === 409 && err.response?.data?.possible_duplicates) {
@@ -356,6 +466,31 @@ const NewTicketPage = ({ onCreated, user }) => {
     handleSubmit();
   };
 
+  const handleOpenKbArticle = async (articleId) => {
+    if (!articleId) return;
+    setLoadingKbArticle(true);
+    try {
+      const res = await apiClient.get(`/kb/articles/${articleId}`);
+      setSelectedKbArticle(res.data?.data?.article || null);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to open article");
+    } finally {
+      setLoadingKbArticle(false);
+    }
+  };
+
+  const handleKbSolved = () => {
+    setSelectedKbArticle(null);
+    setError("");
+    setSuccess("Great. If this solved your issue, you can skip submitting this ticket.");
+  };
+
+  const selectedKbBody =
+    selectedKbArticle?.content ||
+    selectedKbArticle?.summary ||
+    "No article content available.";
+  const selectedKbBodyHasHtml = /<[^>]+>/.test(selectedKbBody);
+
   return (
     <div className="panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
       <div className="panel-header">
@@ -373,6 +508,9 @@ const NewTicketPage = ({ onCreated, user }) => {
           </div>
         ))}
       </div>
+      <p className="muted" style={{ marginTop: "0.5rem", marginBottom: "1rem", fontSize: "12px" }}>
+        Draft autosaves locally while you type.
+      </p>
 
       {error && (
         <div className="panel error">
@@ -430,6 +568,83 @@ const NewTicketPage = ({ onCreated, user }) => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {selectedKbArticle && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelectedKbArticle(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,6,23,0.72)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1400,
+            padding: "1rem",
+          }}
+        >
+          <div
+            className="modal"
+            style={{
+              width: "min(960px, 94vw)",
+              maxHeight: "85vh",
+              background: "rgba(15, 23, 42, 0.98)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "14px",
+              padding: "1.1rem",
+              boxShadow: "0 12px 36px rgba(2,6,23,0.65)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.8rem",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: 0, lineHeight: 1.2 }}>{selectedKbArticle.title}</h3>
+            <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.85rem" }}>
+              Category: {selectedKbArticle.category || "General"}
+            </p>
+            <div
+              style={{
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                padding: "0.9rem 0",
+                color: "#e2e8f0",
+                lineHeight: 1.7,
+                fontSize: "0.95rem",
+                overflowY: "auto",
+                maxHeight: "58vh",
+              }}
+            >
+              {selectedKbBodyHasHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: selectedKbBody }} />
+              ) : (
+                <div style={{ whiteSpace: "pre-wrap" }}>{selectedKbBody}</div>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={handleKbSolved}
+                style={{ marginRight: "0.5rem" }}
+              >
+                This solved my issue
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setSelectedKbArticle(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -597,6 +812,43 @@ const NewTicketPage = ({ onCreated, user }) => {
               ))}
             </select>
           </label>
+          <div className="field full">
+            <span>SLA Estimate</span>
+            <div
+              style={{
+                marginTop: "8px",
+                background: "rgba(16, 185, 129, 0.06)",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+                borderRadius: "12px",
+                padding: "12px",
+              }}
+            >
+              {loadingSlaPreview && (
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-300)" }}>
+                  Computing SLA estimate...
+                </p>
+              )}
+              {!loadingSlaPreview && !slaPreview && (
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-500)" }}>
+                  Select category and location to preview response and resolution targets.
+                </p>
+              )}
+              {!loadingSlaPreview && slaPreview && (
+                <div style={{ display: "grid", gap: "6px" }}>
+                  <div style={{ fontSize: "12px", color: "var(--slate-300)" }}>
+                    Priority: <strong style={{ color: "var(--slate-100)" }}>{slaPreview.final_priority}</strong>
+                    {slaPreview.applied_priority_override ? " (routed override)" : ""}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--slate-300)" }}>
+                    Response target: <strong style={{ color: "var(--slate-100)" }}>{new Date(slaPreview.sla_response_due).toLocaleString()}</strong>
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--slate-300)" }}>
+                    Resolution target: <strong style={{ color: "var(--slate-100)" }}>{new Date(slaPreview.sla_due_date).toLocaleString()}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <label className="field">
             <span>Related Asset (optional)</span>
             <select
@@ -646,15 +898,34 @@ const NewTicketPage = ({ onCreated, user }) => {
                   Searching related knowledge base articles...
                 </p>
               )}
-              {!searchingKbSuggestions && kbSuggestions.length === 0 && (
+              {!searchingKbSuggestions && kbSuggestions.length === 0 && !kbHasSearched && (
                 <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-500)" }}>
                   Add more detail in title/description to get suggested fixes before submitting.
+                </p>
+              )}
+              {!searchingKbSuggestions && kbSuggestions.length === 0 && kbHasSearched && (
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-500)" }}>
+                  No matching helpful articles found yet.
                 </p>
               )}
               {!searchingKbSuggestions && kbSuggestions.length > 0 && (
                 <div style={{ display: "grid", gap: "8px" }}>
                   {kbSuggestions.map((article) => (
-                    <div key={article.article_id} style={{ padding: "8px", borderRadius: "8px", background: "rgba(255,255,255,0.03)" }}>
+                    <button
+                      key={article.article_id}
+                      type="button"
+                      onClick={() => handleOpenKbArticle(article.article_id)}
+                      disabled={loadingKbArticle}
+                      style={{
+                        padding: "8px",
+                        borderRadius: "8px",
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        color: "var(--slate-100)",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
                       <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--cyan-300)" }}>
                         {article.title}
                       </div>
@@ -663,7 +934,7 @@ const NewTicketPage = ({ onCreated, user }) => {
                           Category: {article.category}
                         </div>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

@@ -15,6 +15,8 @@ router.post('/', authenticate, authorize(['system_admin', 'it_manager']), UsersC
 
 // Add existing agent to team by email
 router.post('/team-membership', authenticate, authorize(['system_admin', 'it_manager']), UsersController.addTeamMemberByEmail);
+router.get('/team-membership', authenticate, authorize(['it_manager']), UsersController.listManagedTeamMembers);
+router.delete('/team-membership/:id', authenticate, authorize(['it_manager']), UsersController.removeTeamMember);
 
 // Update current user profile
 router.patch('/me', authenticate, UsersController.updateMe);

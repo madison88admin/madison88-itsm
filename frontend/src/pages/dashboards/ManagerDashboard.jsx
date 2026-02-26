@@ -64,6 +64,7 @@ const ManagerDashboard = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [agentEmail, setAgentEmail] = useState('');
   const [isAddingByEmail, setIsAddingByEmail] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState('');
   const [newAgent, setNewAgent] = useState({
     email: '',
     first_name: '',
@@ -227,7 +228,7 @@ const ManagerDashboard = () => {
 
   const loadTeam = async () => {
     try {
-      const res = await apiClient.get('/users?role=it_agent');
+      const res = await apiClient.get('/users/team-membership');
       setTeamMembers(res.data.data.users || []);
     } catch (err) {
       console.error("Failed to load team:", err);
@@ -263,6 +264,20 @@ const ManagerDashboard = () => {
       alert(err.response?.data?.message || "Failed to add agent by email. Ensure they exist and are IT Agents in your location.");
     } finally {
       setIsAddingByEmail(false);
+    }
+  };
+
+  const handleRemoveMember = async (member) => {
+    const confirmed = window.confirm(`Remove ${member.full_name} from your team?`);
+    if (!confirmed) return;
+    setRemovingMemberId(member.user_id);
+    try {
+      await apiClient.delete(`/users/team-membership/${member.user_id}`);
+      setTeamMembers((prev) => prev.filter((u) => u.user_id !== member.user_id));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to remove agent from team');
+    } finally {
+      setRemovingMemberId('');
     }
   };
 
@@ -509,6 +524,14 @@ const ManagerDashboard = () => {
                       <strong>{member.full_name}</strong>
                       <small>{member.email} • {member.location}</small>
                     </div>
+                    <button
+                      type="button"
+                      className="member-remove-btn"
+                      onClick={() => handleRemoveMember(member)}
+                      disabled={removingMemberId === member.user_id}
+                    >
+                      {removingMemberId === member.user_id ? 'Removing...' : 'Remove'}
+                    </button>
                   </div>
                 )) : <p className="muted">No agents in your team yet.</p>}
               </div>
@@ -845,6 +868,18 @@ const ManagerDashboard = () => {
         .member-info { display: flex; flex-direction: column; }
         .member-info strong { font-size: 1rem; }
         .member-info small { color: #64748b; font-size: 0.8rem; }
+        .member-remove-btn {
+          margin-left: auto;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          color: #fda4af;
+          padding: 0.45rem 0.75rem;
+          border-radius: 8px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .member-remove-btn:disabled { opacity: 0.6; cursor: default; }
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-group { margin-bottom: 1.2rem; }
@@ -874,3 +909,4 @@ const ManagerDashboard = () => {
 };
 
 export default ManagerDashboard;
+

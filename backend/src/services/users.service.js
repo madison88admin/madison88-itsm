@@ -103,6 +103,15 @@ const UsersService = {
         const isChangingToPrivilegedRole = updates.role &&
             ['it_agent', 'it_manager', 'system_admin'].includes(updates.role) &&
             currentUser.role === 'end_user';
+        const isArchiving = Object.prototype.hasOwnProperty.call(updates, 'is_active') &&
+            updates.is_active === false &&
+            currentUser.is_active === true;
+
+        if (isArchiving && ['it_agent', 'it_manager', 'system_admin'].includes(currentUser.role)) {
+            // Archiving a privileged user should remove privileged role traces by default.
+            updates.role = 'end_user';
+        }
+
         const isDemotingToEndUser = updates.role === 'end_user' &&
             ['it_agent', 'it_manager', 'system_admin'].includes(currentUser.role);
 
@@ -184,15 +193,15 @@ const UsersService = {
             await this._assignToRegionalTeams(updatedUser.user_id, updatedUser.location);
         }
 
-        // When demoting from IT staff back to end_user, remove technical team traces.
-        if (isDemotingToEndUser) {
+        // On demotion or archive, remove technical team/access traces.
+        if (isDemotingToEndUser || isArchiving) {
             const TicketsModel = require('../models/tickets.model');
             try {
                 await TicketsModel.deactivateMembershipsForUser(updatedUser.user_id);
                 await TicketsModel.removeUserAsTeamLead(updatedUser.user_id);
                 await TicketsModel.clearAssignmentsForUser(updatedUser.user_id);
             } catch (cleanupErr) {
-                console.error(`Failed to clean up technical memberships for demoted user ${updatedUser.user_id}:`, cleanupErr);
+                console.error(`Failed to clean up technical memberships for offboarded user ${updatedUser.user_id}:`, cleanupErr);
             }
         }
 
@@ -296,6 +305,57 @@ const UsersService = {
 
         const membership = await TicketsModel.addMemberToTeam(user.user_id, teams[0].team_id);
         return { user, team: teams[0], membership };
+    },
+
+    async listManagedTeamMembers({ managerId }) {
+        const TicketsModel = require('../models/tickets.model');
+        const teams = await TicketsModel.listTeamsByLead(managerId);
+        if (!teams || teams.length === 0) return [];
+        const teamIds = teams.map((team) => team.team_id);
+        return TicketsModel.listActiveMembersByTeamIds(teamIds);
+    },
+
+    async removeTeamMember({ userId, managerId, managerLocation }) {
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.status = 404;
+            throw error;
+        }
+
+        if (user.role !== 'it_agent') {
+            const error = new Error('Only IT Agents can be removed from the technical team');
+            error.status = 400;
+            throw error;
+        }
+
+        if (managerLocation && user.location !== managerLocation) {
+            const error = new Error(`Location mismatch: You can only manage agents from the ${managerLocation} region`);
+            error.status = 403;
+            throw error;
+        }
+
+        const TicketsModel = require('../models/tickets.model');
+        const teams = await TicketsModel.listTeamsByLead(managerId);
+        if (!teams || teams.length === 0) {
+            const error = new Error('You do not have any teams assigned to lead');
+            error.status = 403;
+            throw error;
+        }
+
+        const teamIds = teams.map((team) => team.team_id);
+        const removedMemberships = await TicketsModel.removeMemberFromTeams(userId, teamIds);
+        if (!removedMemberships.length) {
+            const error = new Error('This agent is not currently part of your team');
+            error.status = 404;
+            throw error;
+        }
+
+        // Remove open assignments under the manager's teams so removed members
+        // no longer receive P1/escalation notices tied to those team tickets.
+        await TicketsModel.clearAssignmentsForUserInTeams(userId, teamIds);
+
+        return { user, removed_count: removedMemberships.length };
     }
 };
 

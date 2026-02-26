@@ -58,8 +58,34 @@ const bulkAssignSchema = Joi.object({
   assigned_to: Joi.string().uuid().required(),
 });
 
+const slaPreviewSchema = Joi.object({
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other').required(),
+  location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'China', 'Other').required(),
+  subcategory: Joi.string().allow('', null),
+  priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').allow('', null),
+  description: Joi.string().allow('', null),
+  business_impact: Joi.string().allow('', null),
+});
+
 const PRIORITY_KEYWORDS = {
-  P1: ['outage', 'down', 'security breach', 'breach', 'data loss', 'unavailable', 'critical'],
+  P1: [
+    'outage',
+    'down',
+    'security breach',
+    'breach',
+    'data loss',
+    'unavailable',
+    'critical',
+    'explode',
+    'exploded',
+    'explosion',
+    'fire',
+    'burn',
+    'smoke',
+    'sparking',
+    'electrical hazard',
+    'emergency',
+  ],
   P2: ['degradation', 'slow', 'vip', 'partial outage', 'mission critical'],
   P3: ['issue', 'problem', 'request', 'performance'],
   P4: ['information', 'feature request', 'question', 'documentation'],
@@ -81,23 +107,35 @@ function normalizeText(value) {
   return (value || '').toLowerCase();
 }
 
-function detectPriority({ description, businessImpact, role }) {
-  const text = `${normalizeText(description)} ${normalizeText(businessImpact)}`;
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsKeyword(text, keyword) {
+  const normalizedText = normalizeText(text);
+  const normalizedKeyword = normalizeText(keyword).trim();
+  if (!normalizedKeyword) return false;
+  const pattern = new RegExp(`\\b${escapeRegex(normalizedKeyword)}\\b`, 'i');
+  return pattern.test(normalizedText);
+}
+
+function detectPriority({ title, description, businessImpact, role }) {
+  const text = `${normalizeText(title)} ${normalizeText(description)} ${normalizeText(businessImpact)}`;
   const roleBoost = role === 'system_admin' || role === 'it_manager' ? 'vip' : '';
   const combined = `${text} ${roleBoost}`.trim();
 
-  if (PRIORITY_KEYWORDS.P1.some((k) => combined.includes(k))) return 'P1';
-  if (PRIORITY_KEYWORDS.P2.some((k) => combined.includes(k))) return 'P2';
-  if (PRIORITY_KEYWORDS.P3.some((k) => combined.includes(k))) return 'P3';
+  if (PRIORITY_KEYWORDS.P1.some((k) => containsKeyword(combined, k))) return 'P1';
+  if (PRIORITY_KEYWORDS.P2.some((k) => containsKeyword(combined, k))) return 'P2';
+  if (PRIORITY_KEYWORDS.P3.some((k) => containsKeyword(combined, k))) return 'P3';
   return 'P4';
 }
 
-function matchClassificationRule(rules, { description, businessImpact }) {
-  const text = `${normalizeText(description)} ${normalizeText(businessImpact)}`;
+function matchClassificationRule(rules, { title, description, businessImpact }) {
+  const text = `${normalizeText(title)} ${normalizeText(description)} ${normalizeText(businessImpact)}`;
   for (const rule of rules) {
     const keywords = (rule.keywords || []).map((k) => k.toLowerCase());
     if (!keywords.length) continue;
-    const matches = keywords.filter((k) => text.includes(k));
+    const matches = keywords.filter((k) => containsKeyword(text, k));
     const isMatch = rule.matching_type === 'all' ? matches.length === keywords.length : matches.length > 0;
     if (isMatch) return rule;
   }
@@ -158,6 +196,45 @@ async function generateTicketNumber() {
 }
 
 const TicketsService = {
+  async previewSla({ payload }) {
+    const { error, value } = slaPreviewSchema.validate(payload, { abortEarly: false });
+    if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
+
+    const rules = await TicketsModel.getClassificationRules();
+    const matchedRule = matchClassificationRule(rules, {
+      title: value.title || '',
+      description: value.description || '',
+      businessImpact: value.business_impact || '',
+    });
+
+    const detectedPriority = value.priority || matchedRule?.assigned_priority || detectPriority({
+      title: value.title || '',
+      description: value.description || '',
+      businessImpact: value.business_impact || '',
+      role: 'end_user',
+    });
+
+    const routingRule = await TicketsModel.getRoutingRule({
+      category: value.category,
+      subcategory: value.subcategory,
+      location: value.location,
+    });
+
+    const finalPriority = routingRule?.priority_override || detectedPriority;
+    const sla = await buildSla(finalPriority, value.category, value.location);
+
+    return {
+      preview: {
+        detected_priority: detectedPriority,
+        final_priority: finalPriority,
+        sla_response_due: sla.sla_response_due,
+        sla_due_date: sla.sla_due_date,
+        assigned_team: routingRule?.assigned_team || null,
+        applied_priority_override: Boolean(routingRule?.priority_override),
+      },
+    };
+  },
+
   async createTicket({ payload, user, meta }) {
     if (user.role !== 'end_user') throw new AppError('Forbidden', 403);
     if (ATTACHMENT_REQUIRED) {
@@ -181,10 +258,12 @@ const TicketsService = {
 
     const rules = await TicketsModel.getClassificationRules();
     const matchedRule = matchClassificationRule(rules, {
+      title: value.title,
       description: value.description,
       businessImpact: value.business_impact,
     });
     const priority = value.priority || matchedRule?.assigned_priority || detectPriority({
+      title: value.title,
       description: value.description,
       businessImpact: value.business_impact,
       role: user.role,
@@ -360,10 +439,12 @@ const TicketsService = {
 
     const rules = await TicketsModel.getClassificationRules();
     const matchedRule = matchClassificationRule(rules, {
+      title: value.title,
       description: value.description,
       businessImpact: value.business_impact,
     });
     const priority = value.priority || matchedRule?.assigned_priority || detectPriority({
+      title: value.title,
       description: value.description,
       businessImpact: value.business_impact,
       role: user.role,
