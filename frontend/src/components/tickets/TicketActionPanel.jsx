@@ -415,7 +415,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                                         MARK PENDING
                                     </button>
                                 )}
-                                {['New', 'In Progress', 'Pending', 'Reopened'].includes(ticket.status) && (
+                                {['In Progress', 'Pending', 'Reopened'].includes(ticket.status) && (
                                     <button onClick={() => setActiveModal('resolve')} disabled={loading} className="btn-action success">
                                         RESOLVE TICKET
                                     </button>

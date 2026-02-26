@@ -157,9 +157,10 @@ const TicketsModel = {
         // For IT staff: exclude archived active tickets, but include resolved/closed even if archived
         where.push("((t.is_archived IS NULL OR t.is_archived = false) AND LOWER(COALESCE(t.status, '')) NOT IN ('resolved', 'closed')) OR (LOWER(COALESCE(t.status, '')) IN ('resolved', 'closed'))");
       } else {
-        // Default: exclude archived and exclude Resolved/Closed
-        where.push('(t.is_archived IS NULL OR t.is_archived = false)');
-        where.push("LOWER(COALESCE(t.status, '')) NOT IN ('resolved', 'closed')");
+        // Default queue behavior:
+        // always show active workflow statuses, even if a stale archive flag exists.
+        // Resolved/Closed stay hidden unless include_archived is explicitly enabled.
+        where.push("LOWER(COALESCE(t.status, '')) IN ('new', 'in progress', 'pending', 'reopened')");
       }
     }
     const hasTeamIds = filters.assigned_team_ids && filters.assigned_team_ids.length;

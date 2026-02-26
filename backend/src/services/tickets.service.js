@@ -701,6 +701,28 @@ const TicketsService = {
     const statusReason = value.status_change_reason;
     delete value.status_change_reason;
 
+    if (statusChanged) {
+      const fromStatus = existing.status;
+      const toStatus = value.status;
+
+      // Enforce a linear support flow so tickets are not resolved directly from New.
+      if (toStatus === 'In Progress' && !['New', 'Pending', 'Reopened'].includes(fromStatus)) {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      }
+      if (toStatus === 'Pending' && !['In Progress', 'Reopened'].includes(fromStatus)) {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      }
+      if (toStatus === 'Resolved' && !['In Progress', 'Pending', 'Reopened'].includes(fromStatus)) {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      }
+      if (toStatus === 'Closed' && fromStatus !== 'Resolved') {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      }
+      if (toStatus === 'Reopened' && !['Resolved', 'Closed'].includes(fromStatus)) {
+        throw new Error(`Invalid status transition: ${fromStatus} -> ${toStatus}`);
+      }
+    }
+
     if (user.role === 'end_user') {
       if (existing.user_id !== user.user_id) throw new Error('Forbidden');
       if (!['New', 'Pending'].includes(existing.status)) {
