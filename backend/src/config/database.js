@@ -28,11 +28,12 @@ const buildConnectionString = () => {
 const connectionString = buildConnectionString();
 
 // Env-driven pool and retry configuration
-const MAX_CONN = Number(process.env.DB_MAX_CONN) || Number(process.env.DB_POOL_MAX) || 4;
+const MAX_CONN = Number(process.env.DB_MAX_CONN) || Number(process.env.DB_POOL_MAX) || 6;
 const MIN_CONN = Number(process.env.DB_MIN_CONN) || 0;
 const IDLE_TIMEOUT_MS = Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000;
-const CONNECTION_TIMEOUT_MS = Number(process.env.DB_CONN_TIMEOUT_MS) || 30000;
+const CONNECTION_TIMEOUT_MS = Number(process.env.DB_CONN_TIMEOUT_MS) || 10000;
 const STATEMENT_TIMEOUT_MS = Number(process.env.DB_STATEMENT_TIMEOUT_MS) || 60000;
+const QUERY_TIMEOUT_MS = Number(process.env.DB_QUERY_TIMEOUT_MS) || Math.max(STATEMENT_TIMEOUT_MS + 5000, 65000);
 const RETRY_COUNT = Number(process.env.DB_RETRY_COUNT) || 5;
 const RETRY_DELAY_MS = Number(process.env.DB_RETRY_DELAY_MS) || 3000;
 
@@ -45,7 +46,8 @@ const pool = new Pool({
   connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
   application_name: 'madison88-itsm-backend',
   allowExitOnIdle: true,
-  statementTimeout: STATEMENT_TIMEOUT_MS,
+  statement_timeout: STATEMENT_TIMEOUT_MS,
+  query_timeout: QUERY_TIMEOUT_MS,
 });
 
 // Log client connect at DEBUG level to avoid noisy INFO logs during normal operation
@@ -56,6 +58,50 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   logger.error('Unexpected error on idle client', { error: err.message });
 });
+
+const isDbTimeoutError = (message = '') => {
+  const text = String(message).toLowerCase();
+  return text.includes('timeout')
+    || text.includes('statement timeout')
+    || text.includes('query read timeout')
+    || text.includes('connection terminated due to connection timeout')
+    || text.includes('timeout exceeded when trying to connect');
+};
+
+const summarizeQueryArgs = (args = []) => {
+  const text = typeof args?.[0] === 'string'
+    ? args[0]
+    : typeof args?.[0]?.text === 'string'
+      ? args[0].text
+      : '';
+  return text ? text.replace(/\s+/g, ' ').trim().slice(0, 180) : null;
+};
+
+const originalQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  const startedAt = Date.now();
+  try {
+    const result = await originalQuery(...args);
+    const durationMs = Date.now() - startedAt;
+    if (durationMs >= Math.max(QUERY_TIMEOUT_MS - 1000, 30000)) {
+      logger.warn('Slow database query detected', {
+        durationMs,
+        query: summarizeQueryArgs(args),
+      });
+    }
+    return result;
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    if (isDbTimeoutError(err?.message)) {
+      logger.error('Database timeout while executing query', {
+        durationMs,
+        query: summarizeQueryArgs(args),
+        error: err.message,
+      });
+    }
+    throw err;
+  }
+};
 
 // Test connection with retry on startup
 const testConnection = async (retries = RETRY_COUNT, delay = RETRY_DELAY_MS) => {

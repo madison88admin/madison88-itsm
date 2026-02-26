@@ -17,6 +17,15 @@ const statusOptions = [
 ];
 
 const priorityOptions = ["P1", "P2", "P3", "P4"];
+const AUTO_CLOSE_INTERVAL_MINUTES = Number(import.meta.env.VITE_AUTO_CLOSE_INTERVAL_MINUTES || 60);
+const STATUS_LABELS = {
+  New: "Submitted",
+  "In Progress": "Being worked on",
+  Pending: "Waiting on you/3rd party",
+  Resolved: "Resolved",
+  Closed: "Closed",
+  Reopened: "Being worked on",
+};
 
 const TicketDetailPage = ({
   ticketId,
@@ -64,6 +73,7 @@ const TicketDetailPage = ({
   const [viewers, setViewers] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
+  const [autoCloseCountdownText, setAutoCloseCountdownText] = useState("");
 
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
@@ -76,11 +86,102 @@ const TicketDetailPage = ({
   );
   const canAttachResolutionPhoto = canAddInternal;
   const canAssign = isManager || isAdmin;
-  const canOverridePriority = isAdmin;
-  const canRequestPriorityOverride = isManager;
   const isAssignedToUser = ticket?.assigned_to && ticket.assigned_to === user?.user_id;
+  // Allow assigned IT agent, manager, or admin to edit priority
+  const canOverridePriority = isAdmin || (isAssignedToUser && user?.role === "it_agent") || isManager;
   const canComment = isEndUser ? ticket?.user_id === user?.user_id : isAssignedToUser;
-  const canEscalate = !!isAssignedToUser;
+  const canEscalate = isAdmin || isManager || !!isAssignedToUser;
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local";
+  const progressStages = [
+    { key: "New", label: "Submitted" },
+    { key: "In Progress", label: "Being worked on" },
+    { key: "Pending", label: "Waiting on you/3rd party" },
+    { key: "Resolved", label: "Resolved" },
+    { key: "Closed", label: "Closed" },
+  ];
+
+  const formatDateTimeWithZone = (dateValue) => {
+    if (!dateValue) return "N/A";
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return "N/A";
+    return parsed.toLocaleString(undefined, { timeZoneName: "short" });
+  };
+
+  const toStatusLabel = (statusValue) => STATUS_LABELS[statusValue] || statusValue || "Unknown";
+
+  const formatAutoCloseCountdown = (ticketData) => {
+    if (!ticketData || ticketData.status !== "Resolved" || ticketData.user_confirmed_resolution) {
+      return "";
+    }
+    if (!ticketData.resolution_pending_confirmation_at) {
+      return "Auto-close countdown not available.";
+    }
+
+    const pendingAt = new Date(ticketData.resolution_pending_confirmation_at);
+    if (Number.isNaN(pendingAt.getTime())) {
+      return "Auto-close countdown not available.";
+    }
+
+    const deadline = pendingAt.getTime() + (2 * 24 * 60 * 60 * 1000);
+    const remainingMs = deadline - Date.now();
+
+    if (remainingMs <= 0) {
+      return `Auto-close check pending... expected to close within ${AUTO_CLOSE_INTERVAL_MINUTES} minute(s).`;
+    }
+
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+    if (days > 0) {
+      return `Auto-close in ${days}d ${hours}h ${minutes}m (job runs every ${AUTO_CLOSE_INTERVAL_MINUTES} min)`;
+    }
+    return `Auto-close in ${hours}h ${minutes}m (job runs every ${AUTO_CLOSE_INTERVAL_MINUTES} min)`;
+  };
+
+  useEffect(() => {
+    setAutoCloseCountdownText(formatAutoCloseCountdown(ticket));
+
+    if (!ticket || ticket.status !== "Resolved" || ticket.user_confirmed_resolution) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      setAutoCloseCountdownText(formatAutoCloseCountdown(ticket));
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [ticket]);
+
+  const currentProgressStatus = ticket?.status === "Reopened" ? "In Progress" : ticket?.status;
+  const currentProgressIndex = Math.max(
+    0,
+    progressStages.findIndex((stage) => stage.key === currentProgressStatus)
+  );
+  const progressTimestampByStatus = (() => {
+    const byStatus = {};
+    if (ticket?.created_at) byStatus.New = ticket.created_at;
+    if (ticket?.resolved_at) byStatus.Resolved = ticket.resolved_at;
+    if (ticket?.closed_at) byStatus.Closed = ticket.closed_at;
+    if (Array.isArray(statusHistory)) {
+      for (const entry of statusHistory) {
+        if (entry?.new_status && entry?.changed_at && !byStatus[entry.new_status]) {
+          byStatus[entry.new_status] = entry.changed_at;
+        }
+      }
+    }
+    return byStatus;
+  })();
+  const autoCloseDeadlineExact = (() => {
+    if (!ticket?.resolution_pending_confirmation_at || ticket?.user_confirmed_resolution) return null;
+    const pendingAt = ticket?.resolution_pending_confirmation_at
+      ? new Date(ticket.resolution_pending_confirmation_at)
+      : null;
+    if (!pendingAt || Number.isNaN(pendingAt.getTime())) return null;
+    const deadline = new Date(pendingAt.getTime() + (2 * 24 * 60 * 60 * 1000));
+    return formatDateTimeWithZone(deadline);
+  })();
 
   useEffect(() => {
     if (!ticketId || ticketId === 'null') return;
@@ -623,6 +724,25 @@ const TicketDetailPage = ({
         </div>
       </div>
 
+      <div className="detail-section progress-stepper">
+        <h3>Ticket Progress</h3>
+        <div className="progress-stepper-row">
+          {progressStages.map((stage, index) => {
+            const isDone = index <= currentProgressIndex;
+            const timestamp = progressTimestampByStatus[stage.key];
+            return (
+              <div key={stage.key} className={`progress-step ${isDone ? "done" : ""}`}>
+                <div className="progress-dot">{index + 1}</div>
+                <div className="progress-copy">
+                  <strong>{stage.label}</strong>
+                  <small>{timestamp ? formatDateTimeWithZone(timestamp) : "Pending"}</small>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="detail-grid">
         <div>
           <span>Category</span>
@@ -642,7 +762,7 @@ const TicketDetailPage = ({
         </div>
         <div>
           <span>Status</span>
-          <strong>{ticket.status}</strong>
+          <strong>{toStatusLabel(ticket.status)}</strong>
         </div>
         <div>
           <span>Location</span>
@@ -679,6 +799,27 @@ const TicketDetailPage = ({
           </strong>
         </div>
       </div>
+
+      {isEndUser && (
+        <div className="detail-section next-steps-panel">
+          <h3>What Happens Next</h3>
+          <p>
+            Current status: <strong>{toStatusLabel(ticket.status)}</strong>
+          </p>
+          <p>
+            Assigned support: <strong>{ticket.assigned_to || "Unassigned"}</strong>
+          </p>
+          <p>
+            Response target: <strong>{formatDateTimeWithZone(ticket.sla_response_due)}</strong>
+          </p>
+          <p>
+            Resolution target: <strong>{formatDateTimeWithZone(ticket.sla_due_date)}</strong>
+          </p>
+          {ticket.status === "Pending" && (
+            <p>Please check comments and provide any requested details to keep the ticket moving.</p>
+          )}
+        </div>
+      )}
 
       {isEndUser && (
         <div className="detail-update">
@@ -725,32 +866,23 @@ const TicketDetailPage = ({
 
       {!isEndUser && (
         <div className="detail-update">
+          {/* Always show priority dropdown, but only enable for admin, manager, or assigned agent */}
           <label className="field">
-            <span>Update Status</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              {statusOptions.map((option) => (
+            <span>Priority</span>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              disabled={!(isAdmin || isManager || (user?.role === "it_agent" && isAssignedToUser))}
+            >
+              {priorityOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
               ))}
             </select>
           </label>
-          {canOverridePriority && (
-            <label className="field">
-              <span>Priority</span>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                {priorityOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {canOverridePriority && priority !== ticket.priority && (
+          {/* Show reason input only if priority is changed and user can edit */}
+          {(isAdmin || isManager || (user?.role === "it_agent" && isAssignedToUser)) && priority !== ticket.priority && (
             <label className="field">
               <span>Priority Override Reason</span>
               <input
@@ -857,75 +989,6 @@ const TicketDetailPage = ({
         </div>
       )}
 
-      {canRequestPriorityOverride && (
-        <div className="detail-section" style={{
-          backgroundColor: "rgba(26, 58, 92, 0.4)",
-          borderRadius: "8px",
-          padding: "20px",
-          marginBottom: "20px",
-          border: "1px solid rgba(42, 74, 106, 0.3)"
-        }}>
-          <h3 style={{ margin: "0 0 12px 0", fontSize: "18px", fontWeight: "600", color: "#e0e0e0" }}>
-            Request Priority Override
-          </h3>
-          {notice && (
-            <div className="panel success" style={{ marginBottom: "16px", padding: "12px" }}>
-              {notice}
-            </div>
-          )}
-          <div style={{ display: "grid", gap: "16px" }}>
-            <label className="field">
-              <span>Requested Priority</span>
-              <select
-                value={priorityRequestPriority}
-                onChange={(e) => setPriorityRequestPriority(e.target.value)}
-                style={{
-                  padding: "12px 14px",
-                  backgroundColor: "rgba(10, 26, 42, 0.6)",
-                  border: "1px solid rgba(58, 90, 122, 0.4)",
-                  borderRadius: "6px",
-                  color: "#e0e0e0",
-                  fontSize: "14px"
-                }}
-              >
-                {priorityOptions.map((option) => (
-                  <option key={option} value={option} style={{ backgroundColor: "#0a1a2a" }}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Reason for Change</span>
-              <textarea
-                value={priorityRequestReason}
-                onChange={(e) => setPriorityRequestReason(e.target.value)}
-                placeholder="Why should this priority change?"
-                rows={4}
-                style={{
-                  padding: "12px 14px",
-                  backgroundColor: "rgba(10, 26, 42, 0.6)",
-                  border: "1px solid rgba(58, 90, 122, 0.4)",
-                  borderRadius: "6px",
-                  color: "#e0e0e0",
-                  fontSize: "14px",
-                  fontFamily: "inherit",
-                  resize: "vertical"
-                }}
-              />
-            </label>
-            <button
-              className="btn primary"
-              onClick={handlePriorityOverrideRequest}
-              disabled={saving}
-              style={{ justifySelf: "flex-start" }}
-            >
-              {saving ? "Submitting..." : "Submit Request"}
-            </button>
-          </div>
-        </div>
-      )}
-
       {(isAdmin || isManager) && priorityRequests.length > 0 && (
         <div className="detail-section">
           <h3>Priority Override Requests</h3>
@@ -1004,13 +1067,13 @@ const TicketDetailPage = ({
                     : "N/A"}
                 </div>
               ) : (
-                <div style={{ padding: "12px", backgroundColor: "rgba(10, 22, 53, 0.7)", border: `1px solid ${ticket.status === "Closed" ? "rgba(255, 93, 108, 0.3)" : "rgba(255, 181, 71, 0.3)"}`, borderRadius: "4px", marginBottom: "12px" }}>
+                <div className="resolution-action-card" style={{ padding: "12px", backgroundColor: "rgba(10, 22, 53, 0.7)", border: `1px solid ${ticket.status === "Closed" ? "rgba(255, 93, 108, 0.3)" : "rgba(255, 181, 71, 0.3)"}`, borderRadius: "4px", marginBottom: "12px" }}>
                   <p style={{ margin: "0 0 12px 0", fontWeight: "bold" }}>
                     {ticket.status === "Closed"
                       ? "This ticket was closed. You can confirm the resolution or reopen it if the issue persists:"
                       : "Please confirm if the issue has been resolved:"}
                   </p>
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <div className="resolution-action-buttons" style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
                     <button
                       className="btn primary"
                       onClick={async () => {
@@ -1088,6 +1151,17 @@ const TicketDetailPage = ({
                       Reopen Ticket
                     </button>
                   </div>
+                  {ticket.status === "Resolved" && autoCloseDeadlineExact && (
+                    <p className="muted" style={{ marginTop: 0, fontSize: "12px" }}>
+                      Auto-close deadline: <strong>{autoCloseDeadlineExact}</strong> ({userTimezone})
+                    </p>
+                  )}
+                  {ticket.status === "Closed" && !ticket.user_confirmed_resolution && autoCloseDeadlineExact && (
+                    <p className="muted" style={{ marginTop: 0, fontSize: "12px" }}>
+                      This ticket was auto-closed after no confirmation. Deadline reached:{" "}
+                      <strong>{autoCloseDeadlineExact}</strong> ({userTimezone})
+                    </p>
+                  )}
                   <div style={{ marginTop: "12px" }}>
                     <label className="field">
                       <span>Reason for reopening (if issue not resolved)</span>
@@ -1101,8 +1175,10 @@ const TicketDetailPage = ({
                   </div>
                   <p className="muted" style={{ marginTop: "8px", fontSize: "12px" }}>
                     {ticket.status === "Closed"
-                      ? "If the issue persists, reopen the ticket and it will be reassigned."
-                      : "If you don't respond within 2 days, this ticket will be automatically closed."}
+                      ? (!ticket.user_confirmed_resolution && autoCloseDeadlineExact
+                        ? "No confirmation was received within 2 days, so the ticket was auto-closed. If the issue persists, reopen it and it will be reassigned."
+                        : "If the issue persists, reopen the ticket and it will be reassigned.")
+                      : (autoCloseCountdownText || "If you don't respond within 2 days, this ticket will be automatically closed.")}
                   </p>
                 </div>
               )}
@@ -1179,8 +1255,8 @@ const TicketDetailPage = ({
             <div key={entry.status_id} className="audit-item">
               <div>
                 <strong>
-                  {entry.old_status ? `${entry.old_status} → ` : ""}
-                  {entry.new_status}
+                  {entry.old_status ? `${toStatusLabel(entry.old_status)} → ` : ""}
+                  {toStatusLabel(entry.new_status)}
                 </strong>
                 <span>{new Date(entry.changed_at).toLocaleString()}</span>
               </div>
@@ -1402,6 +1478,64 @@ const TicketDetailPage = ({
           </div>
         </div>
       )}
+      <style>{`
+        .progress-stepper-row {
+          display: grid;
+          gap: 10px;
+        }
+        .progress-step {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          opacity: 0.55;
+        }
+        .progress-step.done {
+          opacity: 1;
+        }
+        .progress-dot {
+          width: 24px;
+          height: 24px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          font-size: 12px;
+          font-weight: 700;
+          color: #e2e8f0;
+          border: 1px solid rgba(148, 163, 184, 0.45);
+          background: rgba(15, 23, 42, 0.65);
+        }
+        .progress-step.done .progress-dot {
+          border-color: rgba(14, 165, 233, 0.7);
+          background: rgba(14, 165, 233, 0.2);
+        }
+        .progress-copy strong {
+          display: block;
+          font-size: 13px;
+          color: #e2e8f0;
+        }
+        .progress-copy small {
+          color: #94a3b8;
+          font-size: 11px;
+        }
+        .next-steps-panel p {
+          margin: 0 0 8px 0;
+        }
+        @media (max-width: 768px) {
+          .resolution-action-card {
+            position: sticky;
+            bottom: 10px;
+            z-index: 5;
+            backdrop-filter: blur(8px);
+          }
+          .resolution-action-buttons {
+            flex-wrap: wrap;
+          }
+          .resolution-action-buttons .btn {
+            flex: 1;
+            min-height: 46px;
+          }
+        }
+      `}</style>
     </div>
   );
 };

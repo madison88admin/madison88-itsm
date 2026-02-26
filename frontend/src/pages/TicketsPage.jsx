@@ -273,7 +273,11 @@ const TicketsPage = ({
     return Number.MAX_SAFE_INTEGER;
   };
 
-  const displayedTickets = tickets;
+  const displayedTickets = includeArchived
+    ? tickets
+    : tickets.filter(
+        (ticket) => !["resolved", "closed"].includes(String(ticket?.status || "").toLowerCase())
+      );
   const total = pagination.total || 0;
   const hasNext = total > page * PAGE_SIZE;
   const hasPrev = page > 1;

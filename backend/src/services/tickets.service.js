@@ -561,23 +561,11 @@ const TicketsService = {
     if (date_from && date_from.trim()) filters.date_from = date_from.trim();
     if (date_to && date_to.trim()) filters.date_to = date_to.trim();
 
-    // Handle archived and resolved/closed ticket filtering
-    // Only show resolved/closed tickets when:
-    // 1. User specifically filters by status = "Resolved" or "Closed", OR
-    // 2. User has "include_archived" checked
-    // 3. User is system_admin (Universal Visibility)
-    if (include_archived !== 'true' && user.role !== 'system_admin') {
-      if (['Resolved', 'Closed'].includes(status)) {
-        // If specifically looking for Resolved/Closed, show them even if archived
-        filters.exclude_archived = false;
-      } else {
-        // For standard users: exclude archived and exclude Resolved/Closed unless specifically filtered
-        filters.exclude_archived = true;
-      }
-    } else {
-      // If include_archived is true OR user is system_admin, show everything
-      filters.exclude_archived = false;
-    }
+    // Apply archive filtering consistently for all roles.
+    // Resolved/Closed tickets are treated as archived in main queue views
+    // and are only visible when include_archived=true.
+    const showArchived = include_archived === 'true' || include_archived === true;
+    filters.exclude_archived = !showArchived;
 
     if (user.role === 'end_user') {
       filters.user_id = user.user_id;
@@ -743,10 +731,7 @@ const TicketsService = {
     if (value.priority && user.role === 'it_agent') {
       throw new Error('Forbidden');
     }
-    if (value.priority && user.role === 'it_manager') {
-      throw new Error('Use priority override request');
-    }
-    if (value.priority && user.role === 'system_admin') {
+    if (value.priority && ['it_manager', 'system_admin'].includes(user.role)) {
       if (!value.priority_override_reason) throw new Error('Priority override reason required');
       value.overridden_by = user.user_id;
       value.overridden_at = new Date();
@@ -1274,10 +1259,30 @@ const TicketsService = {
     const ticket = await TicketsModel.getTicketById(ticketId);
     if (!ticket) throw new Error('Ticket not found');
 
-    if (['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
-      if (ticket.assigned_to !== user.user_id) throw new Error('Forbidden');
-    } else {
+    if (!['it_agent', 'it_manager', 'system_admin'].includes(user.role)) {
       throw new Error('Forbidden');
+    }
+
+    // IT agents can escalate only tickets assigned to them.
+    if (user.role === 'it_agent' && ticket.assigned_to !== user.user_id) {
+      throw new Error('Forbidden');
+    }
+
+    // IT managers can escalate within their managed location/team scope.
+    if (user.role === 'it_manager') {
+      if (user.location && ticket.location !== user.location) {
+        throw new Error('Forbidden: Outside of managed location');
+      }
+
+      const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
+      if (teamIds.length) {
+        const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);
+        const inTeam = teamIds.includes(ticket.assigned_team);
+        const assignedToMember = ticket.assigned_to && memberIds.includes(ticket.assigned_to);
+        if (!inTeam && !assignedToMember && ticket.assigned_to !== user.user_id) {
+          throw new Error('Forbidden: Not in your managed teams');
+        }
+      }
     }
 
     const escalation = await TicketsModel.createEscalation({
@@ -1550,11 +1555,51 @@ const TicketsService = {
       statuses,
     });
 
+    const assigneeIds = Array.from(new Set(
+      candidates.map((ticket) => ticket.assigned_to).filter(Boolean)
+    ));
+    const teamIds = Array.from(new Set(
+      candidates.map((ticket) => ticket.assigned_team).filter(Boolean)
+    ));
+
+    const assignees = assigneeIds.length
+      ? await UserModel.listByIds(assigneeIds)
+      : [];
+    const assigneeById = new Map(assignees.map((user) => [user.user_id, user]));
+
+    const teamLeadRows = teamIds.length
+      ? await TicketsModel.listTeamLeadIdsByTeamIds(teamIds)
+      : [];
+    const leadIdsByTeamId = new Map();
+    for (const row of teamLeadRows) {
+      if (!leadIdsByTeamId.has(row.team_id)) {
+        leadIdsByTeamId.set(row.team_id, new Set());
+      }
+      leadIdsByTeamId.get(row.team_id).add(row.team_lead_id);
+    }
+
+    const assigneeLeadRows = assigneeIds.length
+      ? await TicketsModel.listTeamLeadIdsForAssignees(assigneeIds)
+      : [];
+    const leadIdsByAssigneeId = new Map();
+    for (const row of assigneeLeadRows) {
+      if (!leadIdsByAssigneeId.has(row.assignee_id)) {
+        leadIdsByAssigneeId.set(row.assignee_id, new Set());
+      }
+      leadIdsByAssigneeId.get(row.assignee_id).add(row.team_lead_id);
+    }
+
+    const allLeadIds = Array.from(new Set([
+      ...teamLeadRows.map((row) => row.team_lead_id),
+      ...assigneeLeadRows.map((row) => row.team_lead_id),
+    ].filter(Boolean)));
+    const leads = allLeadIds.length
+      ? await UserModel.listByIds(allLeadIds)
+      : [];
+    const leadById = new Map(leads.map((lead) => [lead.user_id, lead]));
+
     const results = [];
     for (const ticket of candidates) {
-      const alreadyEscalated = await TicketsModel.hasSlaEscalation(ticket.ticket_id);
-      if (alreadyEscalated) continue;
-
       const escalation = await TicketsModel.createEscalation({
         ticket_id: ticket.ticket_id,
         reason: `SLA threshold ${thresholdPercent}% reached`,
@@ -1563,25 +1608,21 @@ const TicketsService = {
       });
 
       const assignee = ticket.assigned_to
-        ? await UserModel.findById(ticket.assigned_to)
+        ? assigneeById.get(ticket.assigned_to) || null
         : null;
-
-      let leadIds = [];
-      if (ticket.assigned_team) {
-        const leadId = await TicketsModel.getTeamLeadIdByTeamId(ticket.assigned_team);
-        if (leadId) leadIds = [leadId];
-      } else if (ticket.assigned_to) {
-        leadIds = await TicketsModel.listTeamLeadIdsForAssignee(ticket.assigned_to);
-      }
-
-      const leads = await UserModel.listByIds(leadIds);
+      const leadIds = ticket.assigned_team
+        ? Array.from(leadIdsByTeamId.get(ticket.assigned_team) || [])
+        : Array.from(leadIdsByAssigneeId.get(ticket.assigned_to) || []);
+      const leadsForTicket = leadIds
+        .map((leadId) => leadById.get(leadId))
+        .filter(Boolean);
 
       // Non-blocking notification
       NotificationService.sendSlaEscalationNotice({
         ticket,
         escalation,
         assignee,
-        leads,
+        leads: leadsForTicket,
       }).catch(err => console.error('Failed to send SLA escalation notice', err));
 
       await TicketsModel.createAuditLog({

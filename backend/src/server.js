@@ -13,6 +13,10 @@ const TicketsService = require('./services/tickets.service');
 
 const PORT = process.env.PORT || 3001;
 const server = http.createServer(app);
+const ENABLE_INTERNAL_JOBS = process.env.ENABLE_INTERNAL_JOBS !== 'false';
+const RUN_SLA_JOB = process.env.RUN_SLA_JOB !== 'false';
+const RUN_AUTO_CLOSE_JOB = process.env.RUN_AUTO_CLOSE_JOB !== 'false';
+const INTERNAL_JOB_KEY = process.env.INTERNAL_JOB_KEY || '';
 
 // Initialize Socket.io for real-time notifications
 const io = socketIo(server, {
@@ -154,7 +158,7 @@ const AUTO_CLOSE_INTERVAL_MINUTES = Number(process.env.AUTO_CLOSE_INTERVAL_MINUT
 const AUTO_CLOSE_BUSINESS_DAYS = Number(process.env.AUTO_CLOSE_BUSINESS_DAYS || 3);
 
 async function runSlaEscalationJob() {
-  if (slaJobRunning) return;
+  if (slaJobRunning) return { skipped: true, reason: 'already_running' };
   slaJobRunning = true;
   try {
     const result = await TicketsService.runSlaEscalations({
@@ -165,15 +169,52 @@ async function runSlaEscalationJob() {
       logger.info(`SLA auto-escalations created: ${result.escalated}`);
       io.emit('dashboard-refresh');
     }
+    return { skipped: false, ...result };
   } catch (err) {
     logger.error('SLA auto-escalation job failed', { error: err.message });
+    return { skipped: false, error: err.message };
   } finally {
     slaJobRunning = false;
   }
 }
 
-setInterval(runSlaEscalationJob, SLA_ESCALATION_INTERVAL_MINUTES * 60 * 1000);
-runSlaEscalationJob();
+app.post('/api/internal/jobs/sla-escalate', async (req, res) => {
+  if (!INTERNAL_JOB_KEY) {
+    return res.status(503).json({
+      status: 'error',
+      message: 'Internal job endpoint is disabled',
+    });
+  }
+
+  const providedKey = req.header('x-internal-job-key');
+  if (providedKey !== INTERNAL_JOB_KEY) {
+    return res.status(401).json({
+      status: 'error',
+      message: 'Unauthorized',
+    });
+  }
+
+  const result = await runSlaEscalationJob();
+  if (result?.error) {
+    return res.status(500).json({ status: 'error', message: result.error });
+  }
+  return res.json({
+    status: 'success',
+    data: result,
+  });
+});
+
+if (!ENABLE_INTERNAL_JOBS) {
+  logger.info('Internal jobs disabled via ENABLE_INTERNAL_JOBS=false');
+} else {
+  if (RUN_SLA_JOB) {
+    setInterval(runSlaEscalationJob, SLA_ESCALATION_INTERVAL_MINUTES * 60 * 1000);
+    runSlaEscalationJob();
+    logger.info(`SLA internal job enabled (every ${SLA_ESCALATION_INTERVAL_MINUTES} minutes)`);
+  } else {
+    logger.info('SLA internal job disabled via RUN_SLA_JOB=false');
+  }
+}
 
 async function runAutoCloseJob() {
   if (autoCloseJobRunning) return;
@@ -203,8 +244,15 @@ async function runAutoCloseJob() {
   }
 }
 
-setInterval(runAutoCloseJob, AUTO_CLOSE_INTERVAL_MINUTES * 60 * 1000);
-runAutoCloseJob();
+if (!ENABLE_INTERNAL_JOBS) {
+  logger.info('Auto-close internal job disabled because ENABLE_INTERNAL_JOBS=false');
+} else if (RUN_AUTO_CLOSE_JOB) {
+  setInterval(runAutoCloseJob, AUTO_CLOSE_INTERVAL_MINUTES * 60 * 1000);
+  runAutoCloseJob();
+  logger.info(`Auto-close internal job enabled (every ${AUTO_CLOSE_INTERVAL_MINUTES} minutes)`);
+} else {
+  logger.info('Auto-close internal job disabled via RUN_AUTO_CLOSE_JOB=false');
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

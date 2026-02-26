@@ -71,23 +71,25 @@ const AdminUsersPage = () => {
   const debugActive = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug_active') === '1';
 
   const abortControllerRef = React.useRef(null);
+  const mountedRef = React.useRef(true);
 
   // Load active users (logged in within last 15 minutes)
   const loadActiveUsers = useCallback(async () => {
     try {
-      setLoadingActive(true);
+      if (mountedRef.current) setLoadingActive(true);
       const res = await apiClient.get('/admin/active-users?withinMinutes=15');
-      setActiveUsers(res.data.data.activeUsers || []);
-      
-      // Log location context for debugging
-      if (res.data.data.location && res.data.data.location !== 'All Locations') {
-        console.log(`[User Activity] Viewing users from: ${res.data.data.location}`);
+      if (mountedRef.current) setActiveUsers(res.data?.data?.activeUsers || []);
+
+      // Log location context for debugging (guarded)
+      const location = res.data?.data?.location;
+      if (location && location !== 'All Locations') {
+        console.log(`[User Activity] Viewing users from: ${location}`);
       }
     } catch (err) {
       console.error('Failed to load active users:', err);
       // Don't show error toast for active users - it's secondary info
     } finally {
-      setLoadingActive(false);
+      if (mountedRef.current) setLoadingActive(false);
     }
   }, []);
 
@@ -115,7 +117,7 @@ const AdminUsersPage = () => {
     const signal = abortControllerRef.current.signal;
 
     try {
-      setLoading(true);
+      if (mountedRef.current) setLoading(true);
       const params = new URLSearchParams();
       if (search.trim()) params.append("search", search.trim());
       if (roleFilter) params.append("role", roleFilter);
@@ -123,18 +125,19 @@ const AdminUsersPage = () => {
       if (archivedFilter) params.append("archived", archivedFilter);
 
       const res = await apiClient.get(`/users?${params.toString()}`, { signal });
-      setUsers(res.data.data.users || []);
+      if (mountedRef.current) setUsers(res.data?.data?.users || []);
     } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
-        return; // Ignore cancellation
+      if (err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+        // Still clear loading on abort
+        if (mountedRef.current) setLoading(false);
+        return;
       }
       console.error("Failed to load users:", err);
-      // Only verify loading state if not canceled (though usually we'd want to ensure loading is off if error)
+      // Always clear loading on error
+      if (mountedRef.current) setLoading(false);
     } finally {
-      // Only turn off loading if this request wasn't aborted
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      // Final safety net: ensure loading is always cleared if component still mounted
+      if (mountedRef.current) setLoading(false);
     }
   }, [search, roleFilter, locationFilter, archivedFilter]);
 
@@ -143,26 +146,46 @@ const AdminUsersPage = () => {
     return () => clearTimeout(timer);
   }, [load]);
 
+  // Fallback: ensure loading is cleared after 5 seconds if still loading
+  useEffect(() => {
+    if (!loading) return;
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) {
+        console.warn('Loading timeout - force clearing');
+        setLoading(false);
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
+  // Track mounted state and abort outstanding requests on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
   // Reset pagination when filters/search change or when users list updates
   useEffect(() => {
     setPageIndex(0);
   }, [search, roleFilter, locationFilter, archivedFilter, users.length]);
 
-  // Load active users on mount and refresh every 30 seconds
+  // Load active users on mount and refresh every 60 seconds (less flickering)
   useEffect(() => {
     loadActiveUsers();
-    const interval = setInterval(loadActiveUsers, 30000); // Refresh every 30 seconds
+    const interval = setInterval(loadActiveUsers, 60000); // Refresh every 60 seconds
     return () => clearInterval(interval);
   }, [loadActiveUsers]);
 
   const updateUser = async (id, updates) => {
     try {
       const res = await apiClient.patch(`/users/${id}`, updates);
-      if (res.data.data?.temporary_password) {
+      if (res.data?.data?.temporary_password) {
         setTempPasswordInfo({
-          user: res.data.data.user,
-          password: res.data.data.temporary_password,
-          message: res.data.data.message,
+          user: res.data?.data?.user,
+          password: res.data?.data?.temporary_password,
+          message: res.data?.data?.message,
         });
         setTimeout(() => setTempPasswordInfo(null), 30000);
       }
@@ -177,11 +200,11 @@ const AdminUsersPage = () => {
   const handleResetPassword = async (user) => {
     try {
       const res = await apiClient.post(`/users/${user.user_id}/reset-password`);
-      if (res.data.data?.temporary_password) {
+      if (res.data?.data?.temporary_password) {
         setTempPasswordInfo({
-          user: res.data.data.user,
-          password: res.data.data.temporary_password,
-          message: res.data.data.message,
+          user: res.data?.data?.user,
+          password: res.data?.data?.temporary_password,
+          message: res.data?.data?.message,
         });
         setTimeout(() => setTempPasswordInfo(null), 30000);
       }
@@ -211,10 +234,11 @@ const AdminUsersPage = () => {
       await updateUser(user.user_id, { is_active: targetState });
       // After successful toggle, show undo toast (only when deactivating)
       if (targetState === false) {
+        // clear any existing undo timers first
+        clearUndo();
         const timerId = setTimeout(() => setUndoInfo(null), 8000);
         setUndoInfo({ userId: user.user_id, timerId });
       }
-      load();
     } catch (err) {
       // error already alerted in updateUser
     } finally {
@@ -227,7 +251,6 @@ const AdminUsersPage = () => {
     try {
       await updateUser(undoInfo.userId, { is_active: true });
       clearUndo();
-      load();
     } catch (err) {
       // ignore, updateUser shows alert
     }
@@ -340,11 +363,17 @@ const AdminUsersPage = () => {
         <div className="glass notification-banner">
           <div className="notification-content">
             <span className="notification-label">SECURITY ALERT</span>
-            <span className="notification-message">Temporary access code generated for <strong>{tempPasswordInfo.user.full_name}</strong></span>
+            <span className="notification-message">Temporary access code generated for <strong>{tempPasswordInfo.user?.full_name || 'user'}</strong></span>
           </div>
           <div className="credential-box">
             <code>{tempPasswordInfo.password}</code>
-            <button className="action-btn" onClick={() => navigator.clipboard.writeText(tempPasswordInfo.password)}>COPY</button>
+            <button className="action-btn" onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(tempPasswordInfo.password);
+              } catch (e) {
+                console.error('Clipboard write failed', e);
+              }
+            }}>COPY</button>
             <button className="text-btn" onClick={() => setTempPasswordInfo(null)}>DISMISS</button>
           </div>
         </div>
@@ -519,7 +548,7 @@ const AdminUsersPage = () => {
                     disabled={pageIndex === 0}
                     aria-label="Previous page"
                   >
-                    {STRINGS.prevButton} {PAGE_SIZE}
+                    {STRINGS.prevButton}
                   </button>
 
                   <div className="pagination-info">
@@ -532,7 +561,7 @@ const AdminUsersPage = () => {
                     disabled={end >= total}
                     aria-label="Next page"
                   >
-                    {STRINGS.nextButton} {PAGE_SIZE} →
+                    {STRINGS.nextButton} →
                   </button>
                 </div>
               </div>

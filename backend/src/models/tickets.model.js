@@ -155,11 +155,11 @@ const TicketsModel = {
     if (filters.exclude_archived) {
       if (filters.include_resolved_closed) {
         // For IT staff: exclude archived active tickets, but include resolved/closed even if archived
-        where.push("((t.is_archived IS NULL OR t.is_archived = false) AND t.status NOT IN ('Resolved', 'Closed')) OR (t.status IN ('Resolved', 'Closed'))");
+        where.push("((t.is_archived IS NULL OR t.is_archived = false) AND LOWER(COALESCE(t.status, '')) NOT IN ('resolved', 'closed')) OR (LOWER(COALESCE(t.status, '')) IN ('resolved', 'closed'))");
       } else {
         // Default: exclude archived and exclude Resolved/Closed
         where.push('(t.is_archived IS NULL OR t.is_archived = false)');
-        where.push("t.status NOT IN ('Resolved', 'Closed')");
+        where.push("LOWER(COALESCE(t.status, '')) NOT IN ('resolved', 'closed')");
       }
     }
     const hasTeamIds = filters.assigned_team_ids && filters.assigned_team_ids.length;
@@ -305,6 +305,32 @@ const TicketsModel = {
     return result.rows.map((row) => row.team_lead_id).filter(Boolean);
   },
 
+  async listTeamLeadIdsByTeamIds(teamIds) {
+    if (!teamIds || !teamIds.length) return [];
+    const result = await db.query(
+      `SELECT team_id, team_lead_id
+       FROM teams
+       WHERE team_id = ANY($1)
+         AND team_lead_id IS NOT NULL`,
+      [teamIds]
+    );
+    return result.rows;
+  },
+
+  async listTeamLeadIdsForAssignees(assigneeIds) {
+    if (!assigneeIds || !assigneeIds.length) return [];
+    const result = await db.query(
+      `SELECT tm.user_id AS assignee_id, t.team_lead_id
+       FROM team_members tm
+       JOIN teams t ON t.team_id = tm.team_id
+       WHERE tm.user_id = ANY($1)
+         AND tm.is_active = true
+         AND t.team_lead_id IS NOT NULL`,
+      [assigneeIds]
+    );
+    return result.rows;
+  },
+
   async listSlaEscalationCandidates({ thresholdPercent, statuses }) {
     const result = await db.query(
       `SELECT *
@@ -316,7 +342,13 @@ const TicketsModel = {
          AND (
            EXTRACT(EPOCH FROM (NOW() - created_at))
            / NULLIF(EXTRACT(EPOCH FROM (sla_due_date - created_at)), 0)
-         ) * 100 >= $2`,
+         ) * 100 >= $2
+         AND NOT EXISTS (
+           SELECT 1
+           FROM ticket_escalations e
+           WHERE e.ticket_id = tickets.ticket_id
+             AND e.reason ILIKE 'SLA threshold%'
+         )`,
       [statuses, thresholdPercent]
     );
     return result.rows;

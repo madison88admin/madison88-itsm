@@ -151,7 +151,7 @@ const DashboardController = {
             const { message } = req.body;
             if (!message) return res.status(400).json({ status: 'error', message: 'Message is required' });
 
-            const count = await DashboardService.broadcast(req.user.user_id, message);
+            const result = await DashboardService.broadcast(req.user, message);
 
             // Emit refresh event to all connected clients
             const io = req.app.get('io');
@@ -159,8 +159,10 @@ const DashboardController = {
 
             res.json({
                 status: 'success',
-                message: `Broadcast sent to ${count} staff members.`,
-                data: { count }
+                message: result.filteredByLocation
+                  ? `Broadcast sent to ${result.count} staff members in ${result.location}.`
+                  : `Broadcast sent to ${result.count} staff members.`,
+                data: result
             });
         } catch (err) {
             logger.error(`Dashboard Error [broadcast]: ${err.message}`, err);

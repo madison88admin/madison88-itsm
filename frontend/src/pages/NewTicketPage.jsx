@@ -53,7 +53,10 @@ const NewTicketPage = ({ onCreated, user }) => {
   });
   const [files, setFiles] = useState([]);
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
+  const [kbSuggestions, setKbSuggestions] = useState([]);
+  const [searchingKbSuggestions, setSearchingKbSuggestions] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const kbSearchTimeoutRef = useRef(null);
 
   const location = useLocation();
 
@@ -180,6 +183,36 @@ const NewTicketPage = ({ onCreated, user }) => {
       }
     };
   }, [form.title]);
+
+  useEffect(() => {
+    const querySeed = `${form.title} ${stripHtml(form.description)}`.trim();
+    if (querySeed.length < 8) {
+      setKbSuggestions([]);
+      return;
+    }
+
+    if (kbSearchTimeoutRef.current) {
+      clearTimeout(kbSearchTimeoutRef.current);
+    }
+
+    kbSearchTimeoutRef.current = setTimeout(async () => {
+      setSearchingKbSuggestions(true);
+      try {
+        const res = await apiClient.get("/kb/search", { params: { q: querySeed } });
+        setKbSuggestions((res.data.data.results || []).slice(0, 4));
+      } catch (err) {
+        setKbSuggestions([]);
+      } finally {
+        setSearchingKbSuggestions(false);
+      }
+    }, 700);
+
+    return () => {
+      if (kbSearchTimeoutRef.current) {
+        clearTimeout(kbSearchTimeoutRef.current);
+      }
+    };
+  }, [form.title, form.description]);
 
   const validateIssueDetails = () => {
     const title = form.title.trim();
@@ -599,6 +632,43 @@ const NewTicketPage = ({ onCreated, user }) => {
               className="editor"
             />
           </label>
+          <div className="field full">
+            <span>Helpful Articles</span>
+            <div className="duplicates-suggestion" style={{
+              marginTop: "8px",
+              background: "rgba(14, 165, 233, 0.06)",
+              border: "1px solid rgba(14, 165, 233, 0.25)",
+              borderRadius: "12px",
+              padding: "12px"
+            }}>
+              {searchingKbSuggestions && (
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-300)" }}>
+                  Searching related knowledge base articles...
+                </p>
+              )}
+              {!searchingKbSuggestions && kbSuggestions.length === 0 && (
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--slate-500)" }}>
+                  Add more detail in title/description to get suggested fixes before submitting.
+                </p>
+              )}
+              {!searchingKbSuggestions && kbSuggestions.length > 0 && (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {kbSuggestions.map((article) => (
+                    <div key={article.article_id} style={{ padding: "8px", borderRadius: "8px", background: "rgba(255,255,255,0.03)" }}>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--cyan-300)" }}>
+                        {article.title}
+                      </div>
+                      {article.category && (
+                        <div style={{ fontSize: "11px", color: "var(--slate-400)" }}>
+                          Category: {article.category}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

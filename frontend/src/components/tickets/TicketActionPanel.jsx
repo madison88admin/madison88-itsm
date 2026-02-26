@@ -21,6 +21,8 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
     const [staff, setStaff] = useState([]);
     const [selectedStaff, setSelectedStaff] = useState("");
     const [localTime, setLocalTime] = useState("");
+    const [selectedPriority, setSelectedPriority] = useState(ticket?.priority || "P3");
+    const [priorityReason, setPriorityReason] = useState("");
 
     const LOCATION_TIMEZONES = {
         'Philippines': 'Asia/Manila',
@@ -47,6 +49,11 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
         }, 1000);
         return () => clearInterval(timer);
     }, [ticket.location]);
+
+    React.useEffect(() => {
+        setSelectedPriority(ticket?.priority || "P3");
+        setPriorityReason("");
+    }, [ticket?.ticket_id, ticket?.priority]);
 
     const handleKbSearch = async (e) => {
         if (e.key === 'Enter') {
@@ -113,6 +120,46 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
         } catch (err) {
             console.error("Failed to update status:", err);
             alert("Failed to update status: " + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePriorityChange = async () => {
+        if (!selectedPriority || selectedPriority === ticket.priority) return;
+        if (!priorityReason.trim() || priorityReason.trim().length < 5) {
+            alert("Priority override reason must be at least 5 characters.");
+            return;
+        }
+        try {
+            setLoading(true);
+            const res = await apiClient.patch(`/tickets/${ticket.ticket_id}`, {
+                priority: selectedPriority,
+                priority_override_reason: priorityReason.trim(),
+            });
+            if (onUpdate) onUpdate(res.data.data.ticket);
+            setPriorityReason("");
+            alert(`Priority updated to ${selectedPriority}`);
+        } catch (err) {
+            alert("Failed to update priority: " + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEscalate = async () => {
+        const reason = window.prompt("Enter escalation reason (min 5 chars):");
+        if (!reason || reason.trim().length < 5) return;
+        try {
+            setLoading(true);
+            await apiClient.post(`/tickets/${ticket.ticket_id}/escalations`, {
+                reason: reason.trim(),
+                severity: "high",
+            });
+            alert("Ticket escalated successfully.");
+            if (onUpdate) onUpdate(ticket);
+        } catch (err) {
+            alert("Failed to escalate: " + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -384,11 +431,41 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                         <div className="action-group">
                             <label>MANAGEMENT</label>
                             <div className="action-buttons-grid">
-                                <button className="btn-action secondary" disabled>ESCALATE</button>
+                                <button className="btn-action secondary" onClick={handleEscalate} disabled={loading}>
+                                    ESCALATE
+                                </button>
                                 <button className="btn-action secondary" onClick={handleAssignClick} disabled={loading}>
                                     {ticket.assigned_to ? 'REASSIGN' : 'ASSIGN TICKET'}
                                 </button>
                             </div>
+                            {['it_manager', 'system_admin'].includes(user?.role) && (
+                                <div className="priority-inline-form">
+                                    <label className="priority-inline-label">CHANGE PRIORITY</label>
+                                    <select
+                                        value={selectedPriority}
+                                        onChange={(e) => setSelectedPriority(e.target.value)}
+                                        disabled={loading}
+                                    >
+                                        {['P1', 'P2', 'P3', 'P4'].map((p) => (
+                                            <option key={p} value={p}>{p}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={priorityReason}
+                                        onChange={(e) => setPriorityReason(e.target.value)}
+                                        placeholder="Reason for priority change"
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        className="btn-action primary"
+                                        onClick={handlePriorityChange}
+                                        disabled={loading || selectedPriority === ticket.priority || priorityReason.trim().length < 5}
+                                    >
+                                        APPLY PRIORITY
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </>
                 )
@@ -475,6 +552,39 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             display: flex;
             flex-direction: column;
             gap: 1rem;
+        }
+        .priority-inline-form {
+            margin-top: 0.75rem;
+            display: grid;
+            gap: 0.6rem;
+        }
+        .priority-inline-label {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .priority-inline-form select,
+        .priority-inline-form input {
+            width: 100%;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        .priority-inline-form select {
+            color-scheme: dark;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: #0f1a3a;
+        }
+        .priority-inline-form select option {
+            background-color: #0b1530;
+            color: #e2e8f0;
         }
         .action-group label {
             font-size: 0.7rem;

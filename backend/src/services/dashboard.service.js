@@ -461,12 +461,32 @@ const DashboardService = {
         return escalations;
     },
 
-    async broadcast(adminUserId, message) {
+    async broadcast(actor, message) {
         try {
             const NotificationsModel = require('../models/notifications.model');
-            const staff = await db.query(
-                "SELECT user_id FROM users WHERE role IN ('it_agent', 'it_manager', 'system_admin')"
-            );
+            const actorId = actor?.user_id || null;
+            const actorRole = actor?.role || null;
+            const actorLocation = actor?.location || null;
+            if (!actorId || !actorRole) {
+                throw new Error('Invalid broadcast actor context');
+            }
+
+            // Scope system admin broadcasts to the admin's own location.
+            // Keep manager behavior location-scoped as well.
+            const shouldFilterByLocation = ['system_admin', 'it_manager'].includes(actorRole) && !!actorLocation;
+            const recipientRoles = ['it_agent', 'it_manager', 'system_admin'];
+
+            const staff = shouldFilterByLocation
+                ? await db.query(
+                    `SELECT user_id FROM users
+                     WHERE role = ANY($1)
+                       AND location = $2`,
+                    [recipientRoles, actorLocation]
+                )
+                : await db.query(
+                    "SELECT user_id FROM users WHERE role = ANY($1)",
+                    [recipientRoles]
+                );
 
             const notifications = staff.rows.map(user =>
                 NotificationsModel.createNotification({
@@ -478,7 +498,11 @@ const DashboardService = {
             );
 
             await Promise.all(notifications);
-            return staff.rowCount;
+            return {
+                count: staff.rowCount,
+                filteredByLocation: shouldFilterByLocation,
+                location: shouldFilterByLocation ? actorLocation : null,
+            };
         } catch (err) {
             console.error('Broadcast Service Error:', err);
             throw err;
