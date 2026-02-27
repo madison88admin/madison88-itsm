@@ -265,6 +265,7 @@ const DashboardService = {
                 FROM users u
                 LEFT JOIN tickets t ON t.assigned_to = u.user_id
                 WHERE u.role = 'it_agent'
+                  AND u.is_active = true
                 GROUP BY u.user_id, u.full_name
                 ORDER BY u.full_name
             `)
