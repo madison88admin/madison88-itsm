@@ -1268,6 +1268,104 @@ textarea {
   cursor: pointer;
 }
 
+.change-governance {
+  border: 1px solid rgba(47, 215, 255, 0.2);
+}
+
+.approval-guide {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 215, 255, 0.18);
+  background: rgba(10, 22, 53, 0.45);
+}
+
+.approval-guide p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--slate-300);
+  line-height: 1.45;
+}
+
+.approval-guide p:last-child {
+  margin-bottom: 0;
+}
+
+.change-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.change-kpi-card {
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(5, 11, 31, 0.6);
+  border: 1px solid rgba(47, 215, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.change-kpi-card span {
+  font-size: 11px;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.change-kpi-card strong {
+  color: var(--cyan-300);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.change-subheading {
+  margin: 0;
+  color: var(--slate-300);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.change-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.change-pill-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.change-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--slate-300);
+  border: 1px solid rgba(47, 215, 255, 0.2);
+  background: rgba(10, 22, 53, 0.5);
+}
+
+.change-pill.ok {
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.change-pill.warn {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
 .change-row-header {
   cursor: pointer;
   transition: background 0.2s;
@@ -1350,6 +1448,15 @@ textarea {
 .badge-rejected {
   background: rgba(255, 93, 108, 0.2);
   color: var(--danger);
+}
+
+.btn.ghost.danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+}
+
+.btn.ghost.danger:hover {
+  background: rgba(239, 68, 68, 0.16);
 }
 
 .badge-submitted {
@@ -1487,6 +1594,22 @@ textarea {
 
 .calendar-expanded-change .muted {
   margin: 0 0 8px;
+}
+
+@media (max-width: 1100px) {
+  .change-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .change-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .change-checklist-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .filter-bar {

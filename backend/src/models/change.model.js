@@ -1,5 +1,14 @@
 const db = require('../config/database');
 
+const BASE_SELECT = `change_id, change_number, ticket_id, title, description, change_type,
+        affected_systems, implementation_plan, rollback_plan, risk_assessment,
+        change_window_start, change_window_end, requested_by, status,
+        created_at, updated_at, approved_at, implemented_at, closed_at,
+        business_impact, communication_plan, dependency_map, role_assignments,
+        technical_checklist, emergency_justification, retro_due_at,
+        actual_downtime_minutes, post_implementation_notes, pir_required, pir_completed, pir_notes,
+        approval_due_at, approved_within_sla`;
+
 const ChangeModel = {
   async getLatestChangeNumber(year) {
     const result = await db.query(
@@ -29,10 +38,7 @@ const ChangeModel = {
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const result = await db.query(
-      `SELECT change_id, change_number, ticket_id, title, description, change_type,
-              affected_systems, implementation_plan, rollback_plan, risk_assessment,
-              change_window_start, change_window_end, requested_by, status,
-              created_at, updated_at, approved_at, implemented_at, closed_at
+      `SELECT ${BASE_SELECT}
        FROM change_requests ${whereClause}
        ORDER BY created_at DESC`,
       values
@@ -43,10 +49,7 @@ const ChangeModel = {
 
   async getChangeById(changeId) {
     const result = await db.query(
-      `SELECT change_id, change_number, ticket_id, title, description, change_type,
-              affected_systems, implementation_plan, rollback_plan, risk_assessment,
-              change_window_start, change_window_end, requested_by, status,
-              created_at, updated_at, approved_at, implemented_at, closed_at
+      `SELECT ${BASE_SELECT}
        FROM change_requests WHERE change_id = $1`,
       [changeId]
     );
@@ -58,8 +61,12 @@ const ChangeModel = {
       `INSERT INTO change_requests
         (change_number, ticket_id, title, description, change_type, affected_systems,
          implementation_plan, rollback_plan, risk_assessment, change_window_start,
-         change_window_end, requested_by, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         change_window_end, requested_by, status, approved_at, business_impact,
+         communication_plan, dependency_map, role_assignments, technical_checklist,
+         emergency_justification, retro_due_at, actual_downtime_minutes,
+         post_implementation_notes, pir_required, pir_completed, pir_notes,
+         approval_due_at, approved_within_sla)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
        RETURNING *`,
       [
         data.change_number,
@@ -74,7 +81,22 @@ const ChangeModel = {
         data.change_window_start,
         data.change_window_end,
         data.requested_by,
-        data.status
+        data.status,
+        data.approved_at || null,
+        data.business_impact || null,
+        data.communication_plan || null,
+        data.dependency_map || null,
+        data.role_assignments || null,
+        data.technical_checklist || null,
+        data.emergency_justification || null,
+        data.retro_due_at || null,
+        data.actual_downtime_minutes ?? null,
+        data.post_implementation_notes || null,
+        data.pir_required || false,
+        data.pir_completed || false,
+        data.pir_notes || null,
+        data.approval_due_at || null,
+        data.approved_within_sla ?? null,
       ]
     );
     return result.rows[0];
@@ -122,7 +144,7 @@ const ChangeModel = {
     const result = await db.query(
       `SELECT change_id, change_number, title, description, change_window_start, change_window_end
        FROM change_requests
-       WHERE status = 'scheduled'
+       WHERE status IN ('approved', 'scheduled', 'implemented')
          AND change_window_start IS NOT NULL
          AND change_window_end IS NOT NULL
          AND change_window_start < $2
@@ -157,6 +179,14 @@ const ChangeModel = {
       const theirSystems = normalize(row.affected_systems);
       return theirSystems.some((s) => ourSystems.has(s));
     });
+  },
+
+  async deleteChange(changeId) {
+    const result = await db.query(
+      'DELETE FROM change_requests WHERE change_id = $1 RETURNING change_id, change_number, status',
+      [changeId]
+    );
+    return result.rows[0] || null;
   },
 };
 
