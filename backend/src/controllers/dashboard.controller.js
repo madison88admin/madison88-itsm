@@ -52,8 +52,13 @@ const DashboardController = {
 
     async getStatusSummary(req, res, next) {
         try {
-            const location = ['it_agent', 'it_manager'].includes(req.user.role) ? req.user.location : null;
-            const result = await DashboardService.getStatusSummary(location);
+            const location = ['it_agent', 'it_manager', 'system_admin'].includes(req.user.role)
+                ? (req.user.location || null)
+                : null;
+            const timezone = typeof req.query.timezone === 'string' && req.query.timezone.trim()
+                ? req.query.timezone.trim()
+                : 'Asia/Manila';
+            const result = await DashboardService.getStatusSummary(location, timezone);
             res.json({ status: 'success', data: result });
         } catch (err) {
             logger.error(`Dashboard Error [getStatusSummary]: ${err.message}`, err);

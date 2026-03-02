@@ -141,7 +141,7 @@ const DashboardService = {
         }
     },
 
-    async getStatusSummary(location = null) {
+    async getStatusSummary(location = null, timezone = 'Asia/Manila') {
         const where = location ? `WHERE location = $1` : '';
         const values = location ? [location] : [];
         const result = await db.query(`SELECT status, COUNT(*)::int AS count FROM tickets ${where} GROUP BY status`, values);
@@ -152,33 +152,29 @@ const DashboardService = {
 
         // "Today" completion metrics based on actual completion timestamps.
         // This avoids counting old resolved/closed tickets in the "Resolved Today" KPI.
-        const todayCountsQuery = location
-            ? `
+        const resolvedTimezone = (typeof timezone === 'string' && timezone.trim()) ? timezone.trim() : 'Asia/Manila';
+        const todayValues = [];
+        let todayWhere = '';
+        if (location) {
+            todayValues.push(location);
+            todayWhere = `WHERE location = $${todayValues.length}`;
+        }
+        todayValues.push(resolvedTimezone);
+        const tzParam = todayValues.length;
+        const todayCountsQuery = `
                 SELECT
                   COUNT(*) FILTER (
                     WHERE resolved_at IS NOT NULL
-                      AND resolved_at::date = CURRENT_DATE
+                      AND (resolved_at AT TIME ZONE $${tzParam})::date = (NOW() AT TIME ZONE $${tzParam})::date
                   )::int AS resolved_today,
                   COUNT(*) FILTER (
                     WHERE closed_at IS NOT NULL
-                      AND closed_at::date = CURRENT_DATE
+                      AND (closed_at AT TIME ZONE $${tzParam})::date = (NOW() AT TIME ZONE $${tzParam})::date
                   )::int AS closed_today
                 FROM tickets
-                WHERE location = $1
-              `
-            : `
-                SELECT
-                  COUNT(*) FILTER (
-                    WHERE resolved_at IS NOT NULL
-                      AND resolved_at::date = CURRENT_DATE
-                  )::int AS resolved_today,
-                  COUNT(*) FILTER (
-                    WHERE closed_at IS NOT NULL
-                      AND closed_at::date = CURRENT_DATE
-                  )::int AS closed_today
-                FROM tickets
+                ${todayWhere}
               `;
-        const todayResult = await db.query(todayCountsQuery, values);
+        const todayResult = await db.query(todayCountsQuery, todayValues);
         const resolved_today = parseInt(todayResult.rows[0]?.resolved_today || 0, 10);
         const closed_today = parseInt(todayResult.rows[0]?.closed_today || 0, 10);
 

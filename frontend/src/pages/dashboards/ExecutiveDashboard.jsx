@@ -55,6 +55,13 @@ const toDateTimeLabel = (value) =>
     minute: "2-digit",
   });
 
+const toLocalYmd = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const trendDefinitions = {
   volume: {
     key: "tickets_by_day",
@@ -104,8 +111,9 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
 
   const fetchData = async () => {
     try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila";
       const [statusRes, reportingRes, pulseRes] = await Promise.all([
-        apiClient.get("/dashboard/status-summary"),
+        apiClient.get("/dashboard/status-summary", { params: { timezone } }),
         apiClient.get("/dashboard/advanced-reporting"),
         apiClient.get("/dashboard/pulse"),
       ]);
@@ -117,9 +125,7 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
       setData({
         summary: {
           open: status.open || 0,
-          resolved:
-            status.resolved_today_total ??
-            ((status.resolved_today || 0) + (status.closed_today || 0)),
+          resolved: status.resolved_today || 0,
           compliance: advanced.trends?.sla_compliance_by_week?.[0]?.compliance ?? 0,
         },
         health: pulse.systemHealth || { status: "optimal", text: "Systems Operational", checks: [] },
@@ -362,9 +368,9 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
             <div
               className="kpi-card hover-lift"
               onClick={() => {
-                const today = new Date().toISOString().slice(0, 10);
+                const today = toLocalYmd();
                 handleKpiClick({
-                  status: "Resolved,Closed",
+                  status: "Resolved",
                   include_archived: "true",
                   date_from: today,
                 });
