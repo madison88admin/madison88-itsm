@@ -41,6 +41,11 @@ const categoryOptions = [
 const locationOptions = ["", "Philippines", "US", "Indonesia", "Other"];
 
 const PAGE_SIZE = 5;
+const splitCsv = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const TicketsPage = ({
   onSelectTicket,
@@ -93,15 +98,15 @@ const TicketsPage = ({
   // Parse filters from URL on mount (for Drill-down Dashboard)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const status = params.get("status");
-    const priority = params.get("priority");
-    const category = params.get("category");
-    const assignment = params.get("assignment");
-
-    if (status) setStatusFilter(status);
-    if (priority) setPriorityFilter(priority);
-    if (category) setCategoryFilter(category);
-    if (assignment) setAssignmentFilter(assignment);
+    setStatusFilter(params.get("status") || "");
+    setPriorityFilter(params.get("priority") || "");
+    setCategoryFilter(params.get("category") || "");
+    setAssignmentFilter(params.get("assignment") || "all");
+    setLocationFilter(params.get("location") || "");
+    setDateFrom(params.get("date_from") || "");
+    setDateTo(params.get("date_to") || "");
+    setIncludeArchived(params.get("include_archived") === "true");
+    setPage(1);
   }, [location.search]);
 
   useEffect(() => {
@@ -284,6 +289,83 @@ const TicketsPage = ({
   const total = pagination.total || 0;
   const hasNext = total > page * PAGE_SIZE;
   const hasPrev = page > 1;
+  const statusFilterValues = splitCsv(statusFilter);
+  const statusSelectOptions =
+    statusFilterValues.length > 1 && !statusOptions.includes(statusFilter)
+      ? [statusFilter, ...statusOptions]
+      : statusOptions;
+
+  const activeFilterChips = [
+    ...statusFilterValues.map((value) => ({
+      key: `status-${value}`,
+      label: `Status: ${value}`,
+      onRemove: () => {
+        const next = statusFilterValues.filter((item) => item !== value);
+        setStatusFilter(next.join(","));
+        setPage(1);
+      },
+    })),
+    priorityFilter
+      ? {
+          key: "priority",
+          label: `Priority: ${priorityFilter}`,
+          onRemove: () => {
+            setPriorityFilter("");
+            setPage(1);
+          },
+        }
+      : null,
+    categoryFilter
+      ? {
+          key: "category",
+          label: `Category: ${categoryFilter}`,
+          onRemove: () => {
+            setCategoryFilter("");
+            setPage(1);
+          },
+        }
+      : null,
+    locationFilter
+      ? {
+          key: "location",
+          label: `Location: ${locationFilter}`,
+          onRemove: () => {
+            setLocationFilter("");
+            setPage(1);
+          },
+        }
+      : null,
+    dateFrom
+      ? {
+          key: "date-from",
+          label: `From: ${dateFrom}`,
+          onRemove: () => {
+            setDateFrom("");
+            setPage(1);
+          },
+        }
+      : null,
+    dateTo
+      ? {
+          key: "date-to",
+          label: `To: ${dateTo}`,
+          onRemove: () => {
+            setDateTo("");
+            setPage(1);
+          },
+        }
+      : null,
+    includeArchived
+      ? {
+          key: "archived",
+          label: "Archived Included",
+          onRemove: () => {
+            setIncludeArchived(false);
+            setPage(1);
+          },
+        }
+      : null,
+  ].filter(Boolean);
 
   useEffect(() => {
     setSelectedTickets((prev) =>
@@ -390,9 +472,13 @@ const TicketsPage = ({
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          {statusOptions.map((option) => (
+          {statusSelectOptions.map((option) => (
             <option key={option || "all"} value={option}>
-              {option || "All Statuses"}
+              {!option
+                ? "All Statuses"
+                : option === statusFilter && statusFilterValues.length > 1
+                  ? `Multi (${statusFilterValues.join(", ")})`
+                  : option}
             </option>
           ))}
         </select>
@@ -441,6 +527,21 @@ const TicketsPage = ({
           title="Created to"
         />
       </div>
+      {activeFilterChips.length > 0 && (
+        <div className="filter-bar ticket-filters" style={{ marginTop: "-0.25rem", gap: "0.5rem" }}>
+          {activeFilterChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              className="filter-pill active"
+              onClick={chip.onRemove}
+              title="Remove filter"
+            >
+              {chip.label} ✕
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="pagination-info">
         Showing {displayedTickets.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + displayedTickets.length} of {total} tickets (order: Escalated → SLA Breached → P1 → P2 → P3 → P4 → Newest).

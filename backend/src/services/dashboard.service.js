@@ -1,6 +1,26 @@
 const db = require('../config/database');
 const SlaUtils = require('../utils/sla-utils');
 
+const BROADCAST_COOLDOWN_SECONDS = 60;
+const BROADCAST_TEMPLATES = [
+    {
+        key: 'service-degradation',
+        label: 'Service Degradation',
+        message: 'Heads up team: active service degradation reported. Prioritize triage, acknowledge impacted users, and provide updates every 15 minutes until stabilized.',
+    },
+    {
+        key: 'planned-maintenance',
+        label: 'Planned Maintenance',
+        message: 'Planned maintenance window is starting soon. Please monitor incoming tickets, tag related issues, and route urgent incidents immediately.',
+    },
+    {
+        key: 'priority-watch',
+        label: 'Priority Watch',
+        message: 'Priority watch is now active. Review P1/P2 queues, validate escalation paths, and confirm ownership on all critical tickets.',
+    },
+];
+const broadcastCooldownByActor = new Map();
+
 const DashboardService = {
     async getSlaPerformance(location = null) {
         try {
@@ -162,7 +182,10 @@ const DashboardService = {
         const resolved_today = parseInt(todayResult.rows[0]?.resolved_today || 0, 10);
         const closed_today = parseInt(todayResult.rows[0]?.closed_today || 0, 10);
 
-        const open = (status_counts['New'] || 0) + (status_counts['In Progress'] || 0);
+        const open =
+            (status_counts['New'] || 0) +
+            (status_counts['In Progress'] || 0) +
+            (status_counts['Pending'] || 0);
         const summary = {
             open,
             in_progress: status_counts['In Progress'] || 0,
@@ -255,6 +278,12 @@ const DashboardService = {
                 UNION ALL
                 (SELECT 'sla_breaches' as type, DATE_TRUNC('day', sla_due_date)::date AS day, COUNT(*)::int AS count
                  FROM tickets WHERE sla_due_date IS NOT NULL AND sla_due_date < NOW() AND status NOT IN ('Resolved','Closed')
+                 GROUP BY day ORDER BY day DESC LIMIT 30)
+                UNION ALL
+                (SELECT 'mttr_hours' as type, DATE_TRUNC('day', resolved_at)::date AS day,
+                        ROUND((AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) / 3600.0))::numeric, 2) AS count
+                 FROM tickets
+                 WHERE resolved_at IS NOT NULL
                  GROUP BY day ORDER BY day DESC LIMIT 30)
             `),
             // Combined Performance & Compliance
@@ -377,6 +406,7 @@ const DashboardService = {
         // Process Consolidated Trends
         const tickets_by_day = trendData.rows.filter(r => r.type === 'ticket_volume');
         const sla_breaches_by_day = trendData.rows.filter(r => r.type === 'sla_breaches');
+        const mttr_by_day = trendData.rows.filter(r => r.type === 'mttr_hours');
 
         // Process Consolidated Performance
         const sla_compliance_by_priority = performanceData.rows
@@ -410,6 +440,7 @@ const DashboardService = {
             trends: {
                 tickets_by_day,
                 sla_breaches_by_day,
+                mttr_by_day,
                 sla_compliance_by_week,
             },
             sla_compliance_by_priority,
@@ -497,47 +528,99 @@ const DashboardService = {
         return escalations;
     },
 
-    async broadcast(actor, message) {
+    async _resolveBroadcastRecipients(actor) {
+        const actorId = actor?.user_id || null;
+        const actorRole = actor?.role || null;
+        const actorLocation = actor?.location || null;
+        if (!actorId || !actorRole) {
+            throw new Error('Invalid broadcast actor context');
+        }
+
+        // Scope admin/manager broadcasts to actor location by design.
+        const shouldFilterByLocation = ['system_admin', 'it_manager'].includes(actorRole) && !!actorLocation;
+        const recipientRoles = ['it_agent', 'it_manager', 'system_admin'];
+
+        const staff = shouldFilterByLocation
+            ? await db.query(
+                `SELECT user_id FROM users
+                 WHERE role = ANY($1)
+                   AND location = $2`,
+                [recipientRoles, actorLocation]
+            )
+            : await db.query(
+                'SELECT user_id FROM users WHERE role = ANY($1)',
+                [recipientRoles]
+            );
+
+        return {
+            actorId,
+            actorRole,
+            actorLocation,
+            shouldFilterByLocation,
+            staff,
+        };
+    },
+
+    async getBroadcastGovernance(actor) {
+        const resolved = await this._resolveBroadcastRecipients(actor);
+        const lastBroadcastAt = broadcastCooldownByActor.get(resolved.actorId) || 0;
+        const elapsedMs = Date.now() - lastBroadcastAt;
+        const remainingMs = Math.max(0, (BROADCAST_COOLDOWN_SECONDS * 1000) - elapsedMs);
+
+        return {
+            templates: BROADCAST_TEMPLATES.map((template) => ({
+                key: template.key,
+                label: template.label,
+                message: template.message,
+            })),
+            audience_count: resolved.staff.rowCount,
+            filteredByLocation: resolved.shouldFilterByLocation,
+            location: resolved.shouldFilterByLocation ? resolved.actorLocation : null,
+            cooldown_seconds: BROADCAST_COOLDOWN_SECONDS,
+            cooldown_remaining_seconds: Math.ceil(remainingMs / 1000),
+        };
+    },
+
+    async broadcast(actor, { message = '', template_key = '' } = {}) {
         try {
             const NotificationsModel = require('../models/notifications.model');
-            const actorId = actor?.user_id || null;
-            const actorRole = actor?.role || null;
-            const actorLocation = actor?.location || null;
-            if (!actorId || !actorRole) {
-                throw new Error('Invalid broadcast actor context');
+            const resolved = await this._resolveBroadcastRecipients(actor);
+
+            const selectedTemplate = BROADCAST_TEMPLATES.find((template) => template.key === String(template_key || '').trim());
+            const finalMessage = String(message || '').trim() || selectedTemplate?.message || '';
+            if (!finalMessage) {
+                const err = new Error('Message is required');
+                err.status = 400;
+                throw err;
             }
 
-            // Scope system admin broadcasts to the admin's own location.
-            // Keep manager behavior location-scoped as well.
-            const shouldFilterByLocation = ['system_admin', 'it_manager'].includes(actorRole) && !!actorLocation;
-            const recipientRoles = ['it_agent', 'it_manager', 'system_admin'];
+            const lastBroadcastAt = broadcastCooldownByActor.get(resolved.actorId) || 0;
+            const elapsedMs = Date.now() - lastBroadcastAt;
+            const minIntervalMs = BROADCAST_COOLDOWN_SECONDS * 1000;
+            if (elapsedMs < minIntervalMs) {
+                const remainingSec = Math.ceil((minIntervalMs - elapsedMs) / 1000);
+                const err = new Error(`Broadcast cooldown active. Please wait ${remainingSec}s before sending again.`);
+                err.status = 429;
+                throw err;
+            }
 
-            const staff = shouldFilterByLocation
-                ? await db.query(
-                    `SELECT user_id FROM users
-                     WHERE role = ANY($1)
-                       AND location = $2`,
-                    [recipientRoles, actorLocation]
-                )
-                : await db.query(
-                    "SELECT user_id FROM users WHERE role = ANY($1)",
-                    [recipientRoles]
-                );
-
-            const notifications = staff.rows.map(user =>
+            const notifications = resolved.staff.rows.map(user =>
                 NotificationsModel.createNotification({
                     user_id: user.user_id,
                     type: 'broadcast',
                     title: 'Global Administrative Broadcast',
-                    message: message
+                    message: finalMessage
                 })
             );
 
             await Promise.all(notifications);
+            broadcastCooldownByActor.set(resolved.actorId, Date.now());
+
             return {
-                count: staff.rowCount,
-                filteredByLocation: shouldFilterByLocation,
-                location: shouldFilterByLocation ? actorLocation : null,
+                count: resolved.staff.rowCount,
+                filteredByLocation: resolved.shouldFilterByLocation,
+                location: resolved.shouldFilterByLocation ? resolved.actorLocation : null,
+                cooldown_seconds: BROADCAST_COOLDOWN_SECONDS,
             };
         } catch (err) {
             console.error('Broadcast Service Error:', err);

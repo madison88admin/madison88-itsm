@@ -26,6 +26,34 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import KanbanPage from "./pages/KanbanPage";
 import ProfilePage from "./pages/ProfilePage";
 
+const defaultNotificationPrefs = {
+  ticket_updates_enabled: true,
+  broadcast_enabled: true,
+  browser_push_enabled: true,
+  email_enabled: true,
+  quiet_hours_enabled: false,
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "07:00",
+  timezone: "Asia/Manila",
+};
+
+const parseMinutes = (hhmm) => {
+  const [h, m] = String(hhmm || "00:00").split(":").map((v) => Number(v));
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+  return (h * 60) + m;
+};
+
+const isNowInQuietHours = (prefs) => {
+  if (!prefs?.quiet_hours_enabled) return false;
+  const start = parseMinutes(prefs.quiet_hours_start);
+  const end = parseMinutes(prefs.quiet_hours_end);
+  const now = new Date();
+  const current = (now.getHours() * 60) + now.getMinutes();
+  if (start === end) return true;
+  if (start < end) return current >= start && current < end;
+  return current >= start || current < end;
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -33,6 +61,7 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState(defaultNotificationPrefs);
   const [browserPermission, setBrowserPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
@@ -106,6 +135,7 @@ function App() {
   };
 
   const pushToast = (notification) => {
+    if (isNowInQuietHours(notificationPrefs)) return;
     setToasts((prev) => [...prev, notification]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== notification.id));
@@ -127,9 +157,23 @@ function App() {
     try {
       const res = await apiClient.get("/notifications");
       const rows = res.data.data.notifications || [];
-      setNotifications(rows.map(mapNotification));
+      const mapped = rows.map(mapNotification);
+      const visible = mapped.filter((item) => {
+        if (item.type === "broadcast") return notificationPrefs.broadcast_enabled;
+        return notificationPrefs.ticket_updates_enabled;
+      });
+      setNotifications(visible);
     } catch (err) {
       // Silent fail
+    }
+  };
+
+  const fetchNotificationPreferences = async () => {
+    try {
+      const res = await apiClient.get("/notifications/preferences");
+      setNotificationPrefs({ ...defaultNotificationPrefs, ...(res.data?.data?.preferences || {}) });
+    } catch (err) {
+      setNotificationPrefs(defaultNotificationPrefs);
     }
   };
 
@@ -159,6 +203,8 @@ function App() {
     pushToast(notification);
     fetchNotifications();
     if (
+      !isNowInQuietHours(notificationPrefs) &&
+      notificationPrefs.browser_push_enabled &&
       typeof Notification !== "undefined" &&
       Notification.permission === "granted"
     ) {
@@ -222,6 +268,7 @@ function App() {
 
   useEffect(() => {
     if (!user) return;
+    fetchNotificationPreferences();
     fetchNotifications();
     const interval = setInterval(() => {
       if (document.hidden) return;
@@ -229,6 +276,11 @@ function App() {
     }, 30000);
     return () => clearInterval(interval);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchNotifications();
+  }, [user, notificationPrefs.ticket_updates_enabled, notificationPrefs.broadcast_enabled]);
 
   useEffect(() => {
     if (!user) return;

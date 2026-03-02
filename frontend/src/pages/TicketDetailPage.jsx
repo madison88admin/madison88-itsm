@@ -26,6 +26,12 @@ const STATUS_LABELS = {
   Closed: "Closed",
   Reopened: "Being worked on",
 };
+const MOBILE_QUICK_COMMENT_PRESETS = [
+  "Still experiencing the same issue.",
+  "Issue is resolved on my side now.",
+  "Please prioritize, this is blocking my work.",
+  "Added screenshot and extra details.",
+];
 
 const TicketDetailPage = ({
   ticketId,
@@ -44,6 +50,7 @@ const TicketDetailPage = ({
   const [audit, setAudit] = useState([]);
   const [error, setError] = useState("");
   const [commentText, setCommentText] = useState("");
+  const [pendingResponseText, setPendingResponseText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -309,8 +316,9 @@ const TicketDetailPage = ({
     fetchAssignableUsers();
   }, [canAssign, isAdmin]);
 
-  const handleAddComment = async () => {
-    const trimmed = commentText.trim();
+  const handleAddComment = async (overrideText = null) => {
+    const payloadText = typeof overrideText === "string" ? overrideText : commentText;
+    const trimmed = payloadText.trim();
     if (isBlank(trimmed)) return;
     if (!hasMinLength(trimmed, 2)) {
       setError("Comment must be at least 2 characters.");
@@ -319,10 +327,11 @@ const TicketDetailPage = ({
     setSaving(true);
     try {
       await apiClient.post(`/tickets/${ticketId}/comments`, {
-        comment_text: commentText.trim(),
+        comment_text: trimmed,
         is_internal: isInternal,
       });
       setCommentText("");
+      setPendingResponseText("");
       setIsInternal(false);
       if (onUpdated) onUpdated();
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
@@ -658,6 +667,27 @@ const TicketDetailPage = ({
     }
   };
 
+  const handlePendingQuickAction = async (preset = "") => {
+    if (!isEndUser || ticket?.status !== "Pending") return;
+    const finalText = (pendingResponseText || preset || "").trim();
+    if (!finalText) {
+      setError("Please add a short response so support can continue the work.");
+      return;
+    }
+    await handleAddComment(finalText);
+    setNotice("Update sent to support team.");
+  };
+
+  const handleCommentPreset = (preset) => {
+    if (!preset) return;
+    setCommentText((prev) => {
+      const current = String(prev || "").trim();
+      if (!current) return preset;
+      if (current.toLowerCase().includes(preset.toLowerCase())) return current;
+      return `${current}\n${preset}`;
+    });
+  };
+
   const stripHtml = (value) => value?.replace(/<[^>]*>/g, "") || "";
 
   const buildAttachmentUrl = (filePath) => {
@@ -853,7 +883,52 @@ const TicketDetailPage = ({
             Resolution target: <strong>{formatDateTimeWithZone(ticket.sla_due_date)}</strong>
           </p>
           {ticket.status === "Pending" && (
-            <p>Please check comments and provide any requested details to keep the ticket moving.</p>
+            <>
+              <p>Please check comments and provide any requested details to keep the ticket moving.</p>
+              <div className="field" style={{ marginTop: "10px" }}>
+                <span>Quick response to support</span>
+                <textarea
+                  rows={3}
+                  placeholder="Example: I can reproduce this issue on Chrome and Edge. Attached latest screenshot."
+                  value={pendingResponseText}
+                  onChange={(e) => setPendingResponseText(e.target.value)}
+                />
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={saving}
+                    onClick={() => handlePendingQuickAction()}
+                  >
+                    Send Update
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={saving}
+                    onClick={() =>
+                      handlePendingQuickAction(
+                        "Sharing requested details: issue still occurring, steps to reproduce provided."
+                      )
+                    }
+                  >
+                    Still happening
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={saving}
+                    onClick={() =>
+                      handlePendingQuickAction(
+                        "Additional context: this issue is now blocking my work. Please prioritize if possible."
+                      )
+                    }
+                  >
+                    Blocking work
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -1471,6 +1546,20 @@ const TicketDetailPage = ({
             }
             disabled={!canComment}
           />
+          {canComment && isEndUser && (
+            <div className="quick-comment-presets">
+              {MOBILE_QUICK_COMMENT_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="btn ghost quick-comment-chip"
+                  onClick={() => handleCommentPreset(preset)}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          )}
           {canAddInternal && (
             <label className="inline-check">
               <input
@@ -1487,13 +1576,15 @@ const TicketDetailPage = ({
               This ticket is assigned to someone else.
             </p>
           )}
-          <button
-            className="btn primary"
-            onClick={handleAddComment}
-            disabled={saving || !canComment}
-          >
-            Add Comment
-          </button>
+          <div className="comment-mobile-actions">
+            <button
+              className="btn primary"
+              onClick={handleAddComment}
+              disabled={saving || !canComment}
+            >
+              Add Comment
+            </button>
+          </div>
         </div>
       </div>
       {canSeeAudit && (
@@ -1557,7 +1648,36 @@ const TicketDetailPage = ({
         .next-steps-panel p {
           margin: 0 0 8px 0;
         }
+        .quick-comment-presets {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .quick-comment-chip {
+          font-size: 12px;
+          padding: 8px 10px;
+          border-radius: 999px;
+        }
+        .comment-mobile-actions {
+          display: flex;
+          justify-content: flex-start;
+        }
         @media (max-width: 768px) {
+          .detail-panel .btn {
+            min-height: 48px;
+            padding: 12px 16px;
+            font-size: 15px;
+          }
+          .detail-panel input,
+          .detail-panel select,
+          .detail-panel textarea {
+            min-height: 46px;
+            font-size: 16px;
+          }
+          .detail-panel .inline-check {
+            padding: 8px 0;
+          }
           .resolution-action-card {
             position: sticky;
             bottom: 10px;
@@ -1570,6 +1690,21 @@ const TicketDetailPage = ({
           .resolution-action-buttons .btn {
             flex: 1;
             min-height: 46px;
+          }
+          .comment-mobile-actions {
+            position: sticky;
+            bottom: 8px;
+            z-index: 6;
+            padding-top: 8px;
+            background: linear-gradient(to top, rgba(2, 6, 23, 0.94), rgba(2, 6, 23, 0.35));
+            backdrop-filter: blur(6px);
+          }
+          .comment-mobile-actions .btn {
+            width: 100%;
+          }
+          .quick-comment-chip {
+            min-height: 40px;
+            font-size: 13px;
           }
         }
       `}</style>

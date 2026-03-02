@@ -114,7 +114,7 @@ const DashboardController = {
 
     async getPulse(req, res, next) {
         try {
-            const data = await PulseService.getPulseEvents();
+            const data = await PulseService.getPulseEvents(req.user);
             res.json({ status: 'success', data });
         } catch (err) {
             logger.error(`Dashboard Error [getPulse]: ${err.message}`, err);
@@ -146,12 +146,24 @@ const DashboardController = {
         }
     },
 
+    async getBroadcastGovernance(req, res, next) {
+        try {
+            const governance = await DashboardService.getBroadcastGovernance(req.user);
+            res.json({ status: 'success', data: governance });
+        } catch (err) {
+            logger.error(`Dashboard Error [getBroadcastGovernance]: ${err.message}`, err);
+            next(err);
+        }
+    },
+
     async broadcast(req, res, next) {
         try {
-            const { message } = req.body;
-            if (!message) return res.status(400).json({ status: 'error', message: 'Message is required' });
+            const { message, template_key } = req.body || {};
+            if (!message && !template_key) {
+                return res.status(400).json({ status: 'error', message: 'Message or template_key is required' });
+            }
 
-            const result = await DashboardService.broadcast(req.user, message);
+            const result = await DashboardService.broadcast(req.user, { message, template_key });
 
             // Emit refresh event to all connected clients
             const io = req.app.get('io');

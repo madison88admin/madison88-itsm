@@ -27,6 +27,38 @@ const ticketTypes = [
   { value: "incident", label: "Incident" },
   { value: "request", label: "Request" },
 ];
+const categoryGuidance = {
+  Hardware: {
+    checklist: ["Device model", "Serial/asset tag", "Power/cable status", "Error lights/sounds"],
+    template:
+      "Device model:\nAsset tag:\nIssue observed:\nWhen it started:\nTroubleshooting already tried:\n",
+  },
+  Software: {
+    checklist: ["Application name", "Version/build", "Error message", "Affected user count"],
+    template:
+      "Application:\nVersion/build:\nExact error message:\nFrequency:\nRecent changes before issue:\n",
+  },
+  Network: {
+    checklist: ["Connection type", "VPN status", "Sites/services affected", "Time of occurrence"],
+    template:
+      "Connection type (LAN/WiFi/VPN):\nAffected systems/sites:\nLocation:\nTime issue started:\n",
+  },
+  "Access Request": {
+    checklist: ["System name", "Role/access level", "Business justification", "Target date needed"],
+    template:
+      "System/application:\nAccess level requested:\nBusiness justification:\nDate needed by:\nApprover:\n",
+  },
+  "Account Creation": {
+    checklist: ["User full name", "Department", "Start date", "Required systems"],
+    template:
+      "New user full name:\nDepartment:\nStart date:\nRequired systems:\nManager/approver:\n",
+  },
+  Other: {
+    checklist: ["What happened", "Who is affected", "When it started", "Business impact"],
+    template:
+      "Issue summary:\nUsers affected:\nStart time/date:\nBusiness impact:\n",
+  },
+};
 
 const NewTicketPage = ({ onCreated, user }) => {
   const [step, setStep] = useState(0);
@@ -490,9 +522,55 @@ const NewTicketPage = ({ onCreated, user }) => {
     selectedKbArticle?.summary ||
     "No article content available.";
   const selectedKbBodyHasHtml = /<[^>]+>/.test(selectedKbBody);
+  const selectedCategoryGuide = categoryGuidance[form.category] || null;
+
+  const applyGuidedTemplate = () => {
+    if (!selectedCategoryGuide) return;
+    const currentPlain = stripHtml(form.description || "")
+      .replace(/\r/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    const normalizedTemplate = selectedCategoryGuide.template
+      .replace(/\r/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    const templateLines = selectedCategoryGuide.template
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const templateKeys = templateLines
+      .map((line) => line.replace(/[:：]\s*$/, "").toLowerCase().trim())
+      .filter((line) => line.length >= 3);
+    const matchedKeys = templateKeys.filter((key) => currentPlain.includes(key)).length;
+
+    // Prevent repeated inserts even if Quill reformats line breaks/HTML.
+    if (
+      currentPlain.includes(normalizedTemplate) ||
+      matchedKeys >= Math.max(2, Math.ceil(templateKeys.length * 0.6))
+    ) {
+      setSuccess("Guided template already inserted for this category.");
+      setTimeout(() => setSuccess(""), 2000);
+      return;
+    }
+
+    const guideHtml = templateLines.join("<br/>");
+    if (currentPlain.length > 0) {
+      setForm((prev) => ({
+        ...prev,
+        description: `${prev.description}<br/><br/>${guideHtml}`,
+      }));
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      description: guideHtml,
+    }));
+  };
 
   return (
-    <div className="panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
+    <div className="panel new-ticket-mobile-polish" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
       <div className="panel-header">
         <div>
           <h2>Create Ticket</h2>
@@ -811,6 +889,16 @@ const NewTicketPage = ({ onCreated, user }) => {
                 </option>
               ))}
             </select>
+            {selectedCategoryGuide && (
+              <div style={{ marginTop: "8px", border: "1px solid rgba(59,130,246,0.28)", borderRadius: "10px", padding: "8px" }}>
+                <small className="muted" style={{ display: "block", marginBottom: "6px" }}>
+                  Smart checklist: {selectedCategoryGuide.checklist.join(" • ")}
+                </small>
+                <button type="button" className="btn ghost" onClick={applyGuidedTemplate}>
+                  Insert guided description template
+                </button>
+              </div>
+            )}
           </label>
           <div className="field full">
             <span>SLA Estimate</span>
@@ -1038,6 +1126,38 @@ const NewTicketPage = ({ onCreated, user }) => {
           </button>
         )}
       </div>
+      <style>{`
+        @media (max-width: 768px) {
+          .new-ticket-mobile-polish .btn {
+            min-height: 48px;
+            padding: 12px 16px;
+            font-size: 15px;
+          }
+          .new-ticket-mobile-polish input,
+          .new-ticket-mobile-polish select,
+          .new-ticket-mobile-polish textarea {
+            min-height: 46px;
+            font-size: 16px;
+          }
+          .new-ticket-mobile-polish .ql-toolbar button {
+            min-width: 36px;
+            min-height: 36px;
+          }
+          .new-ticket-mobile-polish .form-actions {
+            position: sticky;
+            bottom: 8px;
+            z-index: 8;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 12px;
+            background: linear-gradient(to top, rgba(2, 6, 23, 0.94), rgba(2, 6, 23, 0.45));
+            backdrop-filter: blur(8px);
+          }
+          .new-ticket-mobile-polish .form-actions .btn {
+            flex: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 };

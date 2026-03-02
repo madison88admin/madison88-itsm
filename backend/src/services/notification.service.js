@@ -86,6 +86,29 @@ async function sendEmail({ to, subject, text, templateParams = {}, html = null }
     return false;
   }
 
+  let filteredRecipients = recipientList;
+  try {
+    const prefRows = await db.query(
+      `SELECT u.email, p.email_enabled
+       FROM users u
+       LEFT JOIN user_notification_preferences p ON p.user_id = u.user_id
+       WHERE LOWER(u.email) = ANY($1)`,
+      [recipientList.map((r) => r.toLowerCase())]
+    );
+    const emailOptOut = new Map();
+    prefRows.rows.forEach((row) => {
+      emailOptOut.set(String(row.email || '').toLowerCase(), row.email_enabled === false);
+    });
+    filteredRecipients = recipientList.filter((email) => !emailOptOut.get(email.toLowerCase()));
+  } catch (err) {
+    // If preferences table does not exist yet, continue sending as before.
+  }
+
+  if (!filteredRecipients.length) {
+    logger.info('All email recipients opted out via preferences', { subject });
+    return false;
+  }
+
   const sendSingleEmail = async (recipient) => {
     const emailJsConfig = getEmailJsConfig();
     if (emailJsConfig) {
@@ -192,7 +215,7 @@ async function sendEmail({ to, subject, text, templateParams = {}, html = null }
   };
 
   let sentCount = 0;
-  for (const recipient of recipientList) {
+  for (const recipient of filteredRecipients) {
     // Send separately so recipients never see each other.
     // This prevents end-user email disclosure to other users.
     if (await sendSingleEmail(recipient)) sentCount += 1;

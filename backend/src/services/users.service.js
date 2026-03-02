@@ -445,13 +445,34 @@ const UsersService = {
                     [userId]
                 );
 
-                await client.query('COMMIT');
                 const deleted = deletedRes.rows[0] || null;
                 if (!deleted) {
                     const error = new Error('User not found');
                     error.status = 404;
                     throw error;
                 }
+
+                await client.query(
+                    `INSERT INTO audit_logs
+                        (ticket_id, user_id, action_type, entity_type, entity_id, old_value, new_value, description)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [
+                        null,
+                        actingUser.user_id,
+                        'user_force_removed',
+                        'user',
+                        deleted.user_id,
+                        JSON.stringify({
+                            removed_user_email: deleted.email,
+                            removed_user_name: deleted.full_name,
+                            removed_user_role: deleted.role,
+                        }),
+                        JSON.stringify({ force: true }),
+                        `Force removed user ${deleted.full_name} (${deleted.email})`,
+                    ]
+                );
+
+                await client.query('COMMIT');
                 return { user: deleted, forced: true };
             } catch (err) {
                 await client.query('ROLLBACK');
@@ -468,6 +489,26 @@ const UsersService = {
                 error.status = 404;
                 throw error;
             }
+
+            await db.query(
+                `INSERT INTO audit_logs
+                    (ticket_id, user_id, action_type, entity_type, entity_id, old_value, new_value, description)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [
+                    null,
+                    actingUser.user_id,
+                    'user_removed',
+                    'user',
+                    deleted.user_id,
+                    JSON.stringify({
+                        removed_user_email: deleted.email,
+                        removed_user_name: deleted.full_name,
+                        removed_user_role: deleted.role,
+                    }),
+                    JSON.stringify({ force: false }),
+                    `Removed user ${deleted.full_name} (${deleted.email})`,
+                ]
+            );
             return { user: deleted };
         } catch (err) {
             if (err.code === '23503') {

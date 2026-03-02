@@ -38,6 +38,7 @@ router.get('/pulse', authenticate, DashboardController.getPulse);
 router.get('/agent-stats', authenticate, authorize(['it_agent', 'it_manager', 'system_admin']), DashboardController.getAgentStats);
 
 router.post('/bulk-escalate-p1', authenticate, authorize(['system_admin']), DashboardController.bulkEscalateP1);
+router.get('/broadcast-governance', authenticate, authorize(['system_admin', 'it_manager']), DashboardController.getBroadcastGovernance);
 router.post('/broadcast', authenticate, authorize(['system_admin', 'it_manager']), DashboardController.broadcast);
 
 module.exports = router;

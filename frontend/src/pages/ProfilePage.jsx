@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../api/client";
-import { FiUser, FiMail, FiLock, FiPhone, FiMapPin, FiBriefcase, FiCheckCircle, FiAlertCircle, FiSave } from "react-icons/fi";
+import { FiUser, FiMail, FiLock, FiPhone, FiMapPin, FiBriefcase, FiCheckCircle, FiAlertCircle, FiSave, FiBell } from "react-icons/fi";
 
 const ProfilePage = ({ user, onUserUpdate }) => {
     const LOCATIONS = ['Philippines', 'US', 'Indonesia', 'China', 'Other'];
@@ -31,9 +31,55 @@ const ProfilePage = ({ user, onUserUpdate }) => {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
+    const [notifPrefs, setNotifPrefs] = useState({
+        ticket_updates_enabled: true,
+        broadcast_enabled: true,
+        browser_push_enabled: true,
+        email_enabled: true,
+        quiet_hours_enabled: false,
+        quiet_hours_start: "22:00",
+        quiet_hours_end: "07:00",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila",
+    });
+    const [prefsSaving, setPrefsSaving] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    useEffect(() => {
+        const loadPrefs = async () => {
+            try {
+                const res = await apiClient.get("/notifications/preferences");
+                setNotifPrefs((prev) => ({ ...prev, ...(res.data?.data?.preferences || {}) }));
+            } catch (err) {
+                // Keep defaults if unavailable
+            }
+        };
+        loadPrefs();
+    }, []);
+
+    const saveNotificationPrefs = async (nextPrefs) => {
+        setPrefsSaving(true);
+        try {
+            const payload = {
+                ticket_updates_enabled: !!nextPrefs.ticket_updates_enabled,
+                broadcast_enabled: !!nextPrefs.broadcast_enabled,
+                browser_push_enabled: !!nextPrefs.browser_push_enabled,
+                email_enabled: !!nextPrefs.email_enabled,
+                quiet_hours_enabled: !!nextPrefs.quiet_hours_enabled,
+                quiet_hours_start: nextPrefs.quiet_hours_start || "22:00",
+                quiet_hours_end: nextPrefs.quiet_hours_end || "07:00",
+                timezone: nextPrefs.timezone || notifPrefs.timezone || "Asia/Manila",
+            };
+            const res = await apiClient.patch("/notifications/preferences", payload);
+            setNotifPrefs((prev) => ({ ...prev, ...(res.data?.data?.preferences || payload) }));
+            setMessage({ type: "success", text: "Notification preferences saved." });
+        } catch (err) {
+            setMessage({ type: "error", text: err.response?.data?.message || "Failed to save notification preferences" });
+        } finally {
+            setPrefsSaving(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -240,6 +286,86 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                                     </div>
                                 </div>
                             </div>
+                        </section>
+
+                        <section className="form-section">
+                            <h3><FiBell /> Notification Preferences</h3>
+                            <p className="section-hint">Control alerts and set quiet hours.</p>
+                            <div className="input-grid">
+                                <label className="input-group" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!notifPrefs.ticket_updates_enabled}
+                                        onChange={(e) => {
+                                            const next = { ...notifPrefs, ticket_updates_enabled: e.target.checked };
+                                            setNotifPrefs(next);
+                                            saveNotificationPrefs(next);
+                                        }}
+                                    />
+                                    <span>Ticket update notifications</span>
+                                </label>
+                                <label className="input-group" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!notifPrefs.broadcast_enabled}
+                                        onChange={(e) => {
+                                            const next = { ...notifPrefs, broadcast_enabled: e.target.checked };
+                                            setNotifPrefs(next);
+                                            saveNotificationPrefs(next);
+                                        }}
+                                    />
+                                    <span>Broadcast announcements</span>
+                                </label>
+                                <label className="input-group" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!notifPrefs.browser_push_enabled}
+                                        onChange={(e) => {
+                                            const next = { ...notifPrefs, browser_push_enabled: e.target.checked };
+                                            setNotifPrefs(next);
+                                            saveNotificationPrefs(next);
+                                        }}
+                                    />
+                                    <span>Browser push notifications</span>
+                                </label>
+                                <label className="input-group" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!notifPrefs.quiet_hours_enabled}
+                                        onChange={(e) => {
+                                            const next = { ...notifPrefs, quiet_hours_enabled: e.target.checked };
+                                            setNotifPrefs(next);
+                                            saveNotificationPrefs(next);
+                                        }}
+                                    />
+                                    <span>Enable quiet hours</span>
+                                </label>
+                                <div className="input-group">
+                                    <label>Quiet hours start</label>
+                                    <div className="input-wrapper">
+                                        <input
+                                            type="time"
+                                            value={notifPrefs.quiet_hours_start || "22:00"}
+                                            onChange={(e) => setNotifPrefs((prev) => ({ ...prev, quiet_hours_start: e.target.value }))}
+                                            onBlur={() => saveNotificationPrefs(notifPrefs)}
+                                            disabled={!notifPrefs.quiet_hours_enabled}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="input-group">
+                                    <label>Quiet hours end</label>
+                                    <div className="input-wrapper">
+                                        <input
+                                            type="time"
+                                            value={notifPrefs.quiet_hours_end || "07:00"}
+                                            onChange={(e) => setNotifPrefs((prev) => ({ ...prev, quiet_hours_end: e.target.value }))}
+                                            onBlur={() => saveNotificationPrefs(notifPrefs)}
+                                            disabled={!notifPrefs.quiet_hours_enabled}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            {prefsSaving && <p className="section-hint">Saving notification preferences...</p>}
                         </section>
 
                         {message && (

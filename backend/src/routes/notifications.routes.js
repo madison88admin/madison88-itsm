@@ -5,6 +5,46 @@ const NotificationsModel = require('../models/notifications.model');
 
 const router = express.Router();
 
+router.get('/preferences', authenticate, async (req, res, next) => {
+  try {
+    const preferences = await NotificationsModel.getPreferences(req.user.user_id);
+    res.json({ status: 'success', data: { preferences } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/preferences', authenticate, async (req, res, next) => {
+  try {
+    const schema = Joi.object({
+      ticket_updates_enabled: Joi.boolean(),
+      broadcast_enabled: Joi.boolean(),
+      browser_push_enabled: Joi.boolean(),
+      email_enabled: Joi.boolean(),
+      quiet_hours_enabled: Joi.boolean(),
+      quiet_hours_start: Joi.string().pattern(/^\d{2}:\d{2}$/),
+      quiet_hours_end: Joi.string().pattern(/^\d{2}:\d{2}$/),
+      timezone: Joi.string().max(80),
+    });
+    const { error, value } = schema.validate(req.body || {}, {
+      abortEarly: false,
+      allowUnknown: true,
+      stripUnknown: true,
+    });
+    if (error) {
+      return res.status(400).json({
+        status: 'error',
+        message: error.details.map((detail) => detail.message).join(', '),
+      });
+    }
+
+    const preferences = await NotificationsModel.updatePreferences(req.user.user_id, value);
+    res.json({ status: 'success', data: { preferences } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { unread } = req.query;
