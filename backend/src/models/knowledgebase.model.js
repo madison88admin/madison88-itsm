@@ -1,8 +1,47 @@
 const db = require('../config/database');
 
+const KB_SYNONYMS = {
+  wifi: ['wireless', 'network', 'internet'],
+  vpn: ['remote access', 'network'],
+  printer: ['printing', 'print'],
+  mail: ['email', 'outlook'],
+  login: ['signin', 'sign in', 'access'],
+};
+
+function buildSearchTerms(rawQuery = '') {
+  const base = String(rawQuery || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, ' ');
+  const tokens = base.split(/\s+/).filter(Boolean);
+  const terms = new Set(tokens);
+
+  for (const token of tokens) {
+    const mapped = KB_SYNONYMS[token];
+    if (mapped?.length) {
+      mapped.forEach((syn) => terms.add(syn));
+    }
+
+    // Lightweight typo tolerance: also search by the token prefix.
+    if (token.length >= 4) {
+      terms.add(token.slice(0, token.length - 1));
+    }
+  }
+
+  // Keep deterministic ordering and avoid excessive query expansion.
+  return Array.from(terms).slice(0, 12);
+}
+
+function normalizeQuery(rawQuery = '') {
+  return String(rawQuery || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 const KnowledgeBaseModel = {
-  async listArticles({ category, status, page, limit }) {
-    const filters = { category, status, page, limit };
+  async listArticles({ category, status, product, role, location, last_updated, page, limit }) {
+    const filters = { category, status, product, role, location, last_updated, page, limit };
     const where = [];
     const values = [];
 
@@ -13,6 +52,22 @@ const KnowledgeBaseModel = {
     if (status) {
       values.push(status);
       where.push(`status = $${values.length}`);
+    }
+    if (product) {
+      values.push(`%${product}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (role) {
+      values.push(`%${role}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (location) {
+      values.push(`%${location}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (last_updated) {
+      values.push(last_updated);
+      where.push(`updated_at >= NOW() - (($${values.length}::int) * INTERVAL '1 day')`);
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -89,13 +144,31 @@ const KnowledgeBaseModel = {
     return result.rows[0];
   },
 
-  async searchArticles({ q, category, status, page, limit }) {
-    const filters = { q, category, status, page, limit };
+  async searchArticles({ q, category, status, product, role, location, last_updated, page, limit }) {
+    const filters = { q, category, status, product, role, location, last_updated, page, limit };
     const where = [];
     const values = [];
+    const termParamIndexes = [];
 
-    values.push(`%${q}%`);
-    where.push(`(title ILIKE $${values.length} OR content ILIKE $${values.length})`);
+    const terms = buildSearchTerms(q);
+    if (!terms.length) {
+      return { results: [], pagination: { page, limit, total: 0 } };
+    }
+
+    const termClauses = [];
+    for (const term of terms) {
+      values.push(`%${term}%`);
+      const index = values.length;
+      termParamIndexes.push(index);
+      termClauses.push(`(
+        title ILIKE $${index}
+        OR summary ILIKE $${index}
+        OR content ILIKE $${index}
+        OR category ILIKE $${index}
+        OR COALESCE(tags, '') ILIKE $${index}
+      )`);
+    }
+    where.push(`(${termClauses.join(' OR ')})`);
 
     if (category) {
       values.push(category);
@@ -106,6 +179,22 @@ const KnowledgeBaseModel = {
       values.push(status);
       where.push(`status = $${values.length}`);
     }
+    if (product) {
+      values.push(`%${product}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (role) {
+      values.push(`%${role}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (location) {
+      values.push(`%${location}%`);
+      where.push(`COALESCE(tags, '') ILIKE $${values.length}`);
+    }
+    if (last_updated) {
+      values.push(last_updated);
+      where.push(`updated_at >= NOW() - (($${values.length}::int) * INTERVAL '1 day')`);
+    }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
@@ -113,11 +202,35 @@ const KnowledgeBaseModel = {
     const countResult = await db.query(`SELECT COUNT(*) FROM knowledge_base_articles ${whereClause}`, values);
     const total = parseInt(countResult.rows[0].count, 10);
 
+    const normalizedQ = normalizeQuery(q);
+    values.push(normalizedQ);
+    const exactIndex = values.length;
+    values.push(`${normalizedQ}%`);
+    const prefixIndex = values.length;
+
+    const weightedTermScore = termParamIndexes
+      .map(
+        (index) => `(
+          CASE WHEN title ILIKE $${index} THEN 20 ELSE 0 END
+          + CASE WHEN summary ILIKE $${index} THEN 10 ELSE 0 END
+          + CASE WHEN category ILIKE $${index} THEN 12 ELSE 0 END
+          + CASE WHEN COALESCE(tags, '') ILIKE $${index} THEN 8 ELSE 0 END
+          + CASE WHEN content ILIKE $${index} THEN 4 ELSE 0 END
+        )`
+      )
+      .join(' + ');
+    const relevanceScoreExpr = `(
+      ${weightedTermScore || '0'}
+      + CASE WHEN LOWER(title) = $${exactIndex} THEN 100 ELSE 0 END
+      + CASE WHEN LOWER(title) LIKE $${prefixIndex} THEN 35 ELSE 0 END
+      + CASE WHEN LOWER(category) = $${exactIndex} THEN 25 ELSE 0 END
+    )`;
+
     values.push(limit, offset);
     const result = await db.query(
-      `SELECT article_id, title, slug, summary, category, tags, status, views, created_at, updated_at
+      `SELECT article_id, title, slug, summary, category, tags, status, views, created_at, updated_at, ${relevanceScoreExpr} AS relevance_score
        FROM knowledge_base_articles ${whereClause}
-       ORDER BY updated_at DESC
+       ORDER BY relevance_score DESC, updated_at DESC
        LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values
     );

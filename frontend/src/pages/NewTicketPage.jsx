@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../api/client";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -11,6 +11,7 @@ import {
 } from "../utils/validation";
 
 const steps = ["Issue Details", "Impact", "Attachments"];
+const DEFAULT_TICKET_TYPE = "incident";
 
 const categories = [
   "Hardware",
@@ -60,7 +61,24 @@ const categoryGuidance = {
   },
 };
 
+const hasMeaningfulDraftContent = ({ form = {}, step = 0, selectedTemplateId = "", selectedAssetId = "" }) => {
+  const descriptionText = stripHtml(form.description || "").trim();
+  return Boolean(
+    (form.title || "").trim() ||
+    (form.category || "").trim() ||
+    (form.priority || "").trim() ||
+    descriptionText ||
+    (form.business_impact || "").trim() ||
+    (form.tags || "").trim() ||
+    selectedAssetId ||
+    selectedTemplateId ||
+    step > 0 ||
+    form.ticket_type !== DEFAULT_TICKET_TYPE
+  );
+};
+
 const NewTicketPage = ({ onCreated, user }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -78,7 +96,7 @@ const NewTicketPage = ({ onCreated, user }) => {
     category: "",
     location: "",
     priority: "",
-    ticket_type: "incident",
+    ticket_type: DEFAULT_TICKET_TYPE,
     description: "",
     business_impact: "",
     tags: "",
@@ -92,12 +110,26 @@ const NewTicketPage = ({ onCreated, user }) => {
   const [loadingKbArticle, setLoadingKbArticle] = useState(false);
   const [slaPreview, setSlaPreview] = useState(null);
   const [loadingSlaPreview, setLoadingSlaPreview] = useState(false);
+  const [draftRecoveredAt, setDraftRecoveredAt] = useState("");
+  const [draftSavedAt, setDraftSavedAt] = useState("");
+  const [showDraftNotice, setShowDraftNotice] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState(null);
   const searchTimeoutRef = useRef(null);
   const kbSearchTimeoutRef = useRef(null);
   const slaPreviewTimeoutRef = useRef(null);
 
   const location = useLocation();
   const draftStorageKey = `new-ticket-draft:${user?.user_id || "anon"}`;
+  const emptyForm = {
+    title: "",
+    category: "",
+    location: "",
+    priority: "",
+    ticket_type: DEFAULT_TICKET_TYPE,
+    description: "",
+    business_impact: "",
+    tags: "",
+  };
 
   const totalSize = useMemo(
     () => files.reduce((sum, file) => sum + file.size, 0),
@@ -161,29 +193,24 @@ const NewTicketPage = ({ onCreated, user }) => {
       const raw = localStorage.getItem(draftStorageKey);
       if (!raw) return;
       const draft = JSON.parse(raw);
-      if (draft?.form) {
-        setForm((prev) => ({
-          ...prev,
-          ...draft.form,
-          // Keep profile-enforced location authoritative when available.
-          location: user?.location || draft.form.location || prev.location,
-        }));
+      if (!draft?.form) return;
+      if (!hasMeaningfulDraftContent(draft)) {
+        localStorage.removeItem(draftStorageKey);
+        return;
       }
-      if (typeof draft?.step === "number") {
-        setStep(Math.max(0, Math.min(2, draft.step)));
+      setPendingDraft(draft);
+      if (draft?.saved_at) {
+        setDraftRecoveredAt(draft.saved_at);
       }
-      if (typeof draft?.selectedTemplateId === "string") {
-        setSelectedTemplateId(draft.selectedTemplateId);
-      }
-      if (typeof draft?.selectedAssetId === "string") {
-        setSelectedAssetId(draft.selectedAssetId);
-      }
+      setShowDraftNotice(true);
     } catch (err) {
       // Ignore malformed local drafts
     }
   }, [draftStorageKey, user?.location]);
 
   useEffect(() => {
+    if (showDraftNotice) return;
+
     const draft = {
       form,
       step,
@@ -191,12 +218,80 @@ const NewTicketPage = ({ onCreated, user }) => {
       selectedAssetId,
       saved_at: new Date().toISOString(),
     };
+    const shouldPersist = hasMeaningfulDraftContent(draft);
     try {
+      if (!shouldPersist) {
+        localStorage.removeItem(draftStorageKey);
+        setDraftSavedAt("");
+        return;
+      }
       localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      setDraftSavedAt(draft.saved_at);
     } catch (err) {
       // Ignore storage quota issues
     }
-  }, [draftStorageKey, form, step, selectedTemplateId, selectedAssetId]);
+  }, [draftStorageKey, form, step, selectedTemplateId, selectedAssetId, showDraftNotice]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      // Text inputs are autosaved; only warn when file attachments would be lost.
+      if (files.length === 0) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [files.length]);
+
+  const discardDraft = () => {
+    setForm({
+      ...emptyForm,
+      location: user?.location || "",
+    });
+    setStep(0);
+    setSelectedTemplateId("");
+    setSelectedAssetId("");
+    setFiles([]);
+    setDuplicates([]);
+    setDuplicateConflict(null);
+    setDraftRecoveredAt("");
+    setDraftSavedAt("");
+    setShowDraftNotice(false);
+    setPendingDraft(null);
+    localStorage.removeItem(draftStorageKey);
+  };
+
+  const keepDraft = () => {
+    if (!pendingDraft?.form) {
+      setShowDraftNotice(false);
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      ...pendingDraft.form,
+      // Keep profile-enforced location authoritative when available.
+      location: user?.location || pendingDraft.form.location || prev.location,
+    }));
+    if (typeof pendingDraft?.step === "number") {
+      setStep(Math.max(0, Math.min(2, pendingDraft.step)));
+    }
+    if (typeof pendingDraft?.selectedTemplateId === "string") {
+      setSelectedTemplateId(pendingDraft.selectedTemplateId);
+    }
+    if (typeof pendingDraft?.selectedAssetId === "string") {
+      setSelectedAssetId(pendingDraft.selectedAssetId);
+    }
+    if (pendingDraft?.saved_at) {
+      setDraftSavedAt(pendingDraft.saved_at);
+    }
+    setShowDraftNotice(false);
+    setPendingDraft(null);
+  };
+
+  const openExistingTicket = (ticketId) => {
+    if (!ticketId) return;
+    navigate(`/tickets/${ticketId}`);
+  };
 
   const applyTemplate = React.useCallback((template) => {
     if (!template) return;
@@ -293,7 +388,7 @@ const NewTicketPage = ({ onCreated, user }) => {
       setSearchingKbSuggestions(true);
       try {
         const res = await apiClient.get("/kb/search", { params: { q: querySeed } });
-        setKbSuggestions((res.data.data.results || []).slice(0, 4));
+        setKbSuggestions((res.data.data.results || []).slice(0, 3));
         setKbHasSearched(true);
       } catch (err) {
         setKbSuggestions([]);
@@ -464,19 +559,16 @@ const NewTicketPage = ({ onCreated, user }) => {
 
       setSuccess(`Ticket created: ${ticket.ticket_number}`);
       setForm({
-        title: "",
-        category: "",
-        location: "",
-        priority: "",
-        ticket_type: "incident",
-        description: "",
-        business_impact: "",
-        tags: "",
+        ...emptyForm,
+        location: user?.location || "",
       });
       setSelectedTemplateId("");
       setFiles([]);
       setSelectedAssetId("");
       setStep(0);
+      setDraftSavedAt("");
+      setDraftRecoveredAt("");
+      setShowDraftNotice(false);
       localStorage.removeItem(draftStorageKey);
       if (onCreated) onCreated(ticket);
     } catch (err) {
@@ -588,7 +680,22 @@ const NewTicketPage = ({ onCreated, user }) => {
       </div>
       <p className="muted" style={{ marginTop: "0.5rem", marginBottom: "1rem", fontSize: "12px" }}>
         Draft autosaves locally while you type.
+        {draftSavedAt ? ` Last saved: ${new Date(draftSavedAt).toLocaleString()}` : ""}
       </p>
+      {showDraftNotice && (
+        <div className="panel" style={{ marginBottom: "12px", border: "1px solid rgba(14,165,233,0.35)" }}>
+          <strong>Saved draft found.</strong>
+          {draftRecoveredAt ? ` Last saved: ${new Date(draftRecoveredAt).toLocaleString()}.` : ""}
+          <div style={{ marginTop: "8px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button type="button" className="btn ghost" onClick={keepDraft}>
+              Keep Draft
+            </button>
+            <button type="button" className="btn ghost" onClick={discardDraft}>
+              Discard Draft
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="panel error">
@@ -600,6 +707,14 @@ const NewTicketPage = ({ onCreated, user }) => {
                 <div key={dup.ticket_id} className="attachment-item">
                   <span>{dup.ticket_number}</span>
                   <span>{dup.title}</span>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => openExistingTicket(dup.ticket_id)}
+                    style={{ marginLeft: "8px" }}
+                  >
+                    Open
+                  </button>
                 </div>
               ))}
               <button
@@ -812,6 +927,14 @@ const NewTicketPage = ({ onCreated, user }) => {
                       <span style={{ fontWeight: '600', color: 'var(--cyan-300)' }}>{dup.ticket_number}</span>
                       <span style={{ flex: 1, margin: '0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dup.title}</span>
                       <span className={`status-pill ${dup.status.toLowerCase().replace(' ', '-')}`} style={{ fontSize: '9px', padding: '2px 8px' }}>{dup.status}</span>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        style={{ marginLeft: "8px", minHeight: "28px", padding: "4px 8px", fontSize: "10px" }}
+                        onClick={() => openExistingTicket(dup.ticket_id)}
+                      >
+                        Open
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1163,3 +1286,5 @@ const NewTicketPage = ({ onCreated, user }) => {
 };
 
 export default NewTicketPage;
+
+

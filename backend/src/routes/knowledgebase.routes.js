@@ -38,12 +38,16 @@ async function ensureUniqueSlug(baseSlug, currentId = null) {
  */
 router.get('/articles', authenticate, async (req, res, next) => {
   try {
-    const { category, status, page = 1, limit = 50 } = req.query;
+    const { category, status, product, role, location, last_updated, page = 1, limit = 50 } = req.query;
     const isPrivileged = ['it_agent', 'it_manager', 'system_admin'].includes(req.user.role);
     const resolvedStatus = isPrivileged ? status : 'published';
     const data = await KnowledgeBaseModel.listArticles({
       category,
       status: resolvedStatus,
+      product,
+      role,
+      location,
+      last_updated,
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
     });
@@ -213,7 +217,7 @@ router.patch('/articles/:id', authenticate, authorize(['it_manager', 'system_adm
  */
 router.get('/search', authenticate, async (req, res, next) => {
   try {
-    const { q, category, status, page = 1, limit = 50 } = req.query;
+    const { q, category, status, product, role, location, last_updated, page = 1, limit = 50 } = req.query;
     const isPrivileged = ['it_agent', 'it_manager', 'system_admin'].includes(req.user.role);
     const resolvedStatus = isPrivileged ? status : 'published';
 
@@ -228,6 +232,10 @@ router.get('/search', authenticate, async (req, res, next) => {
       q,
       category,
       status: resolvedStatus,
+      product,
+      role,
+      location,
+      last_updated,
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
     });
