@@ -21,6 +21,7 @@ const KnowledgeBasePage = ({ user }) => {
   const [articles, setArticles] = useState([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("published");
+  const [compactMode, setCompactMode] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [productFilter, setProductFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -262,6 +263,22 @@ const KnowledgeBasePage = ({ user }) => {
           <h2>Knowledge Base</h2>
           <p>Search SOPs, FAQs, and troubleshooting guides.</p>
         </div>
+        <div className="kb-density-toggle" role="group" aria-label="Density mode">
+          <button
+            type="button"
+            className={`btn ghost ${!compactMode ? "active" : ""}`}
+            onClick={() => setCompactMode(false)}
+          >
+            Comfortable
+          </button>
+          <button
+            type="button"
+            className={`btn ghost ${compactMode ? "active" : ""}`}
+            onClick={() => setCompactMode(true)}
+          >
+            Compact
+          </button>
+        </div>
       </div>
 
       <div className="kb-global-search-wrap">
@@ -331,7 +348,7 @@ const KnowledgeBasePage = ({ user }) => {
 
       {error && <div className="inline-error">{error}</div>}
 
-      <div className="kb-layout">
+      <div className={`kb-layout ${compactMode ? "compact" : ""}`}>
         <div className="kb-list">
           {loading && <div className="panel muted">Loading articles...</div>}
           {!loading && !articles.length && <div className="empty-state">No articles found.</div>}
@@ -342,7 +359,7 @@ const KnowledgeBasePage = ({ user }) => {
               type="button"
               onClick={() => loadArticle(article.article_id)}
             >
-              <div>
+              <div className="kb-card-main">
                 <h3>{article.title}</h3>
                 <p>{article.summary || "No summary provided."}</p>
               </div>
@@ -378,9 +395,16 @@ const KnowledgeBasePage = ({ user }) => {
               </div>
 
               {!editMode && (
-                <div className="kb-detail-body">
+                <div className={`kb-detail-body ${compactMode ? "compact" : ""}`}>
                   <p>{selectedArticle.summary || "No summary provided."}</p>
-                  <div className="kb-content">{selectedArticle.content}</div>
+                  <div className="kb-content">
+                    {compactMode
+                      ? String(selectedArticle.content || "").split("\n").slice(0, 10).join("\n")
+                      : selectedArticle.content}
+                  </div>
+                  {compactMode && String(selectedArticle.content || "").split("\n").length > 10 && (
+                    <p className="muted" style={{ marginTop: 0 }}>Compact mode: showing first 10 lines.</p>
+                  )}
 
                   {codeBlocks.length > 0 && (
                     <div className="kb-action-block">

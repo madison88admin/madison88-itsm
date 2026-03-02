@@ -69,6 +69,7 @@ const TicketsPage = ({
   const [locationFilter, setLocationFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [quickFilter, setQuickFilter] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [agents, setAgents] = useState([]);
@@ -105,6 +106,7 @@ const TicketsPage = ({
     setLocationFilter(params.get("location") || "");
     setDateFrom(params.get("date_from") || "");
     setDateTo(params.get("date_to") || "");
+    setQuickFilter(params.get("quick_filter") || "");
     setIncludeArchived(params.get("include_archived") === "true");
     setPage(1);
   }, [location.search]);
@@ -281,11 +283,26 @@ const TicketsPage = ({
   const statusWantsArchived = ["resolved", "closed"].includes(
     String(statusFilter || "").toLowerCase()
   );
-  const displayedTickets = includeArchived || statusWantsArchived
+  const baseTickets = includeArchived || statusWantsArchived
     ? tickets
     : tickets.filter(
         (ticket) => !["resolved", "closed"].includes(String(ticket?.status || "").toLowerCase())
       );
+  const displayedTickets = baseTickets.filter((ticket) => {
+    if (!quickFilter) return true;
+    const statusText = String(ticket?.status || "").toLowerCase();
+    const priorityText = String(ticket?.priority || "").toUpperCase();
+    const due = ticket?.sla_due_date ? new Date(ticket.sla_due_date).getTime() : NaN;
+    const remainingMs = Number.isFinite(due) ? due - now : Number.NaN;
+
+    if (quickFilter === "pending") return statusText.includes("pending");
+    if (quickFilter === "due_2h") return Number.isFinite(remainingMs) && remainingMs > 0 && remainingMs <= 2 * 60 * 60 * 1000;
+    if (quickFilter === "at_risk") {
+      return Boolean(ticket?.sla_breached) || (Number.isFinite(remainingMs) && remainingMs <= 2 * 60 * 60 * 1000);
+    }
+    if (quickFilter === "p1p2") return ["P1", "P2"].includes(priorityText);
+    return true;
+  });
   const total = pagination.total || 0;
   const hasNext = total > page * PAGE_SIZE;
   const hasPrev = page > 1;
@@ -361,6 +378,16 @@ const TicketsPage = ({
           label: "Archived Included",
           onRemove: () => {
             setIncludeArchived(false);
+            setPage(1);
+          },
+        }
+      : null,
+    quickFilter
+      ? {
+          key: "quick-filter",
+          label: `Quick: ${quickFilter}`,
+          onRemove: () => {
+            setQuickFilter("");
             setPage(1);
           },
         }

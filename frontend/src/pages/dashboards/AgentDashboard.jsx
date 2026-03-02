@@ -2,11 +2,16 @@ import React, { useEffect, useState } from "react";
 import apiClient from "../../api/client";
 import { Link } from "react-router-dom";
 
+const SLA_ALERT_WINDOW_MS = 2 * 60 * 60 * 1000;
+
 const AgentDashboard = ({ user }) => {
   const [stats, setStats] = useState(null);
   const [myTickets, setMyTickets] = useState([]);
+  const [teamTickets, setTeamTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [teamPulse, setTeamPulse] = useState([]);
+  const [activeQuickFilter, setActiveQuickFilter] = useState("all");
+  const [nowMs, setNowMs] = useState(Date.now());
 
   useEffect(() => {
     const loadData = async () => {
@@ -18,9 +23,17 @@ const AgentDashboard = ({ user }) => {
           apiClient.get("/dashboard/pulse")
         ]);
 
+        let teamRes = null;
+        try {
+          teamRes = await apiClient.get("/tickets?status=New,In Progress,Pending&limit=100");
+        } catch (e) {
+          teamRes = null;
+        }
+
         setStats(statsRes.data.data);
         setMyTickets(ticketsRes.data.data.tickets || []);
         setTeamPulse(pulseRes.data.data.events || []);
+        setTeamTickets(teamRes?.data?.data?.tickets || []);
       } catch (err) {
         console.error("Failed to load agent dashboard:", err);
       } finally {
@@ -32,6 +45,11 @@ const AgentDashboard = ({ user }) => {
     // Refresh every 30s
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => clearInterval(timer);
   }, []);
 
   const getPriorityColor = (p) => {
@@ -48,6 +66,74 @@ const AgentDashboard = ({ user }) => {
     if (ticket.sla_status?.escalated) return { text: 'ESCALATED', color: '#f59e0b' };
     return { text: 'ON TRACK', color: '#10b981' };
   };
+
+  const getSlaCountdown = (ticket) => {
+    if (!ticket?.sla_due_date) return { text: "No SLA", color: "#64748b", isBreached: false };
+    const dueMs = new Date(ticket.sla_due_date).getTime();
+    if (!Number.isFinite(dueMs)) return { text: "No SLA", color: "#64748b", isBreached: false };
+    const remaining = dueMs - nowMs;
+    if (remaining <= 0) return { text: "BREACHED", color: "#ef4444", isBreached: true };
+
+    const totalMinutes = Math.floor(remaining / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const text = `${hours}h ${minutes}m left`;
+    const color = remaining <= SLA_ALERT_WINDOW_MS ? "#f59e0b" : "#22c55e";
+    return { text, color, isBreached: false };
+  };
+
+  const isPendingLike = (status = "") => String(status).toLowerCase().includes("pending");
+  const isP1P2 = (priority = "") => ["P1", "P2"].includes(String(priority).toUpperCase());
+  const isNearBreach = (ticket) => {
+    if (!ticket?.sla_due_date || ticket?.sla_breached) return false;
+    const dueMs = new Date(ticket.sla_due_date).getTime();
+    if (!Number.isFinite(dueMs)) return false;
+    const remaining = dueMs - nowMs;
+    return remaining > 0 && remaining <= SLA_ALERT_WINDOW_MS;
+  };
+  const isPendingOver24h = (ticket) => {
+    if (!isPendingLike(ticket?.status)) return false;
+    const base = ticket?.updated_at || ticket?.created_at;
+    if (!base) return false;
+    const ageMs = nowMs - new Date(base).getTime();
+    return Number.isFinite(ageMs) && ageMs >= 24 * 60 * 60 * 1000;
+  };
+
+  const focusCards = [
+    {
+      key: "at_risk",
+      label: "At Risk SLA",
+      value: myTickets.filter((t) => t?.sla_breached || isNearBreach(t)).length,
+      to: "/tickets?status=New,In%20Progress,Pending&quick_filter=at_risk",
+    },
+    {
+      key: "waiting_user",
+      label: "Waiting on User",
+      value: myTickets.filter((t) => isPendingLike(t?.status)).length,
+      to: "/tickets?status=Pending&quick_filter=pending",
+    },
+    {
+      key: "unassigned_high",
+      label: "Unassigned P1/P2",
+      value: teamTickets.filter((t) => !t?.assigned_to && isP1P2(t?.priority)).length,
+      to: "/team-queue?assignment=unassigned&status=New,In%20Progress,Pending&priority=P1,P2",
+    },
+    {
+      key: "due_2h",
+      label: "Due in 2h",
+      value: myTickets.filter((t) => isNearBreach(t)).length,
+      to: "/tickets?status=New,In%20Progress,Pending&quick_filter=due_2h",
+    },
+  ];
+
+  const filteredTickets = myTickets.filter((ticket) => {
+    if (activeQuickFilter === "all") return true;
+    if (activeQuickFilter === "my") return true;
+    if (activeQuickFilter === "p1p2") return isP1P2(ticket.priority);
+    if (activeQuickFilter === "pending24") return isPendingOver24h(ticket);
+    if (activeQuickFilter === "nearBreach") return isNearBreach(ticket);
+    return true;
+  });
 
   if (loading && !stats) return <div className="p-5 text-center text-slate-400">Loading Command Center...</div>;
 
@@ -90,6 +176,15 @@ const AgentDashboard = ({ user }) => {
         </div>
       </div>
 
+      <div className="focus-strip">
+        {focusCards.map((card) => (
+          <Link key={card.key} to={card.to} className="glass focus-card">
+            <small>{card.label}</small>
+            <strong>{card.value}</strong>
+          </Link>
+        ))}
+      </div>
+
       <div className="dashboard-content">
         {/* Main Section: My Queue */}
         <div className="glass main-panel">
@@ -97,15 +192,33 @@ const AgentDashboard = ({ user }) => {
             <h2>MY PRIORITY QUEUE</h2>
             <Link to="/tickets?assigned_to=me" className="text-link">VIEW ALL</Link>
           </div>
+          <div className="quick-filter-bar">
+            {[
+              { key: "all", label: "All" },
+              { key: "p1p2", label: "P1/P2" },
+              { key: "pending24", label: "Pending >24h" },
+              { key: "nearBreach", label: "Near Breach" },
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                className={`quick-chip ${activeQuickFilter === filter.key ? "active" : ""}`}
+                onClick={() => setActiveQuickFilter(filter.key)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
 
           <div className="ticket-list">
-            {myTickets.length === 0 ? (
+            {filteredTickets.length === 0 ? (
               <div className="empty-state">
                 No active tickets. You're all caught up!
               </div>
             ) : (
-              myTickets.map(ticket => {
+              filteredTickets.map(ticket => {
                 const sla = getSlaStatus(ticket);
+                const countdown = getSlaCountdown(ticket);
                 return (
                   <Link to={`/tickets/${ticket.ticket_id}`} key={ticket.ticket_id} className="ticket-item">
                     <div className="ticket-priority" style={{ backgroundColor: getPriorityColor(ticket.priority) }}>
@@ -121,6 +234,9 @@ const AgentDashboard = ({ user }) => {
                       <div className="ticket-meta">
                         <span className={`sla-badge`} style={{ color: sla.color, borderColor: `${sla.color}40`, background: `${sla.color}10` }}>
                           {sla.text}
+                        </span>
+                        <span className="sla-countdown" style={{ color: countdown.color }}>
+                          {countdown.text}
                         </span>
                         <span className="detail">{ticket.location}</span>
                         <span className="detail">{new Date(ticket.created_at).toLocaleDateString()}</span>
@@ -221,6 +337,27 @@ const AgentDashboard = ({ user }) => {
           margin-bottom: 2rem;
         }
 
+        .focus-strip {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .focus-card {
+          padding: 0.9rem 1rem;
+          text-decoration: none;
+          color: inherit;
+          border-radius: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+          transition: transform 0.18s ease;
+        }
+        .focus-card:hover { transform: translateY(-2px); }
+        .focus-card small { color: #94a3b8; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+        .focus-card strong { color: #f8fafc; font-size: 1.5rem; line-height: 1; }
+
         .metric-card {
           padding: 1.5rem;
           display: flex;
@@ -258,6 +395,32 @@ const AgentDashboard = ({ user }) => {
         .text-link { color: #3b82f6; font-weight: 700; font-size: 0.8rem; text-decoration: none; }
 
         .ticket-list { display: flex; flex-direction: column; }
+        .quick-filter-bar {
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          display: flex;
+          gap: 0.6rem;
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          background: rgba(2, 6, 23, 0.82);
+          backdrop-filter: blur(8px);
+        }
+        .quick-chip {
+          border: 1px solid rgba(148, 163, 184, 0.25);
+          background: rgba(15, 23, 42, 0.65);
+          color: #cbd5e1;
+          border-radius: 999px;
+          padding: 0.35rem 0.7rem;
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .quick-chip.active {
+          border-color: rgba(59, 130, 246, 0.55);
+          background: rgba(59, 130, 246, 0.25);
+          color: #dbeafe;
+        }
         
         .ticket-item {
           display: flex;
@@ -303,6 +466,11 @@ const AgentDashboard = ({ user }) => {
           letter-spacing: 0.05em;
         }
         .detail { font-size: 0.85rem; color: #64748b; }
+        .sla-countdown {
+          font-size: 0.75rem;
+          font-weight: 800;
+          letter-spacing: 0.02em;
+        }
 
         .status-text { 
           font-weight: 800; 
@@ -346,6 +514,23 @@ const AgentDashboard = ({ user }) => {
 
         .empty-state { padding: 4rem; text-align: center; color: #64748b; font-weight: 600; }
         .empty-text { color: #64748b; font-size: 0.9rem; font-style: italic; }
+
+        @media (max-width: 1120px) {
+          .focus-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 860px) {
+          .dashboard-content { grid-template-columns: 1fr; }
+          .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 620px) {
+          .agent-dashboard { padding: 1rem; }
+          .metrics-grid { grid-template-columns: 1fr; }
+          .focus-strip { grid-template-columns: 1fr; }
+          .quick-filter-bar { overflow-x: auto; white-space: nowrap; }
+          .ticket-item { gap: 0.8rem; padding: 1rem; }
+          .ticket-title { font-size: 1rem; }
+          .ticket-meta { flex-wrap: wrap; gap: 0.55rem; }
+        }
 
         .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
