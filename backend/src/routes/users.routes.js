@@ -27,4 +27,7 @@ router.patch('/:id', authenticate, authorize(['system_admin']), UsersController.
 // Reset password for a user (admin only)
 router.post('/:id/reset-password', authenticate, authorize(['system_admin']), UsersController.resetPassword);
 
+// Remove user from management (admin only, guarded hard delete)
+router.delete('/:id', authenticate, authorize(['system_admin']), UsersController.deleteUser);
+
 module.exports = router;

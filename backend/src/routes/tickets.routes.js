@@ -190,4 +190,10 @@ router.get('/:id', authenticate, validateId, TicketsController.getTicket);
  */
 router.patch('/:id', authenticate, validateId, TicketsController.updateTicket);
 
+/**
+ * @route DELETE /api/tickets/:id
+ * @desc Permanently delete ticket (system_admin only, guarded)
+ */
+router.delete('/:id', authenticate, validateId, authorize(['system_admin']), TicketsController.permanentlyDeleteTicket);
+
 module.exports = router;

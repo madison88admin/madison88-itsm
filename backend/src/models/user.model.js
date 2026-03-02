@@ -89,6 +89,21 @@ const UserModel = {
     );
     return result.rows;
   },
+
+  async countSystemAdmins() {
+    const result = await db.query(
+      "SELECT COUNT(*)::int AS count FROM users WHERE role = 'system_admin' AND is_active = true"
+    );
+    return result.rows[0]?.count || 0;
+  },
+
+  async deleteUser(userId) {
+    const result = await db.query(
+      'DELETE FROM users WHERE user_id = $1 RETURNING user_id, email, full_name, role',
+      [userId]
+    );
+    return result.rows[0] || null;
+  },
 };
 
 module.exports = UserModel;

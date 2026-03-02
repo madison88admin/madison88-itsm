@@ -356,6 +356,127 @@ const UsersService = {
         await TicketsModel.clearAssignmentsForUserInTeams(userId, teamIds);
 
         return { user, removed_count: removedMemberships.length };
+    },
+
+    async deleteUser(userId, actingUser, { force = false } = {}) {
+        if (!actingUser || actingUser.role !== 'system_admin') {
+            const error = new Error('Forbidden');
+            error.status = 403;
+            throw error;
+        }
+
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.status = 404;
+            throw error;
+        }
+
+        if (user.user_id === actingUser.user_id) {
+            const error = new Error('You cannot remove your own account');
+            error.status = 400;
+            throw error;
+        }
+
+        if (user.role === 'system_admin') {
+            const adminCount = await UserModel.countSystemAdmins();
+            if (adminCount <= 1) {
+                const error = new Error('Cannot remove the last active system admin');
+                error.status = 400;
+                throw error;
+            }
+        }
+
+        // Require deactivation/archive first to avoid accidental hard deletion.
+        if (!force && user.is_active === true && !user.archived_at) {
+            const error = new Error('User must be deactivated/archived first before removal');
+            error.status = 400;
+            throw error;
+        }
+
+        if (force) {
+            const client = await db.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Remove self-references from users table
+                await client.query('UPDATE users SET created_by = NULL WHERE created_by = $1', [userId]);
+                await client.query('UPDATE users SET updated_by = NULL WHERE updated_by = $1', [userId]);
+                await client.query('UPDATE users SET archived_by = NULL WHERE archived_by = $1', [userId]);
+
+                // Team ownership and memberships
+                await client.query('UPDATE teams SET team_lead_id = NULL WHERE team_lead_id = $1', [userId]);
+                await client.query('UPDATE team_members SET is_active = false WHERE user_id = $1', [userId]);
+
+                // Ticket ownership and references
+                await client.query('UPDATE tickets SET user_id = $2 WHERE user_id = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE tickets SET assigned_to = NULL WHERE assigned_to = $1', [userId]);
+                await client.query('UPDATE tickets SET assigned_by = NULL WHERE assigned_by = $1', [userId]);
+                await client.query('UPDATE tickets SET resolved_by = NULL WHERE resolved_by = $1', [userId]);
+                await client.query('UPDATE tickets SET closed_by = NULL WHERE closed_by = $1', [userId]);
+                await client.query('UPDATE tickets SET overridden_by = NULL WHERE overridden_by = $1', [userId]);
+
+                await client.query('UPDATE ticket_comments SET user_id = $2 WHERE user_id = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE ticket_comments SET edited_by = NULL WHERE edited_by = $1', [userId]);
+                await client.query('UPDATE ticket_attachments SET uploaded_by = $2 WHERE uploaded_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE ticket_status_history SET changed_by = $2 WHERE changed_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE ticket_escalations SET escalated_by = $2 WHERE escalated_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE ticket_escalations SET resolved_by = $2 WHERE resolved_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE audit_logs SET user_id = $2 WHERE user_id = $1', [userId, actingUser.user_id]);
+
+                // Knowledge base
+                await client.query('UPDATE knowledge_base_articles SET author_id = $2 WHERE author_id = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE kb_article_versions SET changed_by = $2 WHERE changed_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE kb_article_feedback SET user_id = NULL WHERE user_id = $1', [userId]);
+
+                // Change management and approvals
+                await client.query('UPDATE change_requests SET requested_by = $2 WHERE requested_by = $1', [userId, actingUser.user_id]);
+                await client.query('DELETE FROM change_approvers WHERE user_id = $1', [userId]);
+                await client.query('UPDATE ticket_priority_override_requests SET requested_by = $2 WHERE requested_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE ticket_priority_override_requests SET reviewed_by = NULL WHERE reviewed_by = $1', [userId]);
+
+                // Service requests and assets
+                await client.query('UPDATE service_requests SET requested_by = $2 WHERE requested_by = $1', [userId, actingUser.user_id]);
+                await client.query('UPDATE service_requests SET approver_id = NULL WHERE approver_id = $1', [userId]);
+                await client.query('UPDATE it_assets SET assigned_user_id = NULL WHERE assigned_user_id = $1', [userId]);
+
+                const deletedRes = await client.query(
+                    'DELETE FROM users WHERE user_id = $1 RETURNING user_id, email, full_name, role',
+                    [userId]
+                );
+
+                await client.query('COMMIT');
+                const deleted = deletedRes.rows[0] || null;
+                if (!deleted) {
+                    const error = new Error('User not found');
+                    error.status = 404;
+                    throw error;
+                }
+                return { user: deleted, forced: true };
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        }
+
+        try {
+            const deleted = await UserModel.deleteUser(userId);
+            if (!deleted) {
+                const error = new Error('User not found');
+                error.status = 404;
+                throw error;
+            }
+            return { user: deleted };
+        } catch (err) {
+            if (err.code === '23503') {
+                const error = new Error('Cannot remove user with linked records (tickets, audit logs, assets, or approvals)');
+                error.status = 409;
+                throw error;
+            }
+            throw err;
+        }
     }
 };
 

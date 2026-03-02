@@ -130,6 +130,38 @@ const DashboardService = {
             return acc;
         }, {});
 
+        // "Today" completion metrics based on actual completion timestamps.
+        // This avoids counting old resolved/closed tickets in the "Resolved Today" KPI.
+        const todayCountsQuery = location
+            ? `
+                SELECT
+                  COUNT(*) FILTER (
+                    WHERE resolved_at IS NOT NULL
+                      AND resolved_at::date = CURRENT_DATE
+                  )::int AS resolved_today,
+                  COUNT(*) FILTER (
+                    WHERE closed_at IS NOT NULL
+                      AND closed_at::date = CURRENT_DATE
+                  )::int AS closed_today
+                FROM tickets
+                WHERE location = $1
+              `
+            : `
+                SELECT
+                  COUNT(*) FILTER (
+                    WHERE resolved_at IS NOT NULL
+                      AND resolved_at::date = CURRENT_DATE
+                  )::int AS resolved_today,
+                  COUNT(*) FILTER (
+                    WHERE closed_at IS NOT NULL
+                      AND closed_at::date = CURRENT_DATE
+                  )::int AS closed_today
+                FROM tickets
+              `;
+        const todayResult = await db.query(todayCountsQuery, values);
+        const resolved_today = parseInt(todayResult.rows[0]?.resolved_today || 0, 10);
+        const closed_today = parseInt(todayResult.rows[0]?.closed_today || 0, 10);
+
         const open = (status_counts['New'] || 0) + (status_counts['In Progress'] || 0);
         const summary = {
             open,
@@ -138,6 +170,9 @@ const DashboardService = {
             resolved: status_counts['Resolved'] || 0,
             closed: status_counts['Closed'] || 0,
             reopened: status_counts['Reopened'] || 0,
+            resolved_today,
+            closed_today,
+            resolved_today_total: resolved_today + closed_today,
         };
 
         return { status_counts, summary };

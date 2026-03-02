@@ -29,11 +29,35 @@ const PulseService = {
       LIMIT 5
     `);
 
-        // 3. Mocked System Metrics (in a real app, these would come from monitoring tools)
+        // 3. Build live metrics from DB state (no hardcoded/demo values)
+        const openTickets = await db.query(`
+            SELECT COUNT(*)::int as count
+            FROM tickets
+            WHERE status NOT IN ('Resolved', 'Closed')
+        `);
+
+        const activeSupportStaff = await db.query(`
+            SELECT COUNT(DISTINCT u.user_id)::int as count
+            FROM users u
+            JOIN user_activity_logs ual ON u.user_id = ual.user_id
+            WHERE u.role IN ('it_agent', 'it_manager')
+              AND u.is_active = true
+              AND ual.activity_timestamp > NOW() - INTERVAL '15 minutes'
+        `);
+
         const metrics = [
-            { type: 'metric', label: 'Internet Speed', value: '942 Mbps', status: 'optimal' },
-            { type: 'metric', label: 'Server Latency', value: '14ms', status: 'optimal' },
-            { type: 'metric', label: 'Active Agents', value: '12', status: 'info' }
+            {
+                type: 'metric',
+                label: 'Open Tickets',
+                value: String(openTickets.rows[0]?.count || 0),
+                status: (openTickets.rows[0]?.count || 0) > 50 ? 'warning' : 'optimal'
+            },
+            {
+                type: 'metric',
+                label: 'Active Support Staff',
+                value: String(activeSupportStaff.rows[0]?.count || 0),
+                status: (activeSupportStaff.rows[0]?.count || 0) > 0 ? 'info' : 'warning'
+            }
         ];
 
         // Calculate system health status
@@ -85,3 +109,4 @@ const PulseService = {
 };
 
 module.exports = PulseService;
+

@@ -215,6 +215,22 @@ const UsersController = {
         } catch (err) {
             next(err);
         }
+    },
+
+    async deleteUser(req, res, next) {
+        try {
+            const force = req.query.force === 'true' || req.body?.force === true;
+            const result = await UsersService.deleteUser(req.params.id, req.user, { force });
+            res.json({
+                status: 'success',
+                message: force
+                    ? 'User force-removed successfully'
+                    : 'User removed from management successfully',
+                data: result
+            });
+        } catch (err) {
+            next(err);
+        }
     }
 };
 

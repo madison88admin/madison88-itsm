@@ -77,117 +77,128 @@ async function sendEmail({ to, subject, text, templateParams = {}, html = null }
     logger.info('Email override active', { originalTo: to, finalTo });
   }
 
-  const emailJsConfig = getEmailJsConfig();
-  if (emailJsConfig) {
-    if (!finalTo || !finalTo.trim()) {
-      logger.error('EmailJS recipient is empty. Skipping send.', { subject });
-      return false;
-    }
-
-    logger.info('Sending EmailJS email', {
-      to: finalTo,
-      subject,
-      serviceId: emailJsConfig.serviceId,
-      templateId: emailJsConfig.templateId,
-    });
-
-    const payload = {
-      service_id: emailJsConfig.serviceId,
-      template_id: emailJsConfig.templateId,
-      template_params: {
-        to_email: finalTo,
-        email: finalTo,
-        subject,
-        message: text,
-        app_name: process.env.APP_NAME || 'Madison88 ITSM',
-        ...templateParams,
-      },
-    };
-
-    payload.user_id = emailJsConfig.publicKey;
-    if (emailJsConfig.privateKey) {
-      payload.access_token = emailJsConfig.privateKey;
-    }
-
-    try {
-      await axios.post('https://api.emailjs.com/api/v1.0/email/send', payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      logger.info('EmailJS send successful', { to: finalTo, subject });
-      return true;
-    } catch (err) {
-      logger.error('Failed to send EmailJS email', {
-        error: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-        to: finalTo,
-        subject,
-      });
-      return false;
-    }
-  }
-
-  // Prefer Brevo HTTP API when configured; fall back to SMTP if Brevo fails
-  const brevoKey = process.env.BREVO_API_KEY;
-  if (brevoKey) {
-    try {
-      const brevoRes = await sendViaBrevo({ to: finalTo, subject, text, templateParams, html });
-      logger.info('Email sent via Brevo HTTP API', { to: finalTo, subject, brevoResponse: brevoRes });
-      return true;
-    } catch (err) {
-      logger.error('Brevo API send failed', {
-        error: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-        to: finalTo,
-        subject,
-      });
-      // If SMTP is not configured, we will return false below.
-      // Otherwise, fall through to attempt SMTP send as a backup.
-    }
-  }
-
-  const mailer = getTransporter();
-  if (!mailer) {
-    logger.warn('SMTP not configured and Brevo send failed or not configured. Skipping email.', { subject, to });
+  const recipientList = String(finalTo || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!recipientList.length) {
+    logger.warn('No recipients after normalization', { subject, to: finalTo });
     return false;
   }
 
-  logger.info('Sending SMTP email', { to: finalTo, subject });
+  const sendSingleEmail = async (recipient) => {
+    const emailJsConfig = getEmailJsConfig();
+    if (emailJsConfig) {
+      logger.info('Sending EmailJS email', {
+        to: recipient,
+        subject,
+        serviceId: emailJsConfig.serviceId,
+        templateId: emailJsConfig.templateId,
+      });
 
-  // Audit log for sent email
-  try {
-    await db.query(
-      `INSERT INTO audit_logs (user_id, action_type, entity_type, entity_id, old_value, new_value, description, ip_address, user_agent, session_id, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-      [
-        '62530f75-a4d6-4d57-9778-0eae86e00f12', // Fallback System Admin ID
-        'email_sent',
-        'notification',
-        null,
-        null,
-        JSON.stringify({ to: finalTo, subject, text }),
-        `Email sent to ${finalTo} with subject '${subject}'`,
-        null,
-        'mailer',
-        null,
-      ]
-    );
-  } catch (auditErr) {
-    logger.error('Failed to log email audit', { error: auditErr.message });
-  }
-  const from = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+      const payload = {
+        service_id: emailJsConfig.serviceId,
+        template_id: emailJsConfig.templateId,
+        template_params: {
+          to_email: recipient,
+          email: recipient,
+          subject,
+          message: text,
+          app_name: process.env.APP_NAME || 'Madison88 ITSM',
+          ...templateParams,
+        },
+      };
 
-  try {
-    const mailOptions = { from, to: finalTo, subject, text };
-    if (html) mailOptions.html = html;
-    const info = await mailer.sendMail(mailOptions);
-    logger.info('SMTP email sent successfully', { messageId: info.messageId, to: finalTo });
-    return true;
-  } catch (err) {
-    logger.error('Failed to send email via SMTP', { error: err.message, to: finalTo, subject });
-    return false;
+      payload.user_id = emailJsConfig.publicKey;
+      if (emailJsConfig.privateKey) {
+        payload.access_token = emailJsConfig.privateKey;
+      }
+
+      try {
+        await axios.post('https://api.emailjs.com/api/v1.0/email/send', payload, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        logger.info('EmailJS send successful', { to: recipient, subject });
+        return true;
+      } catch (err) {
+        logger.error('Failed to send EmailJS email', {
+          error: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          to: recipient,
+          subject,
+        });
+        return false;
+      }
+    }
+
+    const brevoKey = process.env.BREVO_API_KEY;
+    if (brevoKey) {
+      try {
+        const brevoRes = await sendViaBrevo({ to: recipient, subject, text, templateParams, html });
+        logger.info('Email sent via Brevo HTTP API', { to: recipient, subject, brevoResponse: brevoRes });
+        return true;
+      } catch (err) {
+        logger.error('Brevo API send failed', {
+          error: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          to: recipient,
+          subject,
+        });
+      }
+    }
+
+    const mailer = getTransporter();
+    if (!mailer) {
+      logger.warn('SMTP not configured and Brevo send failed or not configured. Skipping email.', { subject, to: recipient });
+      return false;
+    }
+
+    logger.info('Sending SMTP email', { to: recipient, subject });
+
+    try {
+      await db.query(
+        `INSERT INTO audit_logs (user_id, action_type, entity_type, entity_id, old_value, new_value, description, ip_address, user_agent, session_id, timestamp)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+        [
+          '62530f75-a4d6-4d57-9778-0eae86e00f12',
+          'email_sent',
+          'notification',
+          null,
+          null,
+          JSON.stringify({ to: recipient, subject, text }),
+          `Email sent to ${recipient} with subject '${subject}'`,
+          null,
+          'mailer',
+          null,
+        ]
+      );
+    } catch (auditErr) {
+      logger.error('Failed to log email audit', { error: auditErr.message });
+    }
+
+    const from = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+    try {
+      const mailOptions = { from, to: recipient, subject, text };
+      if (html) mailOptions.html = html;
+      const info = await mailer.sendMail(mailOptions);
+      logger.info('SMTP email sent successfully', { messageId: info.messageId, to: recipient });
+      return true;
+    } catch (err) {
+      logger.error('Failed to send email via SMTP', { error: err.message, to: recipient, subject });
+      return false;
+    }
+  };
+
+  let sentCount = 0;
+  for (const recipient of recipientList) {
+    // Send separately so recipients never see each other.
+    // This prevents end-user email disclosure to other users.
+    if (await sendSingleEmail(recipient)) sentCount += 1;
   }
+
+  return sentCount > 0;
 }
 
 async function sendEscalationNotice({ ticket, escalation, requester, assignee }) {
@@ -297,12 +308,15 @@ function collectRecipientEmails(recipients = [], options = {}) {
 }
 
 async function sendNewTicketNotice({ ticket, requester, recipients }) {
-  const allRecipients = [...(recipients || [])];
-  if (requester?.email) {
-    allRecipients.push(requester.email);
-  }
-
-  const uniqueRecipients = collectRecipientEmails(allRecipients);
+  // Staff-only distribution for new ticket notice.
+  // Do not include requester (end_user) in the same recipient pool.
+  const rawRecipients = (recipients || []).map((r) => {
+    if (typeof r === 'object' && r !== null && !r.role && r.email) return r.email;
+    return r;
+  });
+  const uniqueRecipients = collectRecipientEmails(rawRecipients, {
+    allowedRoles: STAFF_NOTIFICATION_ROLES,
+  });
   if (!uniqueRecipients.length) return false;
 
   const ticketUrl = getTicketUrl(ticket.ticket_id);
@@ -359,9 +373,6 @@ async function sendTicketAssignedNotice({ ticket, assignee, leads = [] }) {
 }
 
 async function sendTicketReopenedNotice({ ticket, requester, assignee, reopenedBy }) {
-  const recipients = collectRecipientEmails([requester, assignee]);
-  if (!recipients.length) return false;
-
   const ticketUrl = getTicketUrl(ticket.ticket_id);
   const subject = `Ticket Reopened: ${ticket.ticket_number}`;
   const text = [
@@ -374,7 +385,22 @@ async function sendTicketReopenedNotice({ ticket, requester, assignee, reopenedB
     `Please review the ticket and provide a resolution.`,
   ].join('\n');
 
-  return sendEmail({ to: recipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } });
+  const requesterRecipients = collectRecipientEmails([requester]);
+  const staffRecipients = collectRecipientEmails([assignee], {
+    allowedRoles: STAFF_NOTIFICATION_ROLES,
+  });
+
+  const results = [];
+  if (requesterRecipients.length) {
+    results.push(sendEmail({ to: requesterRecipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } }));
+  }
+  if (staffRecipients.length) {
+    results.push(sendEmail({ to: staffRecipients.join(','), subject, text, templateParams: { ticket_url: ticketUrl } }));
+  }
+
+  if (!results.length) return false;
+  const settled = await Promise.all(results);
+  return settled.some(Boolean);
 }
 
 async function sendCriticalTicketNotice({ ticket, requester, recipients }) {

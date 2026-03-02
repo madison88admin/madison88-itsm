@@ -74,6 +74,7 @@ const TicketDetailPage = ({
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [autoCloseCountdownText, setAutoCloseCountdownText] = useState("");
+  const [deletingTicket, setDeletingTicket] = useState(false);
 
   const isEndUser = user?.role === "end_user";
   const isManager = user?.role === "it_manager";
@@ -91,6 +92,11 @@ const TicketDetailPage = ({
   const canOverridePriority = isAdmin || (isAssignedToUser && user?.role === "it_agent") || isManager;
   const canComment = isEndUser ? ticket?.user_id === user?.user_id : isAssignedToUser;
   const canEscalate = isAdmin || isManager || !!isAssignedToUser;
+  const canSeePermanentDelete = isAdmin;
+  const canPermanentlyDeleteNow =
+    isAdmin &&
+    !!ticket &&
+    (Boolean(ticket.is_archived) || ["Resolved", "Closed"].includes(ticket.status));
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local";
   const progressStages = [
     { key: "New", label: "Submitted" },
@@ -625,6 +631,33 @@ const TicketDetailPage = ({
     }
   };
 
+  const handlePermanentDelete = async ({ reason, confirmText }) => {
+    if (!canPermanentlyDeleteNow) {
+      setError("Only archived/resolved/closed tickets can be permanently deleted.");
+      return false;
+    }
+
+    setDeletingTicket(true);
+    setError("");
+    setNotice("");
+    try {
+      await apiClient.delete(`/tickets/${ticketId}`, {
+        data: {
+          reason,
+          confirm_text: confirmText,
+        },
+      });
+      if (onUpdated) onUpdated();
+      if (onClose) onClose();
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to permanently delete ticket");
+      return false;
+    } finally {
+      setDeletingTicket(false);
+    }
+  };
+
   const stripHtml = (value) => value?.replace(/<[^>]*>/g, "") || "";
 
   const buildAttachmentUrl = (filePath) => {
@@ -690,6 +723,10 @@ const TicketDetailPage = ({
           setTicket(updatedTicket);
           if (onUpdated) onUpdated();
         }}
+        canPermanentlyDelete={canSeePermanentDelete}
+        canPermanentlyDeleteNow={canPermanentlyDeleteNow}
+        onPermanentDelete={handlePermanentDelete}
+        deleteInProgress={deletingTicket}
         onClose={onClose}
       />
     );

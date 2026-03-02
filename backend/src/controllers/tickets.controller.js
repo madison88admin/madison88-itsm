@@ -417,6 +417,25 @@ const TicketsController = {
       next(err);
     }
   },
+  async permanentlyDeleteTicket(req, res, next) {
+    try {
+      const result = await TicketsService.permanentlyDeleteTicket({
+        ticketId: req.params.id,
+        payload: req.body,
+        user: req.user,
+        meta: {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          sessionId: req.headers['x-session-id'] || null,
+        },
+      });
+      const io = req.app.get('io');
+      emitTicketUpdate(io, req.params.id, 'ticket-deleted', { ticketId: req.params.id });
+      res.json({ status: 'success', data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
   async checkDuplicates(req, res, next) {
     try {
       const result = await TicketsService.checkDuplicates({

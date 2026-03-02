@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const fs = require('fs');
 const path = require('path');
 const db = require('../config/database');
 const AppError = require('../utils/AppError');
@@ -67,6 +68,11 @@ const slaPreviewSchema = Joi.object({
   business_impact: Joi.string().allow('', null),
 });
 
+const permanentDeleteSchema = Joi.object({
+  reason: Joi.string().min(8).required(),
+  confirm_text: Joi.string().valid('DELETE').required(),
+});
+
 const PRIORITY_KEYWORDS = {
   P1: [
     'outage',
@@ -90,6 +96,8 @@ const PRIORITY_KEYWORDS = {
   P3: ['issue', 'problem', 'request', 'performance'],
   P4: ['information', 'feature request', 'question', 'documentation'],
 };
+
+const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
 
 async function getSlaRuleMap() {
   const rules = await SlaModel.listRules();
@@ -2027,6 +2035,67 @@ const TicketsService = {
     }
 
     return { ticket: updated };
+  },
+  async permanentlyDeleteTicket({ ticketId, payload, user, meta }) {
+    if (user.role !== 'system_admin') throw new AppError('Forbidden', 403);
+
+    const { error, value } = permanentDeleteSchema.validate(payload || {}, { abortEarly: false });
+    if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
+
+    const ticket = await TicketsModel.getTicketById(ticketId);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+
+    const status = (ticket.status || '').toLowerCase();
+    const canDelete = Boolean(ticket.is_archived) || status === 'resolved' || status === 'closed';
+    if (!canDelete) {
+      throw new AppError('Only archived/resolved/closed tickets can be permanently deleted', 400);
+    }
+
+    const attachmentResult = await db.query(
+      `SELECT file_path
+       FROM ticket_attachments
+       WHERE ticket_id = $1`,
+      [ticketId]
+    );
+
+    await TicketsModel.createAuditLog({
+      ticket_id: ticketId,
+      user_id: user.user_id,
+      action_type: 'permanently_deleted',
+      entity_type: 'ticket',
+      entity_id: ticketId,
+      old_value: JSON.stringify(ticket),
+      new_value: JSON.stringify({ deleted: true, reason: value.reason }),
+      description: `Ticket permanently deleted: ${value.reason}`,
+      ip_address: meta.ip || null,
+      user_agent: meta.userAgent || null,
+      session_id: meta.sessionId || null,
+    });
+
+    const deleted = await TicketsModel.deleteTicket(ticketId);
+    if (!deleted) throw new AppError('Ticket not found', 404);
+
+    for (const row of attachmentResult.rows) {
+      const stored = row.file_path;
+      if (!stored || typeof stored !== 'string') continue;
+
+      const relative = stored.replace(/^[/\\]+/, '');
+      const resolved = path.resolve(path.join(__dirname, '../..', relative));
+      if (!resolved.startsWith(path.resolve(UPLOAD_ROOT))) continue;
+
+      try {
+        await fs.promises.unlink(resolved);
+      } catch {
+        // Ignore missing/in-use files; DB state is already authoritative.
+      }
+    }
+
+    return {
+      ticket_id: ticketId,
+      ticket_number: ticket.ticket_number,
+      deleted: true,
+      deleted_attachments: attachmentResult.rows.length,
+    };
   },
   async checkDuplicates({ title, description, user }) {
     const createdAfter = new Date(Date.now() - DUPLICATE_CHECK_HOURS * 60 * 60 * 1000);

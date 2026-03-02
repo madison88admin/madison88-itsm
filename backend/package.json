@@ -9,7 +9,7 @@
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "migrate": "node migrations/migrate.js",
-    "seed": "node database/seeds/index.js",
+    "seed": "node -e \"console.error('Seeding disabled: dummy/example data has been removed.'); process.exit(1);\"",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write \"src/**/*.js\"",
     "build": "echo \"No build needed for Node.js backend\""

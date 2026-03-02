@@ -63,11 +63,9 @@ const AdminUsersPage = () => {
   const PAGE_SIZE = 5;
   const [tempPasswordInfo, setTempPasswordInfo] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, user: null });
+  const [removeModal, setRemoveModal] = useState({ open: false, user: null });
   const [undoInfo, setUndoInfo] = useState(null); // { userId, timerId }
   const [resetToast, setResetToast] = useState(null);
-
-  // Debug helper: open the page with ?debug_active=1 to simulate currently active users
-  const debugActive = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug_active') === '1';
 
   const mountedRef = useRef(true);
   const requestSeqRef = useRef(0);
@@ -90,20 +88,6 @@ const AdminUsersPage = () => {
       // no-op
     }
   }, []);
-
-  // If debug flag is set, simulate active users after the users list is loaded
-  useEffect(() => {
-    if (!debugActive) return;
-    if (users.length === 0) return;
-
-    // Mark first two users as active for visual verification
-    const mock = users.slice(0, 2).map(u => ({
-      user_id: u.user_id,
-      activity_timestamp: new Date().toISOString(),
-      minutes_since_activity: 0,
-    }));
-    setActiveUsers(mock);
-  }, [debugActive, users]);
 
   const load = useCallback(async () => {
     const requestId = ++requestSeqRef.current;
@@ -225,6 +209,21 @@ const AdminUsersPage = () => {
     }
   };
 
+  const performRemoveUser = async () => {
+    const user = removeModal.user;
+    if (!user) return setRemoveModal({ open: false, user: null });
+    try {
+      await apiClient.delete(`/users/${user.user_id}?force=true`, {
+        data: { force: true },
+      });
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to remove user");
+    } finally {
+      setRemoveModal({ open: false, user: null });
+    }
+  };
+
   const handleUndo = async () => {
     if (!undoInfo?.userId) return;
     try {
@@ -287,6 +286,23 @@ const AdminUsersPage = () => {
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
               <button className="text-action" onClick={() => setConfirmModal({ open: false, user: null })}>Cancel</button>
               <button className="text-action danger" onClick={performToggle}>{confirmModal.user && confirmModal.user.is_active ? 'Deactivate' : 'Activate'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Remove Modal */}
+      {removeModal.open && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <h3>Remove user permanently?</h3>
+            <p>{removeModal.user ? `${removeModal.user.full_name} (${removeModal.user.email})` : ''}</p>
+            <p style={{ marginTop: '0.5rem', color: '#fca5a5', fontSize: '0.85rem' }}>
+              This is irreversible. User must already be archived/deactivated.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+              <button className="text-action" onClick={() => setRemoveModal({ open: false, user: null })}>Cancel</button>
+              <button className="text-action danger" onClick={performRemoveUser}>Remove Permanently</button>
             </div>
           </div>
         </div>
@@ -500,7 +516,16 @@ const AdminUsersPage = () => {
                       )}
 
                       {user.archived_at ? (
-                        <button className="text-action success" onClick={() => updateUser(user.user_id, { is_active: true })}>RESTORE</button>
+                        <>
+                          <button className="text-action success" onClick={() => updateUser(user.user_id, { is_active: true })}>RESTORE</button>
+                          <button
+                            className="text-action danger"
+                            onClick={() => setRemoveModal({ open: true, user })}
+                            title="Permanently remove archived user"
+                          >
+                            REMOVE
+                          </button>
+                        </>
                       ) : (
                         <button
                           className={`text-action ${user.is_active ? 'danger' : 'success'}`}
@@ -812,3 +837,4 @@ const AdminUsersPage = () => {
 };
 
 export default AdminUsersPage;
+

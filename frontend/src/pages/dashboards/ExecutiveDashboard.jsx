@@ -66,7 +66,9 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
       setData({
         summary: {
           open: status.open || 0,
-          resolved: (status.resolved || 0) + (status.closed || 0),
+          resolved:
+            status.resolved_today_total ??
+            ((status.resolved_today || 0) + (status.closed_today || 0)),
           compliance: advanced.trends?.sla_compliance_by_week?.[0]?.compliance || 100
         },
         health: pulse.systemHealth || { status: 'optimal', text: 'Systems Operational' },
@@ -214,7 +216,17 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
               </div>
             </div>
 
-            <div className="kpi-card hover-lift" onClick={() => handleKpiClick({ status: 'Resolved' })}>
+            <div
+              className="kpi-card hover-lift"
+              onClick={() => {
+                const today = new Date().toISOString().slice(0, 10);
+                handleKpiClick({
+                  status: 'Resolved,Closed',
+                  include_archived: 'true',
+                  date_from: today
+                });
+              }}
+            >
               <div className="kpi-icon resolved"><FiCheckCircle /></div>
               <div className="kpi-data">
                 <span>Resolved Today</span>

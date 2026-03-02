@@ -12,9 +12,33 @@ const GlassyTicketLayout = ({
     audit,
     onCommentAdded,
     onTicketUpdated,
+    canPermanentlyDelete = false,
+    canPermanentlyDeleteNow = false,
+    onPermanentDelete,
+    deleteInProgress = false,
     onClose
 }) => {
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [deleteReason, setDeleteReason] = useState("");
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deleteError, setDeleteError] = useState("");
+
+    const submitPermanentDelete = async () => {
+        setDeleteError("");
+        if (!onPermanentDelete) return;
+        const ok = await onPermanentDelete({
+            reason: deleteReason,
+            confirmText: deleteConfirmText
+        });
+        if (ok) {
+            setIsDeleteModalOpen(false);
+            setDeleteReason("");
+            setDeleteConfirmText("");
+        } else {
+            setDeleteError("Delete failed. Check confirmation and ticket status.");
+        }
+    };
 
     return (
         <div className="glassy-workspace animate-fade-in">
@@ -24,6 +48,14 @@ const GlassyTicketLayout = ({
                     <span className="breadcrumb">{ticket.ticket_number} <strong>{ticket.title}</strong></span>
                 </div>
                 <div className="header-right">
+                    {canPermanentlyDelete && (
+                        <button
+                            className="header-action-btn danger"
+                            onClick={() => setIsDeleteModalOpen(true)}
+                        >
+                            DELETE TICKET
+                        </button>
+                    )}
                     <button
                         className="header-action-btn"
                         onClick={() => setIsAuditModalOpen(true)}
@@ -68,6 +100,61 @@ const GlassyTicketLayout = ({
                 audit={audit}
                 user={user}
             />
+
+            {isDeleteModalOpen && (
+                <div className="modal-overlay">
+                    <div className="delete-modal">
+                        <h3>Permanent Delete Ticket</h3>
+                        <p>This action is irreversible. Type <strong>DELETE</strong> and provide a reason.</p>
+                        {!canPermanentlyDeleteNow && (
+                            <p className="delete-error">
+                                Ticket must be Archived, Resolved, or Closed before permanent deletion.
+                            </p>
+                        )}
+
+                        <label className="delete-field">
+                            <span>Reason</span>
+                            <textarea
+                                rows={3}
+                                value={deleteReason}
+                                onChange={(e) => setDeleteReason(e.target.value)}
+                                placeholder="Reason for permanent deletion"
+                            />
+                        </label>
+
+                        <label className="delete-field">
+                            <span>Confirmation Text</span>
+                            <input
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="Type DELETE"
+                            />
+                        </label>
+
+                        {deleteError && <p className="delete-error">{deleteError}</p>}
+
+                        <div className="delete-actions">
+                            <button
+                                className="header-action-btn"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false);
+                                    setDeleteError("");
+                                }}
+                                disabled={deleteInProgress}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="header-action-btn danger"
+                                onClick={submitPermanentDelete}
+                                disabled={deleteInProgress || !canPermanentlyDeleteNow}
+                            >
+                                {deleteInProgress ? "Deleting..." : "Confirm Permanent Delete"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style>{`
         .glassy-workspace {
@@ -120,6 +207,16 @@ const GlassyTicketLayout = ({
             border-color: #3b82f6;
             color: white;
             transform: translateY(-1px);
+        }
+        .header-action-btn.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+        .header-action-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: #ef4444;
+            color: #fff;
         }
 
         .workspace-grid {
@@ -190,6 +287,60 @@ const GlassyTicketLayout = ({
 
         .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+        }
+        .delete-modal {
+            width: min(560px, 92vw);
+            background: #0b1220;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 12px;
+            padding: 1rem;
+            display: grid;
+            gap: 0.75rem;
+        }
+        .delete-modal h3 {
+            margin: 0;
+            color: #fca5a5;
+        }
+        .delete-modal p {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+        .delete-field {
+            display: grid;
+            gap: 0.35rem;
+        }
+        .delete-field span {
+            color: #94a3b8;
+            font-size: 0.8rem;
+        }
+        .delete-field input,
+        .delete-field textarea {
+            background: rgba(15, 23, 42, 0.7);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 8px;
+            padding: 0.55rem 0.7rem;
+            font-family: inherit;
+        }
+        .delete-error {
+            margin: 0;
+            color: #fca5a5;
+            font-size: 0.8rem;
+        }
+        .delete-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+        }
         @media (max-width: 1100px) {
             .glassy-workspace {
                 height: auto !important;
