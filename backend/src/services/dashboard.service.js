@@ -201,11 +201,16 @@ const DashboardService = {
         const result = await db.query(
             `SELECT
          COUNT(CASE WHEN status NOT IN ('Resolved','Closed')
-                   AND sla_due_date IS NOT NULL
-                   AND sla_due_date < NOW() THEN 1 END)::int AS total_breached,
+                   AND (
+                        COALESCE(sla_breached, false) = true
+                        OR (sla_due_date IS NOT NULL AND sla_due_date < NOW())
+                   ) THEN 1 END)::int AS total_breached,
          COUNT(CASE WHEN status NOT IN ('Resolved','Closed')
-                   AND sla_due_date IS NOT NULL
-                   AND sla_due_date < NOW() THEN 1 END)::int AS critical_breached
+                   AND priority = 'P1'
+                   AND (
+                        COALESCE(sla_breached, false) = true
+                        OR (sla_due_date IS NOT NULL AND sla_due_date < NOW())
+                   ) THEN 1 END)::int AS critical_breached
        FROM tickets
        WHERE 1=1`
         );

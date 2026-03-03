@@ -87,7 +87,7 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
   const navigate = useNavigate();
   const currentUser = useMemo(() => parseStoredUser(), []);
   const [data, setData] = useState({
-    summary: { open: 0, resolved: 0, compliance: 0 },
+    summary: { open: 0, resolved: 0, compliance: 100, slaBreached: 0 },
     health: { status: "optimal", text: "All systems operational", checks: [] },
     recentEvents: [],
     pulseLastUpdated: null,
@@ -112,21 +112,29 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
   const fetchData = async () => {
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila";
-      const [statusRes, reportingRes, pulseRes] = await Promise.all([
+      const [statusRes, reportingRes, pulseRes, slaSummaryRes] = await Promise.all([
         apiClient.get("/dashboard/status-summary", { params: { timezone } }),
         apiClient.get("/dashboard/advanced-reporting"),
         apiClient.get("/dashboard/pulse"),
+        apiClient.get("/dashboard/sla-summary").catch(() => ({ data: { data: { summary: { total_breached: 0 } } } })),
       ]);
 
       const status = statusRes.data.data.summary || {};
       const advanced = reportingRes.data.data || {};
       const pulse = pulseRes.data.data || {};
+      const slaSummary = slaSummaryRes.data.data?.summary || {};
+      const openCount = Number(status.open || 0);
+      const breachedCount = Number(slaSummary.total_breached || 0);
+      const compliance = openCount > 0
+        ? Math.max(0, Number((((openCount - breachedCount) / openCount) * 100).toFixed(2)))
+        : 100;
 
       setData({
         summary: {
-          open: status.open || 0,
+          open: openCount,
           resolved: status.resolved_today || 0,
-          compliance: advanced.trends?.sla_compliance_by_week?.[0]?.compliance ?? 0,
+          compliance,
+          slaBreached: breachedCount,
         },
         health: pulse.systemHealth || { status: "optimal", text: "Systems Operational", checks: [] },
         recentEvents: pulse.events?.slice(0, 7) || [],
