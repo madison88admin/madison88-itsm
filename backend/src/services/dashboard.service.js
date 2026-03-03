@@ -226,7 +226,8 @@ const DashboardService = {
         }
         if (end_date) {
             values.push(end_date);
-            filters.push(`created_at <= $${values.length}`);
+            // Treat end_date as inclusive local day boundary by using next-day exclusive comparison.
+            filters.push(`created_at < ($${values.length}::date + INTERVAL '1 day')`);
         }
         if (location) {
             values.push(location);
