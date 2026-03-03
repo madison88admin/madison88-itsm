@@ -1,10 +1,11 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import TicketsPage from '../../pages/TicketsPage';
 import TicketDetailPage from '../../pages/TicketDetailPage';
 
 const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTickets }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { ticketId } = useParams();
 
     // ticketId is a UUID string from the URL param
@@ -12,12 +13,12 @@ const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTi
 
     const handleSelectTicket = (id) => {
         const basePath = viewMode === 'team' ? '/team-queue' : '/tickets';
-        navigate(`${basePath}/${id}`);
+        navigate(`${basePath}/${id}${location.search || ''}`);
     };
 
     const handleClose = () => {
         const basePath = viewMode === 'team' ? '/team-queue' : '/tickets';
-        navigate(basePath);
+        navigate(`${basePath}${location.search || ''}`);
     };
 
     return (
@@ -27,8 +28,9 @@ const TicketsLayout = ({ user, viewMode, refreshKey, setRefreshKey, onResolvedTi
                 user={user}
                 viewMode={viewMode}
                 onViewModeChange={(mode) => {
-                    if (mode === 'team') navigate('/team-queue');
-                    else navigate('/tickets');
+                    const query = location.search || '';
+                    if (mode === 'team') navigate(`/team-queue${query}`);
+                    else navigate(`/tickets${query}`);
                 }}
                 selectedId={selectedTicketId}
                 onSelectTicket={handleSelectTicket}

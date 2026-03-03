@@ -70,7 +70,11 @@ const TicketsPage = ({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [quickFilter, setQuickFilter] = useState("");
-  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState(() =>
+    ["it_manager", "system_admin"].includes(user?.role) && viewMode === "my"
+      ? "mine"
+      : "both"
+  );
   const [includeArchived, setIncludeArchived] = useState(false);
   const [agents, setAgents] = useState([]);
   const [selectedTickets, setSelectedTickets] = useState([]);
@@ -99,17 +103,23 @@ const TicketsPage = ({
   // Parse filters from URL on mount (for Drill-down Dashboard)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const rawAssignment = params.get("assignment") || "";
+    const normalizedAssignment = rawAssignment === "all" ? "both" : rawAssignment;
+    const defaultAssignment =
+      ["it_manager", "system_admin"].includes(user?.role) && viewMode === "my"
+        ? "mine"
+        : "both";
     setStatusFilter(params.get("status") || "");
     setPriorityFilter(params.get("priority") || "");
     setCategoryFilter(params.get("category") || "");
-    setAssignmentFilter(params.get("assignment") || "all");
+    setAssignmentFilter(normalizedAssignment || defaultAssignment);
     setLocationFilter(params.get("location") || "");
     setDateFrom(params.get("date_from") || "");
     setDateTo(params.get("date_to") || "");
     setQuickFilter(params.get("quick_filter") || "");
     setIncludeArchived(params.get("include_archived") === "true");
     setPage(1);
-  }, [location.search]);
+  }, [location.search, user?.role, viewMode]);
 
   useEffect(() => {
     const unsubscribe = onDashboardRefresh(() => setSocketRefreshKey((k) => k + 1));
@@ -129,12 +139,17 @@ const TicketsPage = ({
         const params = {};
         if (user?.role === "end_user") {
           // backend limits to own tickets
-        } else if (viewMode === "team") {
-          // manager/admin global view
+        } else if (isManager || isAdmin) {
+          if (assignmentFilter === "mine") {
+            params.assigned_to = user.user_id;
+          } else if (assignmentFilter === "unassigned") {
+            params.unassigned = true;
+          }
         } else if (assignmentFilter !== "unassigned") {
           params.assigned_to = user.user_id;
+        } else {
+          params.unassigned = true;
         }
-        if (assignmentFilter === "unassigned") params.unassigned = true;
         if (includeArchived) params.include_archived = true;
         if (searchQuery.trim()) params.q = searchQuery.trim();
         if (tagQuery.trim()) params.tags = tagQuery.trim();
@@ -481,7 +496,8 @@ const TicketsPage = ({
             value={assignmentFilter}
             onChange={(e) => { setAssignmentFilter(e.target.value); setPage(1); }}
           >
-            <option value="all">All assignments</option>
+            <option value="both">Both (My + Team)</option>
+            <option value="mine">Mine only</option>
             <option value="unassigned">Unassigned only</option>
           </select>
         )}
