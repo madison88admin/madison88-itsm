@@ -78,6 +78,8 @@ const hasMeaningfulDraftContent = ({ form = {}, step = 0, selectedTemplateId = "
 };
 
 const NewTicketPage = ({ onCreated, user }) => {
+  const isEndUser = user?.role === "end_user";
+  const allowedPriorities = isEndUser ? ["P3", "P4"] : priorities;
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -1006,12 +1008,17 @@ const NewTicketPage = ({ onCreated, user }) => {
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
             >
               <option value="">Auto</option>
-              {priorities.map((priority) => (
+              {allowedPriorities.map((priority) => (
                 <option key={priority} value={priority}>
                   {priority}
                 </option>
               ))}
             </select>
+            {isEndUser && (
+              <small className="muted" style={{ display: "block", marginTop: "6px" }}>
+                P1/P2 are restricted to admins, managers, or the assigned IT agent.
+              </small>
+            )}
             {selectedCategoryGuide && (
               <div style={{ marginTop: "8px", border: "1px solid rgba(59,130,246,0.28)", borderRadius: "10px", padding: "8px" }}>
                 <small className="muted" style={{ display: "block", marginBottom: "6px" }}>

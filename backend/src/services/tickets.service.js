@@ -207,6 +207,9 @@ const TicketsService = {
   async previewSla({ payload }) {
     const { error, value } = slaPreviewSchema.validate(payload, { abortEarly: false });
     if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
+    if (value.priority && ['P1', 'P2'].includes(value.priority)) {
+      throw new AppError('End users cannot set priority to P1 or P2', 400);
+    }
 
     const rules = await TicketsModel.getClassificationRules();
     const matchedRule = matchClassificationRule(rules, {
@@ -250,6 +253,9 @@ const TicketsService = {
     }
     const { error, value } = createSchema.validate(payload, { abortEarly: false });
     if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
+    if (value.priority && ['P1', 'P2'].includes(value.priority)) {
+      throw new AppError('End users cannot set priority to P1 or P2', 400);
+    }
 
     const createdAfter = new Date(Date.now() - DUPLICATE_CHECK_HOURS * 60 * 60 * 1000);
     const possible_duplicates = await TicketsModel.findPotentialDuplicates({
@@ -431,6 +437,9 @@ const TicketsService = {
     }
     const { error, value } = createSchema.validate(payload, { abortEarly: false });
     if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
+    if (value.priority && ['P1', 'P2'].includes(value.priority)) {
+      throw new AppError('End users cannot set priority to P1 or P2', 400);
+    }
 
     const createdAfter = new Date(Date.now() - DUPLICATE_CHECK_HOURS * 60 * 60 * 1000);
     const possible_duplicates = await TicketsModel.findPotentialDuplicates({
@@ -866,7 +875,6 @@ const TicketsService = {
       } else {
         value.sla_due_date = sla.sla_due_date;
         value.sla_response_due = sla.sla_response_due;
-        value.escalation_threshold_percent = sla.escalation_threshold_percent;
       }
     }
 
@@ -1408,6 +1416,7 @@ const TicketsService = {
       reason: value.reason,
       severity: value.severity,
       escalated_by: user.user_id,
+      old_priority: ticket.priority,
     });
 
     const requester = await UserModel.findById(ticket.user_id);
@@ -1427,7 +1436,7 @@ const TicketsService = {
       entity_type: 'ticket_escalation',
       entity_id: escalation.escalation_id,
       new_value: JSON.stringify(escalation),
-      description: 'Ticket escalated',
+      description: `Ticket escalated (priority ${ticket.priority || 'N/A'})`,
       ip_address: meta.ip,
       user_agent: meta.userAgent,
       session_id: meta.sessionId,
@@ -1723,6 +1732,7 @@ const TicketsService = {
         reason: `SLA threshold ${thresholdPercent}% reached`,
         severity: mapPriorityToSeverity(ticket.priority),
         escalated_by: null,
+        old_priority: ticket.priority,
       });
 
       const assignee = ticket.assigned_to
@@ -1750,7 +1760,7 @@ const TicketsService = {
         entity_type: 'ticket_escalation',
         entity_id: escalation.escalation_id,
         new_value: JSON.stringify(escalation),
-        description: 'Ticket auto-escalated based on SLA threshold',
+        description: `Ticket auto-escalated based on SLA threshold (priority ${ticket.priority || 'N/A'})`,
         ip_address: null,
         user_agent: 'system',
         session_id: null,
@@ -1760,6 +1770,32 @@ const TicketsService = {
       const breachUpdates = {};
       if (ticket.sla_response_due && new Date(ticket.sla_response_due) < now) breachUpdates.sla_response_breached = true;
       if (ticket.sla_due_date && new Date(ticket.sla_due_date) < now) breachUpdates.sla_breached = true;
+      // Safety: SLA jobs must never change ticket priority.
+      const unsafePriorityKeys = ['priority', 'priority_override_reason'];
+      const unsafePriorityPresent = unsafePriorityKeys.filter((key) => Object.prototype.hasOwnProperty.call(breachUpdates, key));
+      if (unsafePriorityPresent.length) {
+        console.warn('SLA job attempted to update priority fields; ignored.', {
+          ticket_id: ticket.ticket_id,
+          ticket_number: ticket.ticket_number,
+          keys: unsafePriorityPresent,
+        });
+        await TicketsModel.createAuditLog({
+          ticket_id: ticket.ticket_id,
+          user_id: null,
+          action_type: 'sla_priority_guard',
+          entity_type: 'ticket',
+          entity_id: ticket.ticket_id,
+          old_value: JSON.stringify({ priority: ticket.priority }),
+          new_value: JSON.stringify({ blocked_keys: unsafePriorityPresent }),
+          description: `SLA job attempted to update priority fields; blocked (${unsafePriorityPresent.join(', ')})`,
+          ip_address: null,
+          user_agent: 'system',
+          session_id: null,
+        });
+        for (const key of unsafePriorityPresent) {
+          delete breachUpdates[key];
+        }
+      }
       if (Object.keys(breachUpdates).length) {
         await TicketsModel.updateTicket(ticket.ticket_id, breachUpdates);
       }

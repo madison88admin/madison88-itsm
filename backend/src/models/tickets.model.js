@@ -488,21 +488,22 @@ const TicketsModel = {
     return result.rows;
   },
 
-  async createEscalation({ ticket_id, reason, severity, escalated_by }) {
+  async createEscalation({ ticket_id, reason, severity, escalated_by, old_priority }) {
     const result = await db.query(
       `INSERT INTO ticket_escalations
-        (ticket_id, reason, severity, escalated_by)
-       VALUES ($1, $2, $3, $4)
+        (ticket_id, reason, severity, escalated_by, old_priority)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [ticket_id, reason, severity || 'medium', escalated_by || null]
+      [ticket_id, reason, severity || 'medium', escalated_by || null, old_priority || null]
     );
     return result.rows[0];
   },
 
   async listEscalations(ticketId) {
     const result = await db.query(
-      `SELECT e.*, u.full_name AS escalated_by_name
+      `SELECT e.*, COALESCE(e.old_priority, t.priority) AS old_priority, t.priority AS current_priority, u.full_name AS escalated_by_name
        FROM ticket_escalations e
+       JOIN tickets t ON t.ticket_id = e.ticket_id
        LEFT JOIN users u ON u.user_id = e.escalated_by
        WHERE e.ticket_id = $1
        ORDER BY e.escalated_at DESC`,

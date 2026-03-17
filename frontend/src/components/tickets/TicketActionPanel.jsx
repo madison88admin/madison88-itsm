@@ -50,6 +50,12 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
         return () => clearInterval(timer);
     }, [ticket.location]);
 
+    const isAssignedToUser = ticket?.assigned_to && ticket.assigned_to === user?.user_id;
+    const canOverridePriority =
+        user?.role === 'system_admin' ||
+        user?.role === 'it_manager' ||
+        (user?.role === 'it_agent' && isAssignedToUser);
+
     React.useEffect(() => {
         setSelectedPriority(ticket?.priority || "P3");
         setPriorityReason("");
@@ -431,14 +437,16 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                         <div className="action-group">
                             <label>MANAGEMENT</label>
                             <div className="action-buttons-grid">
-                                <button className="btn-action secondary" onClick={handleEscalate} disabled={loading}>
-                                    ESCALATE
-                                </button>
+                                {canOverridePriority && (
+                                    <button className="btn-action secondary" onClick={handleEscalate} disabled={loading}>
+                                        ESCALATE
+                                    </button>
+                                )}
                                 <button className="btn-action secondary" onClick={handleAssignClick} disabled={loading}>
                                     {ticket.assigned_to ? 'REASSIGN' : 'ASSIGN TICKET'}
                                 </button>
                             </div>
-                            {['it_manager', 'system_admin'].includes(user?.role) && (
+                            {canOverridePriority && (
                                 <div className="priority-inline-form">
                                     <label className="priority-inline-label">CHANGE PRIORITY</label>
                                     <select

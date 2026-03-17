@@ -4,6 +4,25 @@ const AuditLogModal = ({ isOpen, onClose, audit, user }) => {
     if (!isOpen) return null;
 
     const isAdmin = user?.role === 'system_admin';
+    const parseJson = (value) => {
+        if (!value || typeof value !== 'string') return null;
+        try {
+            return JSON.parse(value);
+        } catch {
+            return null;
+        }
+    };
+    const renderDescription = (log) => {
+        const base = log.description || '';
+        const isEscalation = String(log.action_type || '').toLowerCase().includes('escalat');
+        if (!isEscalation) return base;
+        const payload = parseJson(log.new_value);
+        const oldPriority = payload?.old_priority || payload?.oldPriority || payload?.previous_priority;
+        const currentPriority = payload?.current_priority || payload?.currentPriority;
+        const detail = oldPriority || currentPriority;
+        if (!detail) return base;
+        return `${base} (Priority ${detail})`.trim();
+    };
 
     return (
         <div className="audit-modal-overlay animate-fade-in" onClick={onClose}>
@@ -43,7 +62,7 @@ const AuditLogModal = ({ isOpen, onClose, audit, user }) => {
                                                 <strong>{log.full_name || 'System'}</strong>
                                                 <span className="role">{log.role?.replace('_', ' ')}</span>
                                             </td>
-                                            <td className="description">{log.description}</td>
+                                            <td className="description">{renderDescription(log)}</td>
                                             {isAdmin && (
                                                 <td className="meta-info">
                                                     <div className="ip">{log.ip_address || 'N/A'}</div>

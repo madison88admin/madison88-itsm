@@ -1407,6 +1407,9 @@ const TicketDetailPage = ({
               low: { bg: "rgba(26, 58, 42, 0.6)", border: "rgba(42, 90, 58, 0.5)", text: "#4ade80", badge: "#22c55e" },
             };
             const colors = severityColors[entry.severity?.toLowerCase()] || severityColors.medium;
+            const oldPriority = entry.old_priority || entry.oldPriority || entry.previous_priority;
+            const currentPriority = entry.current_priority || entry.currentPriority || ticket?.priority;
+            const showPriority = oldPriority || currentPriority;
             return (
               <div
                 key={entry.escalation_id}
@@ -1447,6 +1450,11 @@ const TicketDetailPage = ({
                 }}>
                   {entry.reason}
                 </p>
+                {showPriority && (
+                  <div style={{ marginTop: "8px", fontSize: "12px", color: "#a0a0a0" }}>
+                    Priority at escalation: <strong style={{ color: "#e0e0e0" }}>{showPriority}</strong>
+                  </div>
+                )}
               </div>
             );
           })}

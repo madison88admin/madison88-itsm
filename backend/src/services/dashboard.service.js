@@ -502,7 +502,7 @@ const DashboardService = {
 
     async bulkEscalateP1(adminUserId) {
         const openP1s = await db.query(
-            "SELECT ticket_id, ticket_number FROM tickets WHERE priority = 'P1' AND status NOT IN ('Resolved', 'Closed')"
+            "SELECT ticket_id, ticket_number, priority FROM tickets WHERE priority = 'P1' AND status NOT IN ('Resolved', 'Closed')"
         );
 
         const escalations = [];
@@ -515,13 +515,20 @@ const DashboardService = {
 
             if (alreadyEscalated.rows.length === 0) {
                 await db.query(
-                    "INSERT INTO ticket_escalations (ticket_id, reason, severity, escalated_by) VALUES ($1, $2, $3, $4)",
-                    [ticket.ticket_id, 'Administrative Bulk Escalation via Executive Dashboard', 'critical', adminUserId]
+                    "INSERT INTO ticket_escalations (ticket_id, reason, severity, escalated_by, old_priority) VALUES ($1, $2, $3, $4, $5)",
+                    [ticket.ticket_id, 'Administrative Bulk Escalation via Executive Dashboard', 'critical', adminUserId, ticket.priority]
                 );
 
                 await db.query(
                     "INSERT INTO audit_logs (ticket_id, user_id, action_type, entity_type, entity_id, description) VALUES ($1, $2, $3, $4, $5, $6)",
-                    [ticket.ticket_id, adminUserId, 'escalated', 'ticket', ticket.ticket_id, 'Bulk P1 escalation triggered from executive dashboard']
+                    [
+                        ticket.ticket_id,
+                        adminUserId,
+                        'escalated',
+                        'ticket',
+                        ticket.ticket_id,
+                        `Bulk P1 escalation triggered from executive dashboard (priority ${ticket.priority || 'N/A'})`
+                    ]
                 );
 
                 escalations.push(ticket.ticket_number);
