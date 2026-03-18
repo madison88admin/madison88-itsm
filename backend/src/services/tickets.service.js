@@ -138,6 +138,11 @@ function detectPriority({ title, description, businessImpact, role }) {
   return 'P4';
 }
 
+function capEndUserPriority(priority) {
+  if (['P1', 'P2'].includes(priority)) return 'P3';
+  return priority || 'P4';
+}
+
 function matchClassificationRule(rules, { title, description, businessImpact }) {
   const text = `${normalizeText(title)} ${normalizeText(description)} ${normalizeText(businessImpact)}`;
   for (const rule of rules) {
@@ -231,7 +236,7 @@ const TicketsService = {
       location: value.location,
     });
 
-    const finalPriority = routingRule?.priority_override || detectedPriority;
+    const finalPriority = capEndUserPriority(routingRule?.priority_override || detectedPriority);
     const sla = await buildSla(finalPriority, value.category, value.location);
 
     return {
@@ -289,7 +294,7 @@ const TicketsService = {
       location: value.location,
     });
 
-    const finalPriority = routingRule?.priority_override || priority;
+    const finalPriority = capEndUserPriority(routingRule?.priority_override || priority);
     const sla = await buildSla(finalPriority, value.category, value.location);
 
     const assigned_team = routingRule?.assigned_team || null;
@@ -472,7 +477,7 @@ const TicketsService = {
       subcategory: value.subcategory,
       location: value.location,
     });
-    const finalPriority = routingRule?.priority_override || priority;
+    const finalPriority = capEndUserPriority(routingRule?.priority_override || priority);
     const sla = await buildSla(finalPriority, value.category, value.location);
 
     const assigned_team = routingRule?.assigned_team || null;
