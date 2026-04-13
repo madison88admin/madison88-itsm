@@ -294,7 +294,10 @@ const TicketDetailPage = ({
     const fetchAssignableUsers = async () => {
       try {
         const res = await apiClient.get("/users?role=it_agent");
-        setAgents(res.data.data.users || []);
+        const allUsers = res.data.data.users || [];
+        // Filter out John Patrick Maaliw
+        const filteredUsers = allUsers.filter(user => user.full_name !== "John Patrick Maaliw");
+        setAgents(filteredUsers);
       } catch (err) {
         setAgents([]);
       }

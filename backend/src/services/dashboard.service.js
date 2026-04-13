@@ -346,6 +346,7 @@ const DashboardService = {
                 FROM tickets t
                 JOIN users u ON u.user_id = t.assigned_to
                 WHERE t.resolved_at IS NOT NULL
+                  AND u.full_name != 'John Patrick Maaliw'
                 GROUP BY u.user_id, u.full_name
                 ORDER BY resolved_count DESC
                 LIMIT 10
@@ -371,6 +372,7 @@ const DashboardService = {
                 FROM users u
                 LEFT JOIN tickets t ON t.assigned_to = u.user_id
                 WHERE u.role IN ('it_agent','it_manager','system_admin')
+                  AND u.full_name != 'John Patrick Maaliw'
                 GROUP BY u.user_id, u.full_name
                 ORDER BY active_count DESC NULLS LAST
                 LIMIT 12

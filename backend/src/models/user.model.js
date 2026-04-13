@@ -49,6 +49,9 @@ const UserModel = {
       conditions.push(`u.archived_at IS NULL`);
     }
 
+    // Exclude John Patrick Maaliw
+    conditions.push(`u.full_name != 'John Patrick Maaliw'`);
+
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await db.query(

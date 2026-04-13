@@ -16,7 +16,10 @@ const KanbanPage = ({ user }) => {
         try {
             setLoading(true);
             const res = await apiClient.get("/tickets");
-            setTickets(res.data.data.tickets || []);
+            const allTickets = res.data.data.tickets || [];
+            // Filter out tickets assigned to John Patrick Maaliw
+            const filteredTickets = allTickets.filter(ticket => ticket.assignee_name !== "John Patrick Maaliw");
+            setTickets(filteredTickets);
         } catch (err) {
             setError("Failed to load tickets");
             toast.error("Error loading tickets");
