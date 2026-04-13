@@ -94,10 +94,8 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
     const fetchStaff = async () => {
         try {
             const res = await apiClient.get('/users?role=it_agent');
-            const agents = res.data.data.users;
-            const resManagers = await apiClient.get('/users?role=it_manager');
-            const managers = resManagers.data.data.users;
-            setStaff([...agents, ...managers].filter(s => s.user_id !== user.user_id));
+            const agents = res.data.data.users || [];
+            setStaff(agents.filter(s => s.user_id !== user.user_id));
         } catch (err) {
             console.error("Failed to fetch staff list", err);
         }

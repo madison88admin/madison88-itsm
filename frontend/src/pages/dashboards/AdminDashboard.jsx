@@ -8,13 +8,22 @@ const DATE_SCOPE_OPTIONS = [
   { key: "today", label: "Today" },
   { key: "7d", label: "Last 7 days" },
   { key: "30d", label: "Last 30 days" },
+  { key: "custom", label: "Custom range" },
 ];
 
 const toISODate = (date) => new Date(date).toISOString().slice(0, 10);
 
-const getDateRange = (scope) => {
+const getDateRange = (scope, customStart, customEnd) => {
   const now = new Date();
   const end = toISODate(now);
+  if (scope === "custom") {
+    const safeStart = customStart || end;
+    const safeEnd = customEnd || safeStart;
+    return {
+      start: safeStart <= safeEnd ? safeStart : safeEnd,
+      end: safeEnd >= safeStart ? safeEnd : safeStart,
+    };
+  }
   if (scope === "today") {
     return { start: end, end };
   }
@@ -27,24 +36,14 @@ const getDateRange = (scope) => {
 const AdminDashboard = () => {
   const [viewMode, setViewMode] = useState(localStorage.getItem('adminViewMode') || 'detailed');
   const [users, setUsers] = useState(0);
-  const [statusSummary, setStatusSummary] = useState({
-    open: 0,
-    in_progress: 0,
-    pending: 0,
-    resolved: 0,
-    closed: 0,
-  });
-  const [slaSummary, setSlaSummary] = useState({
-    total_breached: 0,
-    critical_breached: 0,
-  });
   const [agentStatusMatrix, setAgentStatusMatrix] = useState([]);
   const [ticketsByLocation, setTicketsByLocation] = useState([]);
-  const [ticketsByPriority, setTicketsByPriority] = useState([]);
   const [exportTickets, setExportTickets] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [dateScope, setDateScope] = useState("7d");
+  const [customDateStart, setCustomDateStart] = useState(() => getDateRange("30d").start);
+  const [customDateEnd, setCustomDateEnd] = useState(() => getDateRange("30d").end);
   const [locationScope, setLocationScope] = useState("all");
   const [teamScope, setTeamScope] = useState("all");
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
@@ -59,7 +58,7 @@ const AdminDashboard = () => {
   };
 
   const handleDrillDown = (params = {}) => {
-    const { start, end } = getDateRange(dateScope);
+    const { start, end } = getDateRange(dateScope, customDateStart, customDateEnd);
     const merged = {
       ...params,
       date_from: params.date_from || start,
@@ -77,7 +76,7 @@ const AdminDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      const { start, end } = getDateRange(dateScope);
+      const { start, end } = getDateRange(dateScope, customDateStart, customDateEnd);
       const settled = await Promise.allSettled([
         apiClient.get("/users"),
         apiClient.get("/dashboard/status-summary"),
@@ -101,8 +100,6 @@ const AdminDashboard = () => {
       }
 
       if (usersRes) setUsers(usersRes.data.data.users?.length || 0);
-      if (statusRes) setStatusSummary(statusRes.data.data.summary || {});
-      if (slaRes) setSlaSummary(slaRes.data.data.summary || {});
       if (reportingRes) setAgentStatusMatrix(reportingRes.data.data.agent_status_matrix || []);
       if (volumeRes) setTicketsByLocation(volumeRes.data.data.ticket_volume?.by_location || []);
       if (exportRes) setExportTickets(exportRes.data.data.tickets || []);
@@ -114,11 +111,6 @@ const AdminDashboard = () => {
         return acc;
       }, {});
 
-      const normalizedPriority = ['P1', 'P2', 'P3', 'P4'].map(p => ({
-        key: p,
-        value: priorityMap[p] || 0
-      }));
-      setTicketsByPriority(normalizedPriority);
       setLastUpdatedAt(new Date());
       setRefreshLatencyMs(Math.round(performance.now() - startTick));
 
@@ -128,7 +120,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [dateScope]);
+  }, [dateScope, customDateStart, customDateEnd]);
 
   useEffect(() => {
     load();
@@ -148,7 +140,6 @@ const AdminDashboard = () => {
   }, [exportTickets, locationScope]);
 
   const scopedStatusSummary = useMemo(() => {
-    if (!scopedTickets.length) return statusSummary;
     return scopedTickets.reduce(
       (acc, ticket) => {
         const status = String(ticket.status || "").toLowerCase();
@@ -161,10 +152,9 @@ const AdminDashboard = () => {
       },
       { open: 0, in_progress: 0, pending: 0, resolved: 0, closed: 0 },
     );
-  }, [scopedTickets, statusSummary]);
+  }, [scopedTickets]);
 
   const scopedSlaSummary = useMemo(() => {
-    if (!scopedTickets.length) return slaSummary;
     const now = Date.now();
     let total_breached = 0;
     let critical_breached = 0;
@@ -178,27 +168,38 @@ const AdminDashboard = () => {
       if (String(ticket.priority || "").toUpperCase() === "P1") critical_breached += 1;
     });
     return { total_breached, critical_breached };
-  }, [scopedTickets, slaSummary]);
+  }, [scopedTickets]);
 
   const scopedPriority = useMemo(() => {
-    if (!scopedTickets.length) return ticketsByPriority;
     const map = { P1: 0, P2: 0, P3: 0, P4: 0 };
     scopedTickets.forEach((ticket) => {
       const priority = String(ticket.priority || "").toUpperCase();
       if (map[priority] != null) map[priority] += 1;
     });
     return ["P1", "P2", "P3", "P4"].map((key) => ({ key, value: map[key] || 0 }));
-  }, [scopedTickets, ticketsByPriority]);
+  }, [scopedTickets]);
 
   const scopedLocations = useMemo(() => {
-    if (!scopedTickets.length) return ticketsByLocation;
     const map = new Map();
     scopedTickets.forEach((ticket) => {
       const key = ticket.location || "Unknown";
       map.set(key, (map.get(key) || 0) + 1);
     });
     return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
-  }, [scopedTickets, ticketsByLocation]);
+  }, [scopedTickets]);
+
+  const scopedCategories = useMemo(() => {
+    const map = new Map();
+    scopedTickets.forEach((ticket) => {
+      const key = ticket.category || "Other";
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value || a.key.localeCompare(b.key));
+  }, [scopedTickets]);
+
+  const topCategory = scopedCategories[0] || null;
 
   const allLocationOptions = useMemo(() => {
     if (!Array.isArray(exportTickets) || exportTickets.length === 0) return ticketsByLocation;
@@ -324,6 +325,24 @@ const AdminDashboard = () => {
             >
               {DATE_SCOPE_OPTIONS.map((opt) => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
             </select>
+            {dateScope === "custom" && (
+              <>
+                <input
+                  type="date"
+                  value={customDateStart}
+                  max={customDateEnd || undefined}
+                  onChange={(e) => setCustomDateStart(e.target.value)}
+                  style={scopeSelectStyle}
+                />
+                <input
+                  type="date"
+                  value={customDateEnd}
+                  min={customDateStart || undefined}
+                  onChange={(e) => setCustomDateEnd(e.target.value)}
+                  style={scopeSelectStyle}
+                />
+              </>
+            )}
             <select
               value={locationScope}
               onChange={(e) => setLocationScope(e.target.value)}
@@ -429,6 +448,11 @@ const AdminDashboard = () => {
               {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '60px', marginTop: '4px' }} /> : <strong>{activeTickets}</strong>}
               {loading ? <div className="skeleton-shimmer" style={{ height: '14px', width: '80px', marginTop: '4px' }} /> : <em>{activePercent} of total</em>}
             </div>
+            <div className="admin-kpi hover-lift">
+              <span>Top Category</span>
+              {loading ? <div className="skeleton-shimmer" style={{ height: '32px', width: '120px', marginTop: '4px' }} /> : <strong>{topCategory?.key || "No data"}</strong>}
+              {loading ? <div className="skeleton-shimmer" style={{ height: '14px', width: '80px', marginTop: '4px' }} /> : <em>{topCategory ? `${topCategory.value} tickets` : "0 tickets"}</em>}
+            </div>
           </div>
         </div>
         <div className="admin-hero-side">
@@ -481,6 +505,34 @@ const AdminDashboard = () => {
           <strong>{scopedSlaSummary.total_breached || 0}</strong>
           <em>{breachPercent} of total</em>
         </div>
+      </section>
+
+      <section className="panel">
+        <h3>Tickets by Category</h3>
+        <p className="muted">See which ticket types are most common for the selected date range.</p>
+        {scopedCategories.length === 0 ? (
+          <div className="empty-state">No category data in this date range.</div>
+        ) : (
+          <div className="location-cards">
+            {scopedCategories.map((item, index) => (
+              <div
+                key={item.key}
+                className="location-card hover-lift"
+                style={{
+                  cursor: 'pointer',
+                  borderLeft: `3px solid ${index === 0 ? 'rgba(94,234,212,0.9)' : 'rgba(59,130,246,0.55)'}`,
+                }}
+                onClick={() => handleDrillDown({ category: item.key })}
+              >
+                <span className="location-label">
+                  {index === 0 ? `TOP CATEGORY · ${item.key}` : item.key}
+                </span>
+                <strong>{item.value}</strong>
+                <em>{formatPercent(item.value, totalTickets)} of total</em>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel">

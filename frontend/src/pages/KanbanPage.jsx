@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Navigate } from "react-router-dom";
 import KanbanBoard from "../components/kanban/KanbanBoard";
 import apiClient from "../api/client";
 import { getSocket } from "../api/socket";
@@ -8,6 +9,8 @@ const KanbanPage = ({ user }) => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const isItStaff = ["it_agent", "it_manager", "system_admin"].includes(user?.role);
+    const canClaimTickets = user?.role === "it_agent";
 
     const loadTickets = useCallback(async () => {
         try {
@@ -64,6 +67,35 @@ const KanbanPage = ({ user }) => {
         }
     };
 
+    const handleClaimTicket = async (ticket) => {
+        if (!canClaimTickets || !ticket?.ticket_id || ticket.assigned_to) return;
+
+        const oldTickets = [...tickets];
+        setTickets((prev) => prev.map((item) => (
+            item.ticket_id === ticket.ticket_id
+                ? {
+                    ...item,
+                    assigned_to: user.user_id,
+                    assignee_name: user.full_name || user.email || "Assigned agent",
+                    status: item.status === "New" ? "In Progress" : item.status,
+                }
+                : item
+        )));
+
+        try {
+            await apiClient.patch(`/tickets/${ticket.ticket_id}`, {
+                assigned_to: user.user_id,
+                status: ticket.status === "New" ? "In Progress" : ticket.status,
+            });
+            toast.success("Ticket is now assigned to you");
+        } catch (err) {
+            setTickets(oldTickets);
+            toast.error(err.response?.data?.message || "Failed to claim ticket");
+        }
+    };
+
+    if (!isItStaff) return <Navigate to="/" replace />;
+
     if (loading && tickets.length === 0) return <div className="loading-screen">Loading Kanban Board...</div>;
 
     return (
@@ -78,7 +110,13 @@ const KanbanPage = ({ user }) => {
 
             {error && <div className="error-banner">{error}</div>}
 
-            <KanbanBoard tickets={tickets} onDragEnd={handleDragEnd} />
+            <KanbanBoard
+                tickets={tickets}
+                onDragEnd={handleDragEnd}
+                user={user}
+                canClaimTickets={canClaimTickets}
+                onClaimTicket={handleClaimTicket}
+            />
         </div>
     );
 };

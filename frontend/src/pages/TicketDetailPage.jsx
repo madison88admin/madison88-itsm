@@ -293,21 +293,8 @@ const TicketDetailPage = ({
     if (!canAssign) return;
     const fetchAssignableUsers = async () => {
       try {
-        // For system admin: fetch both IT agents and IT managers
-        // For IT manager: fetch only IT agents (their team members are filtered by backend)
-        if (isAdmin) {
-          const [agentsRes, managersRes] = await Promise.all([
-            apiClient.get("/users?role=it_agent"),
-            apiClient.get("/users?role=it_manager"),
-          ]);
-          const agents = agentsRes.data.data.users || [];
-          const managers = managersRes.data.data.users || [];
-          setAgents([...agents, ...managers]);
-        } else {
-          // IT Manager: only show IT agents (backend will validate team membership)
-          const res = await apiClient.get("/users?role=it_agent");
-          setAgents(res.data.data.users || []);
-        }
+        const res = await apiClient.get("/users?role=it_agent");
+        setAgents(res.data.data.users || []);
       } catch (err) {
         setAgents([]);
       }

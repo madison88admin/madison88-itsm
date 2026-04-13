@@ -3,8 +3,10 @@ import { Draggable } from "@hello-pangea/dnd";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
-const KanbanCard = ({ ticket, index }) => {
+const KanbanCard = ({ ticket, index, user, canClaimTickets, onClaimTicket }) => {
     const navigate = useNavigate();
+    const isAssignedToCurrentUser = ticket.assigned_to && ticket.assigned_to === user?.user_id;
+    const isUnassigned = !ticket.assigned_to;
 
     const getPriorityClass = (priority) => {
         switch (priority) {
@@ -53,13 +55,24 @@ const KanbanCard = ({ ticket, index }) => {
                         <span className="admin-label" style={{ fontSize: '9px', padding: '2px 8px', background: 'rgba(255,255,255,0.05)' }}>
                             {ticket.category || 'General'}
                         </span>
+                        <span className="admin-label" style={{
+                            fontSize: '9px',
+                            padding: '2px 8px',
+                            background: isUnassigned ? 'rgba(255,181,71,0.12)' : 'rgba(45,212,191,0.12)',
+                            color: isUnassigned ? '#fbbf24' : '#5eead4'
+                        }}>
+                            {isUnassigned ? "UNASSIGNED" : isAssignedToCurrentUser ? "OWNED BY YOU" : "ASSIGNED"}
+                        </span>
                     </div>
                     <div className="kanban-card-footer">
                         <div className="kanban-card-user">
                             <div className="kanban-card-avatar">
                                 {ticket.assignee_name ? ticket.assignee_name.charAt(0) : "?"}
                             </div>
-                            <span>{ticket.assignee_name || "Unassigned"}</span>
+                            <div className="kanban-card-user-meta">
+                                <span className="kanban-card-user-label">Support Owner</span>
+                                <span>{ticket.assignee_name || "Unassigned"}</span>
+                            </div>
                         </div>
                         {ticket.sla_due_date && (
                             <span style={{ fontSize: '10px', color: ticket.sla_breached ? 'var(--danger)' : 'var(--slate-500)' }}>
@@ -67,6 +80,20 @@ const KanbanCard = ({ ticket, index }) => {
                             </span>
                         )}
                     </div>
+                    {canClaimTickets && isUnassigned && (
+                        <div className="kanban-card-actions">
+                            <button
+                                type="button"
+                                className="kanban-claim-button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onClaimTicket?.(ticket);
+                                }}
+                            >
+                                Mark as Own
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </Draggable>

@@ -79,7 +79,9 @@ const TicketsModel = {
        LEFT JOIN tickets t
          ON t.assigned_to = tm.user_id
         AND t.status NOT IN ('Resolved', 'Closed')
-       WHERE tm.team_id = $1 AND tm.is_active = true
+       WHERE tm.team_id = $1
+         AND tm.is_active = true
+         AND u.role = 'it_agent'
        GROUP BY tm.user_id, u.location
        ORDER BY 
          CASE WHEN u.location = $2 THEN 0 ELSE 1 END,
@@ -204,7 +206,8 @@ const TicketsModel = {
               u.full_name AS user_name, 
               u.email AS user_email,
               a.full_name AS assignee_name,
-              a.email AS assignee_email
+              a.email AS assignee_email,
+              a.role AS assignee_role
        FROM tickets t
        LEFT JOIN users u ON u.user_id = t.user_id
        LEFT JOIN users a ON a.user_id = t.assigned_to
@@ -226,7 +229,8 @@ const TicketsModel = {
               u.full_name AS user_name, 
               u.email AS user_email,
               a.full_name AS assignee_name,
-              a.email AS assignee_email
+              a.email AS assignee_email,
+              a.role AS assignee_role
        FROM tickets t
        LEFT JOIN users u ON u.user_id = t.user_id
        LEFT JOIN users a ON a.user_id = t.assigned_to
@@ -277,7 +281,12 @@ const TicketsModel = {
   async listTeamMemberIdsForTeams(teamIds) {
     if (!teamIds || !teamIds.length) return [];
     const result = await db.query(
-      `SELECT user_id FROM team_members WHERE team_id = ANY($1) AND is_active = true
+      `SELECT tm.user_id
+       FROM team_members tm
+       JOIN users u ON u.user_id = tm.user_id
+       WHERE tm.team_id = ANY($1)
+         AND tm.is_active = true
+         AND u.role = 'it_agent'
        UNION
        SELECT team_lead_id AS user_id FROM teams WHERE team_id = ANY($1)`,
       [teamIds]

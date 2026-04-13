@@ -99,6 +99,20 @@ const PRIORITY_KEYWORDS = {
 
 const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
 
+function normalizeSupportAssignee(ticket) {
+  if (!ticket) return ticket;
+  if (!ticket.assigned_to || ticket.assignee_role === 'it_agent') {
+    return ticket;
+  }
+
+  return {
+    ...ticket,
+    assigned_to: null,
+    assignee_name: null,
+    assignee_email: null,
+  };
+}
+
 async function getSlaRuleMap() {
   const rules = await SlaModel.listRules();
   return rules.reduce((acc, rule) => {
@@ -726,10 +740,13 @@ const TicketsService = {
     const pagination = { page: parseInt(page, 10), limit: parseInt(limit, 10) };
     const data = await TicketsModel.listTickets(filters, pagination);
     const slaRuleMap = await getSlaRuleMap();
-    const tickets = data.tickets.map((ticket) => ({
-      ...ticket,
-      sla_status: computeSlaStatus(ticket, slaRuleMap[ticket.priority]),
-    }));
+    const tickets = data.tickets.map((rawTicket) => {
+      const ticket = normalizeSupportAssignee(rawTicket);
+      return {
+        ...ticket,
+        sla_status: computeSlaStatus(ticket, slaRuleMap[ticket.priority]),
+      };
+    });
     return { ...data, tickets };
   },
 
@@ -773,8 +790,9 @@ const TicketsService = {
     if (user.role === 'system_admin') {
       // full access
     }
+    const normalizedTicket = normalizeSupportAssignee(ticket);
     const slaRuleMap = await getSlaRuleMap();
-    const sla_status = computeSlaStatus(ticket, slaRuleMap[ticket.priority]);
+    const sla_status = computeSlaStatus(normalizedTicket, slaRuleMap[normalizedTicket.priority]);
     const comments = await TicketsModel.getComments(ticketId);
     // Merge comment-linked attachments
       const commentAttResult = await db.query(
@@ -793,7 +811,7 @@ const TicketsService = {
       : comments;
     const attachments = await TicketsModel.getAttachments(ticketId);
     const assets = await AssetsModel.listTicketAssets(ticketId);
-    return { ticket: { ...ticket, sla_status }, comments: visibleComments, attachments, assets };
+    return { ticket: { ...normalizedTicket, sla_status }, comments: visibleComments, attachments, assets };
   },
 
   async updateTicket({ ticketId, payload, user, meta }) {
@@ -910,13 +928,16 @@ const TicketsService = {
     }
 
     // Validate assignment hierarchy
-    if (value.assigned_to && user.role === 'it_manager') {
-      // IT Manager can only assign to IT agents in their teams, not to IT managers
+    if (value.assigned_to && ['it_manager', 'system_admin'].includes(user.role)) {
+      // Privileged users can only assign tickets to IT agents.
       const assignee = await UserModel.findById(value.assigned_to);
       if (!assignee) throw new Error('Assignee not found');
       if (assignee.role !== 'it_agent') {
-        throw new Error('IT Managers can only assign tickets to IT Agents');
+        throw new Error('Tickets can only be assigned to IT Agents');
       }
+    }
+
+    if (value.assigned_to && user.role === 'it_manager') {
       // Verify assignee is in manager's teams
       const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
       if (!teamIds.length) throw new Error('Forbidden: No teams assigned');
@@ -1596,14 +1617,14 @@ const TicketsService = {
     const tickets = await TicketsModel.listTicketsByIds(value.ticket_ids);
     if (tickets.length !== value.ticket_ids.length) throw new Error('One or more tickets not found');
 
-    if (user.role === 'it_manager') {
-      // IT Manager can only assign to IT agents in their teams, not to IT managers
-      const assignee = await UserModel.findById(value.assigned_to);
-      if (!assignee) throw new Error('Assignee not found');
-      if (assignee.role !== 'it_agent') {
-        throw new Error('IT Managers can only assign tickets to IT Agents');
-      }
+    const assignee = await UserModel.findById(value.assigned_to);
+    if (!assignee) throw new Error('Assignee not found');
+    if (assignee.role !== 'it_agent') {
+      throw new Error('Tickets can only be assigned to IT Agents');
+    }
 
+    if (user.role === 'it_manager') {
+      // IT Manager can only assign to IT agents in their teams.
       const teamIds = await TicketsModel.listTeamIdsForUser(user.user_id);
       if (!teamIds.length) throw new Error('Forbidden: No teams assigned');
       const memberIds = await TicketsModel.listTeamMemberIdsForTeams(teamIds);

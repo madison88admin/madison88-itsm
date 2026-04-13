@@ -9,7 +9,7 @@ const COLUMNS = [
     { id: "Resolved", title: "Resolved" }
 ];
 
-const KanbanBoard = ({ tickets, onDragEnd }) => {
+const KanbanBoard = ({ tickets, onDragEnd, user, canClaimTickets, onClaimTicket }) => {
     const getTicketsByStatus = (status) => {
         return tickets.filter(t => t.status === status);
     };
@@ -31,7 +31,14 @@ const KanbanBoard = ({ tickets, onDragEnd }) => {
                                     className={`kanban-ticket-list ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
                                 >
                                     {getTicketsByStatus(column.id).map((ticket, index) => (
-                                        <KanbanCard key={ticket.ticket_id} ticket={ticket} index={index} />
+                                        <KanbanCard
+                                            key={ticket.ticket_id}
+                                            ticket={ticket}
+                                            index={index}
+                                            user={user}
+                                            canClaimTickets={canClaimTickets}
+                                            onClaimTicket={onClaimTicket}
+                                        />
                                     ))}
                                     {provided.placeholder}
                                 </div>
