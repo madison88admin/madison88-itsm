@@ -4,6 +4,15 @@ exports.handler = async (event) => {
   const query = new URLSearchParams(event.queryStringParameters || {});
   query.delete('path');
   const target = `${backend}/api/${path}${query.toString() ? `?${query}` : ''}`;
+
+  console.log('[proxy-api]', {
+    method: event.httpMethod,
+    rawPath: event.path,
+    query: event.queryStringParameters,
+    extractedPath: path,
+    target
+  });
+
   const headers = { ...(event.headers || {}) };
   delete headers.host;
   const init = { method: event.httpMethod, headers, redirect: 'follow' };
