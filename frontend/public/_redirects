@@ -1,5 +1,2 @@
-# API proxy — must come before the SPA catch-all
 /api/*  /.netlify/functions/proxy-api?path=:splat  200
-
-# SPA routing — client handles API calls via VITE_API_URL environment variable
 /*    /index.html   200
