@@ -1,27 +1,30 @@
 import { io } from "socket.io-client";
 
-// ✅ FIXED: Properly resolve API URL for Vite (production) and fallback
-const resolvedApiBase = 
-  process.env.REACT_APP_API_URL ||           // Create React App / Netlify
-  import.meta.env?.VITE_API_URL ||           // Vite compatibility
-  import.meta.env?.VITE_BACKEND_URL ||        // alternative Vite var
-  (import.meta.env?.MODE === 'development'    // dev mode fallback
-    ? 'http://localhost:3000' 
-    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011'));
+// Socket.IO needs a direct connection - Netlify cant forward WebSocket upgrades.
+// In production, VITE_SOCKET_URL should point to the VPS domain (e.g. https://itsm-ws.madison88.com)
+// If not set, fall back to the API URL with polling-only transport.
+const socketUrl =
+  process.env.REACT_APP_SOCKET_URL ||
+  import.meta.env?.VITE_SOCKET_URL ||
+  (() => {
+    const base =
+      process.env.REACT_APP_API_URL ||
+      import.meta.env?.VITE_API_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011');
+    try {
+      return new URL(base).origin;
+    } catch {
+      return base;
+    }
+  })();
 
-let socketUrl;
-try {
-  const parsed = new URL(resolvedApiBase);
-  const socketProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-  socketUrl = `${socketProtocol}//${parsed.host}`;
-} catch (err) {
-  // Fallback to production URL if parsing fails
-  socketUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011';
-}
+// Detect if we can use WebSocket (direct VPS) or must use polling (Netlify proxy)
+const isDirectVPS = socketUrl.includes('5.223.78.194') || socketUrl.includes('madison88.com');
+const transports = isDirectVPS ? ['websocket', 'polling'] : ['polling'];
 
 // Debug log (only in development)
 if (import.meta.env?.MODE === 'development') {
-  console.log('[Socket] Connecting to:', socketUrl);
+  console.log('[Socket] Connecting to:', socketUrl, 'transports:', transports);
 }
 
 let socket = null;
@@ -31,7 +34,8 @@ export function getSocket() {
     socket = io(socketUrl, {
       path: "/socket.io",
       autoConnect: true,
-      transports: ["websocket", "polling"],
+      transports,
+      upgrade: isDirectVPS,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
