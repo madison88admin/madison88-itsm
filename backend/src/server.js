@@ -13,7 +13,10 @@ const TicketsService = require('./services/tickets.service');
 
 const PORT = process.env.PORT || 3001;
 const server = http.createServer(app);
-const ENABLE_INTERNAL_JOBS = process.env.ENABLE_INTERNAL_JOBS !== 'false';
+// In production, run scheduled work from cron/systemd instead of inside every
+// web process. Set ENABLE_INTERNAL_JOBS=true only for a single-process setup.
+const ENABLE_INTERNAL_JOBS = process.env.ENABLE_INTERNAL_JOBS === 'true'
+  || (process.env.NODE_ENV || 'development') !== 'production';
 const RUN_SLA_JOB = process.env.RUN_SLA_JOB !== 'false';
 const RUN_AUTO_CLOSE_JOB = process.env.RUN_AUTO_CLOSE_JOB !== 'false';
 const INTERNAL_JOB_KEY = process.env.INTERNAL_JOB_KEY || '';

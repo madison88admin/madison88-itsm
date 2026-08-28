@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_HOST = (import.meta.env?.VITE_API_URL) || process.env.REACT_APP_API_URL || '';
+// This project builds with Create React App, so REACT_APP_* is the reliable
+// production variable. Keep VITE_API_URL as a compatibility option.
+const API_HOST = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL || '';
 const API_BASE = API_HOST ? `${API_HOST.replace(/\/$/, '')}/api` : '/api';
 
 const apiClient = axios.create({

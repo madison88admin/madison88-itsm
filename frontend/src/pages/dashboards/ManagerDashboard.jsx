@@ -222,7 +222,8 @@ const ManagerDashboard = () => {
 
   const handleExport = () => {
     const token = localStorage.getItem('token');
-    const url = `${process.env.REACT_APP_API_URL || ''}/api/dashboard/export?format=csv&token=${token}`;
+    const apiBase = (process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+    const url = `${apiBase}/api/dashboard/export?format=csv&token=${token}`;
     window.open(url, '_blank');
   };
 

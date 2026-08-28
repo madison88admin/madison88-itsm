@@ -1,14 +1,13 @@
 import { io } from "socket.io-client";
 
 // ✅ FIXED: Properly resolve API URL for Vite (production) and fallback
-const PRODUCTION_URL = 'https://madison88-itsm.onrender.com';
-
 const resolvedApiBase = 
-  import.meta.env?.VITE_API_URL ||           // Vite env var (production/netlify)
+  process.env.REACT_APP_API_URL ||           // Create React App / Netlify
+  import.meta.env?.VITE_API_URL ||           // Vite compatibility
   import.meta.env?.VITE_BACKEND_URL ||        // alternative Vite var
   (import.meta.env?.MODE === 'development'    // dev mode fallback
     ? 'http://localhost:3000' 
-    : PRODUCTION_URL);                         // hardcoded production fallback
+    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011'));
 
 let socketUrl;
 try {
@@ -17,7 +16,7 @@ try {
   socketUrl = `${socketProtocol}//${parsed.host}`;
 } catch (err) {
   // Fallback to production URL if parsing fails
-  socketUrl = 'wss://madison88-itsm.onrender.com';
+  socketUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011';
 }
 
 // Debug log (only in development)

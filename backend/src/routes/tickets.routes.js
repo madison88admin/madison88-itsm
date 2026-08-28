@@ -40,35 +40,34 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 5, fields: 30 },
+  fileFilter: (req, file, cb) => {
+    const allowed = new Set([
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'text/plain', 'text/csv',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+    if (!allowed.has(file.mimetype)) return cb(new Error('Unsupported file type'));
+    cb(null, true);
+  },
 });
 
-// --- Rate Limiting for Ticket Creation ---
-const ticketRateLimitMap = new Map();
-const TICKET_RATE_LIMIT = 5;        // max tickets
-const TICKET_RATE_WINDOW = 15 * 60 * 1000; // per 15 minutes
-
-const ticketRateLimiter = (req, res, next) => {
-  // IT staff are exempt
-  if (['it_agent', 'it_manager', 'system_admin'].includes(req.user?.role)) return next();
-  const userId = req.user?.user_id;
-  if (!userId) return next();
-
-  const now = Date.now();
-  const entry = ticketRateLimitMap.get(userId) || { timestamps: [] };
-  // Remove expired timestamps
-  entry.timestamps = entry.timestamps.filter(t => now - t < TICKET_RATE_WINDOW);
-
-  if (entry.timestamps.length >= TICKET_RATE_LIMIT) {
-    return res.status(429).json({
-      status: 'error',
-      message: `You can only create ${TICKET_RATE_LIMIT} tickets every 15 minutes. Please try again later.`,
-    });
-  }
-  entry.timestamps.push(now);
-  ticketRateLimitMap.set(userId, entry);
-  next();
-};
+// Per-user limiter avoids bypasses when users share an IP and avoids an
+// unbounded in-process Map. Production can swap the store for Redis.
+const rateLimit = require('express-rate-limit');
+const ticketRateLimiter = rateLimit({
+  windowMs: Number(process.env.TICKET_RATE_WINDOW_MS) || 15 * 60 * 1000,
+  limit: Number(process.env.TICKET_RATE_LIMIT) || 5,
+  keyGenerator: (req) => req.user?.user_id || req.ip,
+  skip: (req) => ['it_agent', 'it_manager', 'system_admin'].includes(req.user?.role),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({
+    status: 'error',
+    message: 'Ticket creation limit reached. Please try again later.',
+  }),
+});
 
 /**
  * @route POST /api/tickets

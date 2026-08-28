@@ -65,6 +65,10 @@ function getTransporter() {
 }
 
 async function sendEmail({ to, subject, text, templateParams = {}, html = null }) {
+  if (process.env.NOTIFICATION_QUEUE_ENABLED === 'true' && process.env.NOTIFICATION_WORKER_PROCESSING !== 'true') {
+    const { enqueueEmail } = require('./notification-queue.service');
+    if (await enqueueEmail({ to, subject, text, templateParams, html })) return true;
+  }
   if (!isEmailEnabled()) {
     logger.info('Email notifications disabled. Skipping email.', { subject, to });
     return false;

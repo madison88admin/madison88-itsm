@@ -684,7 +684,7 @@ const TicketDetailPage = ({
     if (!filePath) return "";
     if (filePath.startsWith("http")) return filePath;
     const normalized = filePath.replace(/\\/g, "/");
-    const env = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL;
+    const env = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL;
     const baseOrigin = env
       ? env.replace(/\/$/, '')
       : (window.location.port === "3000"

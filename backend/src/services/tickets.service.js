@@ -11,6 +11,7 @@ const UserModel = require('../models/user.model');
 const NotificationService = require('./notification.service');
 const NotificationsModel = require('../models/notifications.model');
 const SlaUtils = require('../utils/sla-utils');
+const { TICKET_STATUSES, canonicalStatus } = require('../config/ticket-status');
 
 const DEFAULT_RESPONSE_HOURS = Number(process.env.DEFAULT_SLA_RESPONSE_HOURS) || 4;
 const DEFAULT_RESOLUTION_HOURS = Number(process.env.DEFAULT_SLA_RESOLUTION_HOURS) || 24;
@@ -30,7 +31,7 @@ const createSchema = Joi.object({
 });
 
 const updateSchema = Joi.object({
-  status: Joi.string().valid('New', 'In Progress', 'Pending', 'Resolved', 'Closed', 'Reopened'),
+  status: Joi.string().valid(...TICKET_STATUSES, 'Pending', 'Reopened'),
   priority: Joi.string().valid('P1', 'P2', 'P3', 'P4'),
   title: Joi.string().min(5).max(255),
   description: Joi.string().min(10),
@@ -266,10 +267,22 @@ const TicketsService = {
   },
 
   async createTicket({ payload, user, meta }) {
+    // Keep the legacy JSON endpoint backward-compatible while using the same
+    // workflow as multipart ticket creation. This prevents classification,
+    // routing, SLA, audit, and notification behavior from drifting apart.
+    return this.createTicketWithAttachments({
+      payload,
+      files: [],
+      user,
+      meta,
+    });
+
+    /* Legacy implementation retained temporarily during the migration.
+     * It is unreachable and can be removed after clients have moved to the
+     * unified endpoint.
+     */
+    /* istanbul ignore next */
     if (user.role !== 'end_user') throw new AppError('Forbidden', 403);
-    if (ATTACHMENT_REQUIRED) {
-      throw new AppError('When ATTACHMENT_REQUIRED is enabled, use POST /tickets/with-attachments with at least one file.', 400);
-    }
     const { error, value } = createSchema.validate(payload, { abortEarly: false });
     if (error) throw new AppError(error.details.map((d) => d.message).join(', '), 400);
     if (value.priority && ['P1', 'P2'].includes(value.priority)) {
@@ -818,6 +831,7 @@ const TicketsService = {
     const { error, value } = updateSchema.validate(payload, { abortEarly: false });
     if (error) throw new Error(error.details.map((d) => d.message).join(', '));
 
+    if (value.status) value.status = canonicalStatus(value.status);
     if (value.assigned_to === '') value.assigned_to = null;
     if (value.assigned_team === '') value.assigned_team = null;
 

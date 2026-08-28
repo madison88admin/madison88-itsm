@@ -14,7 +14,7 @@ const compression = require('compression');
 
 const app = express();
 
-// 🔧 Trust proxy (required for Render behind load balancer; fixes rate limiter client IP detection)
+// Trust the reverse proxy so rate limiting sees the originating client IP.
 app.set('trust proxy', 1);
 
 // Security Middleware
@@ -164,7 +164,7 @@ app.use((err, req, res, next) => {
     const lower = message.toLowerCase();
     if (lower.includes('forbidden') || lower.includes('insufficient permissions')) status = 403;
     else if (lower.includes('not found')) status = 404;
-    else if (lower.includes('required') || lower.includes('invalid') || lower.includes('validation') || lower.includes('must be')) status = 400;
+    else if (lower.includes('required') || lower.includes('invalid') || lower.includes('validation') || lower.includes('must be') || lower.includes('unsupported file') || err.code === 'LIMIT_FILE_SIZE' || err.code === 'LIMIT_FILE_COUNT') status = 400;
     else if (lower.includes('already exists') || lower.includes('duplicate') || lower.includes('pending') && lower.includes('override')) status = 409;
     else status = 500;
   }

@@ -3,6 +3,12 @@ const AuthService = require('../services/auth.service');
 const UserActivityService = require('../services/user-activity.service');
 const jwt = require('jsonwebtoken');
 
+const toPublicUser = (user) => {
+  if (!user) return user;
+  const { password_hash, passwordHash, ...publicUser } = user;
+  return publicUser;
+};
+
 const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   name: Joi.string().min(2).allow('', null),
@@ -56,7 +62,7 @@ const AuthController = {
         location,
         phone,
       });
-      res.status(201).json({ status: 'success', user });
+      res.status(201).json({ status: 'success', user: toPublicUser(user) });
     } catch (err) {
       next(err);
     }
@@ -86,7 +92,7 @@ const AuthController = {
         console.error('Failed to log login activity:', logErr);
       }
       
-      res.json({ status: 'success', token, user });
+      res.json({ status: 'success', token, user: toPublicUser(user) });
     } catch (err) {
       next(err);
     }
@@ -94,7 +100,7 @@ const AuthController = {
 
   async me(req, res, next) {
     try {
-      res.json({ status: 'success', user: req.user });
+      res.json({ status: 'success', user: toPublicUser(req.user) });
     } catch (err) {
       next(err);
     }

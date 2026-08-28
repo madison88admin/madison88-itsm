@@ -27,6 +27,15 @@ const buildConnectionString = () => {
 
 const connectionString = buildConnectionString();
 
+// Keep the application isolated from other schemas hosted in the same
+// Supabase/PostgreSQL instance (for example po_cutting in public).
+// DB_SCHEMA may be changed per environment, but must contain only a simple
+// PostgreSQL identifier because it is passed to the session search_path.
+const DB_SCHEMA = process.env.DB_SCHEMA || 'm88_itsm';
+if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(DB_SCHEMA)) {
+  throw new Error('DB_SCHEMA must be a valid PostgreSQL schema identifier');
+}
+
 // Env-driven pool and retry configuration
 const MAX_CONN = Number(process.env.DB_MAX_CONN) || Number(process.env.DB_POOL_MAX) || 6;
 const MIN_CONN = Number(process.env.DB_MIN_CONN) || 0;
@@ -39,12 +48,13 @@ const RETRY_DELAY_MS = Number(process.env.DB_RETRY_DELAY_MS) || 3000;
 
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
   max: MAX_CONN,
   min: MIN_CONN,
   idleTimeoutMillis: IDLE_TIMEOUT_MS,
   connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
   application_name: 'madison88-itsm-backend',
+  options: `-c search_path=${DB_SCHEMA},public`,
   allowExitOnIdle: true,
   statement_timeout: STATEMENT_TIMEOUT_MS,
   query_timeout: QUERY_TIMEOUT_MS,
@@ -108,9 +118,9 @@ const testConnection = async (retries = RETRY_COUNT, delay = RETRY_DELAY_MS) => 
   for (let i = 0; i < retries; i++) {
     try {
       const client = await pool.connect();
-      await client.query('SELECT NOW()');
+      const result = await client.query('SELECT NOW() AS now, current_schema() AS schema');
       client.release();
-      logger.info('Database connection established');
+      logger.info('Database connection established', { schema: result.rows[0]?.schema || DB_SCHEMA });
       return true;
     } catch (err) {
       logger.warn(`Database connection attempt ${i + 1}/${retries} failed`, {

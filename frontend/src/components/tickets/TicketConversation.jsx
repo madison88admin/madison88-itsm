@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
 const API_BASE = (() => {
-    const env = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL;
+    const env = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL;
     if (env) return env.replace(/\/api\/?$/, '').replace(/\/$/, '');
     if (typeof window !== 'undefined') {
         // If running the dev frontend (3000), default API dev server is often 3001

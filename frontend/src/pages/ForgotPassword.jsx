@@ -31,7 +31,7 @@ const ForgotPasswordPage = () => {
       // Provide a clearer message when backend route is missing (404)
       const status = err.response?.status;
       if (status === 404) {
-        setError('Route not found on API. Check that the backend is deployed and VITE_API_URL / REACT_APP_API_URL is set to your API base. (See console for target URL)');
+        setError('Route not found on API. Check that the VPS backend is running and VITE_API_URL is set to the VPS API base. (See console for target URL)');
       } else {
         setError(err.response?.data?.message || 'Failed to request password reset');
       }
