@@ -1,5 +1,5 @@
 exports.handler = async (event) => {
-  const backend = (process.env.BACKEND_URL || 'http://5.223.78.194:3001').replace(/\/$/, '');
+  const backend = (process.env.BACKEND_URL || 'http://5.223.78.194:3011').replace(/\/$/, '');
   const path = event.queryStringParameters?.path || '';
   const query = new URLSearchParams(event.queryStringParameters || {});
   query.delete('path');
