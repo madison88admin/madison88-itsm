@@ -17,6 +17,12 @@ frontend/node_modules/.cache/
 # Build output
 frontend/build/
 
+# Coverage reports
+backend/coverage/
+
+# Freebuff agent workspace
+.freebuff/
+
 # OS
 .DS_Store
 Thumbs.db
