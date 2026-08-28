@@ -9,4 +9,8 @@
 [functions]
   directory = "netlify/functions"
 
-# Redirects are in frontend/public/_redirects (single source of truth)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/proxy-api?path=:splat"
+  status = 200
+  force = true

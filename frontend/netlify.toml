@@ -7,5 +7,3 @@
 
 [functions]
   directory = "../netlify/functions"
-
-# Redirects are in frontend/public/_redirects (single source of truth)
