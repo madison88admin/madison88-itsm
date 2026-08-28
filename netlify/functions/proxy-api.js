@@ -1,17 +1,23 @@
 exports.handler = async (event) => {
   const backend = (process.env.BACKEND_URL || 'http://5.223.78.194:3011').replace(/\/$/, '');
-  const path = event.queryStringParameters?.path || '';
+
+  // Support both path-based (/:splat) and query-based (?path=) routing
+  let apiPath = '';
+  if (event.queryStringParameters?.path) {
+    apiPath = event.queryStringParameters.path;
+  } else if (event.path) {
+    // event.path = "/proxy-api/auth/login" → strip "/proxy-api" prefix
+    const fnPrefix = '/.netlify/functions/proxy-api';
+    apiPath = event.path.startsWith(fnPrefix)
+      ? event.path.slice(fnPrefix.length + 1)
+      : event.path.replace(/^\//, '');
+  }
+
   const query = new URLSearchParams(event.queryStringParameters || {});
   query.delete('path');
-  const target = `${backend}/api/${path}${query.toString() ? `?${query}` : ''}`;
+  const target = `${backend}/api/${apiPath}${query.toString() ? `?${query}` : ''}`;
 
-  console.log('[proxy-api]', {
-    method: event.httpMethod,
-    rawPath: event.path,
-    query: event.queryStringParameters,
-    extractedPath: path,
-    target
-  });
+  console.log('[proxy-api]', { method: event.httpMethod, rawPath: event.path, apiPath, target });
 
   const headers = { ...(event.headers || {}) };
   delete headers.host;
