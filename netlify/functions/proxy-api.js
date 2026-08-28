@@ -6,11 +6,15 @@ exports.handler = async (event) => {
   if (event.queryStringParameters?.path) {
     apiPath = event.queryStringParameters.path;
   } else if (event.path) {
-    // event.path = "/proxy-api/auth/login" → strip "/proxy-api" prefix
     const fnPrefix = '/.netlify/functions/proxy-api';
     apiPath = event.path.startsWith(fnPrefix)
       ? event.path.slice(fnPrefix.length + 1)
       : event.path.replace(/^\//, '');
+  }
+
+  // Strip /api prefix if present to avoid doubling (/api/api/auth/login)
+  if (apiPath.startsWith('api/')) {
+    apiPath = apiPath.slice(4);
   }
 
   const query = new URLSearchParams(event.queryStringParameters || {});
