@@ -8,13 +8,4 @@
 [functions]
   directory = "../netlify/functions"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/proxy-api?path=:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Redirects are in frontend/public/_redirects (single source of truth)
