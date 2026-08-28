@@ -1,0 +1,82 @@
+name: Deploy Madison88 ITSM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand --coverage=false
+
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare backend bundle
+        run: tar --exclude='node_modules' --exclude='coverage' --exclude='uploads' --exclude='.env' -czf backend.tgz backend
+      - name: Upload isolated backend
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: backend.tgz
+          target: /opt/m88-itsm-integration/releases
+      - name: Activate isolated backend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            BASE=/opt/m88-itsm-integration
+            RELEASE=$BASE/releases/$(date +%Y%m%d%H%M%S)
+            mkdir -p "$RELEASE"
+            tar -xzf "$BASE/releases/backend.tgz" -C "$RELEASE" --strip-components=1
+            cd "$RELEASE/backend"
+            npm ci --omit=dev --ignore-scripts
+            ln -sfn "$BASE/.env" .env
+            ln -sfn "$RELEASE/backend" "$BASE/current"
+            sudo systemctl restart m88-itsm.service
+            curl --fail --silent http://127.0.0.1:3011/health >/dev/null
+            rm -f "$BASE/releases/backend.tgz"
+
+  deploy-netlify:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - uses: netlify/actions/cli@master
+        with:
+          args: deploy --prod --dir=frontend/build
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
