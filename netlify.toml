@@ -9,8 +9,15 @@
 [functions]
   directory = "netlify/functions"
 
+# 1. API proxy — must come first with force=true
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/proxy-api?path=:splat"
   status = 200
   force = true
+
+# 2. SPA catch-all
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
