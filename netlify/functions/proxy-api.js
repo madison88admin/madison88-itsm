@@ -1,5 +1,5 @@
 exports.handler = async (event) => {
-  const backend = (process.env.BACKEND_URL || 'http://5.223.78.194:3011').replace(/\/$/, '');
+  const backend = (process.env.BACKEND_URL || 'https://api.madison88.com').replace(/\/$/, '');
 
   // Support both path-based (/:splat) and query-based (?path=) routing
   let apiPath = '';

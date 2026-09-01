@@ -6,21 +6,10 @@ import { io } from "socket.io-client";
 const socketUrl =
   process.env.REACT_APP_SOCKET_URL ||
   import.meta.env?.VITE_SOCKET_URL ||
-  (() => {
-    const base =
-      process.env.REACT_APP_API_URL ||
-      import.meta.env?.VITE_API_URL ||
-      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3011');
-    try {
-      return new URL(base).origin;
-    } catch {
-      return base;
-    }
-  })();
+  'https://api.madison88.com';
 
-// Detect if we can use WebSocket (direct VPS) or must use polling (Netlify proxy)
-const isDirectVPS = socketUrl.includes('5.223.78.194') || socketUrl.includes('madison88.com');
-const transports = isDirectVPS ? ['websocket', 'polling'] : ['polling'];
+// Cloudflare tunnel supports WebSocket upgrades, so we can always use websocket transport
+const transports = ['websocket', 'polling'];
 
 // Debug log (only in development)
 if (import.meta.env?.MODE === 'development') {
@@ -35,7 +24,7 @@ export function getSocket() {
       path: "/socket.io",
       autoConnect: true,
       transports,
-      upgrade: isDirectVPS,
+      upgrade: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
