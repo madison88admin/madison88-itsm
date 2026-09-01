@@ -69,19 +69,19 @@ const GlassyTicketLayout = ({
             </div>
 
             <div className="workspace-grid">
-                {/* Left: Context */}
+                {/* Left: Conversation and reply composer */}
                 <div className="workspace-col col-left">
-                    <TicketContextPanel ticket={ticket} user={user} assets={assets} />
-                </div>
-
-                {/* Middle: Conversation */}
-                <div className="workspace-col col-main">
                     <TicketConversation
                         ticketId={ticket.ticket_id}
                         comments={comments}
                         audit={audit}
                         onCommentAdded={onCommentAdded}
                     />
+                </div>
+
+                {/* Middle: Ticket information */}
+                <div className="workspace-col col-main">
+                    <TicketContextPanel ticket={ticket} user={user} assets={assets} />
                 </div>
 
                 {/* Right: Actions */}
@@ -222,7 +222,7 @@ const GlassyTicketLayout = ({
         .workspace-grid {
             flex: 1;
             display: grid;
-            grid-template-columns: 280px 1fr 300px;
+            grid-template-columns: minmax(360px, 1.05fr) minmax(420px, 1.25fr) 300px;
             gap: 0;
             overflow: hidden; /* Prevent grid overflow */
         }
@@ -371,10 +371,10 @@ const GlassyTicketLayout = ({
             }
             .workspace-col.col-main {
                 min-height: auto !important;
-                order: 2 !important;
+                order: 1 !important;
             }
             .workspace-col.col-left {
-                order: 1 !important;
+                order: 2 !important;
             }
             .workspace-col.col-right {
                 order: 3 !important;
@@ -383,6 +383,11 @@ const GlassyTicketLayout = ({
                 max-width: 100% !important;
                 white-space: normal !important;
             }
+        }
+        @media (max-width: 700px) {
+            .workspace-col.col-main { order: 1 !important; }
+            .workspace-col.col-left { order: 2 !important; }
+            .workspace-col.col-right { order: 3 !important; }
         }
       `}</style>
         </div>

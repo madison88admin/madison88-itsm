@@ -5,13 +5,13 @@ const API_BASE = (() => {
     const env = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL;
     if (env) return env.replace(/\/api\/?$/, '').replace(/\/$/, '');
     if (typeof window !== 'undefined') {
-        // If running the dev frontend (3000), default API dev server is often 3001
+        // Default to the isolated VPS ITSM port when no environment is present.
         if (window.location.port === '3000') {
-            return `${window.location.protocol}//${window.location.hostname}:3001`;
+            return `${window.location.protocol}//${window.location.hostname}:3011`;
         }
         return window.location.origin;
     }
-    return 'http://localhost:3001';
+    return 'http://localhost:3011';
 })();
 
 const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {
@@ -116,7 +116,11 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
 
             <div className="comments-list" ref={scrollRef}>
                 {timeline.length === 0 ? (
-                    <div className="empty-state">No activity yet.</div>
+                    <div className="empty-state">
+                        <span className="empty-state-icon" aria-hidden="true">💬</span>
+                        <strong>No activity yet</strong>
+                        <span>Start the conversation by replying to the customer.</span>
+                    </div>
                 ) : (
                     timeline.map((item) => (
                         <div
@@ -236,24 +240,29 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
         }
 
         .conversation-header {
-            padding: 1.2rem 2rem;
+            padding: 1rem 1.5rem;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             background: rgba(15, 23, 42, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
+
+        .conversation-header h3 { margin: 0; font-size: 0.72rem; letter-spacing: 0.14em; }
 
         .comments-list {
             flex: 1;
             overflow-y: auto;
-            padding: 2.5rem;
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 2rem;
+            gap: 1.25rem;
         }
 
         .comment-bubble {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.05);
-            padding: 1.5rem;
+            padding: 1.15rem;
             border-radius: 20px;
             max-width: 90%;
             position: relative;
@@ -302,7 +311,7 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             color: #d1d5db;
             line-height: 1.7;
             white-space: pre-wrap;
-            font-size: 1rem;
+            font-size: 0.92rem;
         }
 
         /* Comment inline images */
@@ -394,15 +403,19 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
         }
 
         .comment-input-area {
-            padding: 2.5rem;
+            flex: 0 0 auto;
+            padding: 1.25rem 1.5rem 1.5rem;
             background: rgba(15, 23, 42, 0.4);
             border-top: 1px solid rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
+            position: sticky;
+            bottom: 0;
+            z-index: 3;
         }
 
         .input-group {
             position: relative;
-            margin-bottom: 1.2rem;
+            margin-bottom: 0.8rem;
             width: 100%;
         }
 
@@ -454,12 +467,12 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
 
         textarea {
             width: 100%;
-            height: 140px;
+            height: 118px;
             background: rgba(0,0,0,0.25);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 16px;
             color: #f8fafc;
-            padding: 1.5rem;
+            padding: 1.1rem;
             padding-top: 3.5rem; /* Space for overlay */
             font-family: inherit;
             resize: none;
@@ -514,9 +527,35 @@ const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) 
             color: #334155;
             font-size: 0.7rem;
             font-weight: 600;
-            margin-top: 2rem;
+            margin: auto;
             letter-spacing: 0.1em;
             text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 2rem 1rem;
+        }
+        .empty-state-icon {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            font-size: 1.1rem;
+        }
+        .empty-state strong {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+        .empty-state > span:last-child {
+            color: #475569;
+            font-size: 0.65rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            text-transform: none;
         }
         @media (max-width: 1100px) {
             .ticket-conversation {

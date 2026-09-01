@@ -33,7 +33,16 @@ const LocalClock = ({ location }) => {
 };
 
 const TicketContextPanel = ({ ticket, user, assets }) => {
+    const [openSections, setOpenSections] = useState({
+        description: true,
+        impact: true
+    });
+
     if (!ticket) return null;
+
+    const toggleSection = (section) => {
+        setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
 
     const getPriorityColor = (p) => {
         switch (p) {
@@ -101,21 +110,19 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             </div>
 
             {/* Description */}
-            <div className="panel-section">
-                <h3>DESCRIPTION</h3>
-                <div
-                    className="description-text"
-                    dangerouslySetInnerHTML={{ __html: ticket.description }}
-                />
+            <div className="panel-section collapsible-section">
+                <button className="section-toggle" type="button" onClick={() => toggleSection('description')} aria-expanded={openSections.description}>
+                    <span>DESCRIPTION</span><span aria-hidden="true">{openSections.description ? '−' : '+'}</span>
+                </button>
+                {openSections.description && <div className="description-text" dangerouslySetInnerHTML={{ __html: ticket.description }} />}
             </div>
 
             {/* Business Impact */}
-            <div className="panel-section">
-                <h3>BUSINESS IMPACT</h3>
-                <div
-                    className="impact-text"
-                    dangerouslySetInnerHTML={{ __html: ticket.business_impact }}
-                />
+            <div className="panel-section collapsible-section">
+                <button className="section-toggle" type="button" onClick={() => toggleSection('impact')} aria-expanded={openSections.impact}>
+                    <span>BUSINESS IMPACT</span><span aria-hidden="true">{openSections.impact ? '−' : '+'}</span>
+                </button>
+                {openSections.impact && <div className="impact-text" dangerouslySetInnerHTML={{ __html: ticket.business_impact }} />}
             </div>
 
             {/* Assets */}
@@ -137,16 +144,39 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         .ticket-context-panel {
             display: flex;
             flex-direction: column;
-            gap: 2rem;
-            padding: 2rem;
+            gap: 1.35rem;
+            padding: 1.5rem;
             color: #cbd5e1;
         }
         
         .panel-section {
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
+            gap: 0.5rem;
+            min-width: 0;
         }
+
+        .collapsible-section { gap: 0.55rem; }
+        .section-toggle {
+            appearance: none;
+            border: 0;
+            padding: 0;
+            width: 100%;
+            background: transparent;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font: inherit;
+            font-size: 0.7rem;
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .section-toggle::after { content: ''; height: 1px; flex: 1; margin-left: 1rem; background: rgba(255,255,255,0.05); }
+        .section-toggle span:last-child { margin-left: 0.7rem; color: #60a5fa; font-size: 1rem; line-height: 1; }
+        .section-toggle:hover { color: #94a3b8; }
 
         .ticket-id-row {
             display: flex;
@@ -166,8 +196,8 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         }
 
         .ticket-title {
-            margin: 0.5rem 0;
-            font-size: 1.6rem;
+            margin: 0.35rem 0;
+            font-size: 1.45rem;
             font-weight: 800;
             color: #f8fafc;
             line-height: 1.3;
@@ -189,7 +219,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
 
         .sla-section {
             background: linear-gradient(to right, rgba(0,0,0,0.3), transparent);
-            padding: 1rem;
+            padding: 0.9rem;
             border-radius: 8px;
             border-left: 3px solid;
             position: relative;
@@ -207,10 +237,10 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
         }
         .sla-section h4 { margin: 0 0 1rem 0; font-size: 0.8rem; font-weight: 900; letter-spacing: 0.12em; }
         
-        .sla-details { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
+        .sla-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
         .sla-details div { display: flex; flex-direction: column; gap: 0.4rem; }
         .sla-details small { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.08em; }
-        .sla-details span { font-size: 0.95rem; color: #f1f5f9; font-weight: 600; }
+        .sla-details span { font-size: 0.82rem; color: #f1f5f9; font-weight: 600; line-height: 1.35; }
 
         h3 { 
             font-size: 0.7rem; 
@@ -227,10 +257,10 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
 
         .user-profile-mini {
             display: flex;
-            gap: 1.2rem;
+            gap: 0.9rem;
             align-items: center;
             background: rgba(255,255,255,0.02);
-            padding: 1rem;
+            padding: 0.85rem;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.05);
         }
@@ -247,7 +277,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             font-size: 1rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
-        .user-profile-mini strong { display: block; color: #f1f5f9; font-size: 1.05rem; font-weight: 700; margin-bottom: 0.2rem; overflow-wrap: anywhere; word-break: break-all; }
+        .user-profile-mini strong { display: block; color: #f1f5f9; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; overflow-wrap: anywhere; word-break: break-word; }
         .user-profile-mini p { margin: 0; font-size: 0.85rem; color: #94a3b8; overflow-wrap: anywhere; word-break: break-all; }
         .user-profile-mini .sub-text { font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 0.3rem; }
 
@@ -256,7 +286,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             line-height: 1.6;
             color: #94a3b8;
             background: rgba(0,0,0,0.2);
-            padding: 1.2rem;
+            padding: 1rem;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.03);
             word-break: break-word;
@@ -329,6 +359,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
             .sla-section {
                 padding: 0.8rem;
             }
+            .sla-details { grid-template-columns: 1fr; gap: 0.7rem; }
         }
       `}</style>
         </div>
