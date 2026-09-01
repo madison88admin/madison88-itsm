@@ -71,15 +71,59 @@ function escapeHtml(value = '') {
 }
 
 function buildNotificationHtml({ subject, text, templateParams = {} }) {
+  const appName = process.env.APP_NAME || 'Madison88 ITSM';
+  const isCritical = templateParams.is_critical;
+  const headerBg = isCritical ? 'linear-gradient(135deg,#dc2626,#ef4444)' : 'linear-gradient(135deg,#0f172a,#2563eb)';
+  const accentColor = isCritical ? '#dc2626' : '#2563eb';
   const rows = Object.entries(templateParams)
-    .filter(([key, value]) => value !== undefined && value !== null && value !== '' && key !== 'ticket_url')
-    .slice(0, 8)
-    .map(([key, value]) => `<tr><td style="padding:8px 0;color:#64748b;font-size:12px;text-transform:capitalize">${escapeHtml(key.replace(/_/g, ' '))}</td><td style="padding:8px 0;color:#0f172a;font-size:13px;font-weight:600">${escapeHtml(value)}</td></tr>`)
+    .filter(([key, value]) => value !== undefined && value !== null && value !== '' && key !== 'ticket_url' && key !== 'is_critical' && key !== 'priority')
+    .slice(0, 10)
+    .map(([key, value]) => `
+      <tr>
+        <td style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;width:40%">${escapeHtml(key.replace(/_/g, ' '))}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:14px;font-weight:500">${escapeHtml(String(value))}</td>
+      </tr>`)
     .join('');
   const button = templateParams.ticket_url
-    ? `<a href="${escapeHtml(templateParams.ticket_url)}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 18px;border-radius:7px;text-decoration:none;font-weight:700;font-size:13px">View ticket</a>`
+    ? `<a href="${escapeHtml(templateParams.ticket_url)}" style="display:inline-block;background:${accentColor};color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.3px">View Ticket →</a>`
     : '';
-  return `<div style="margin:0;background:#f1f5f9;padding:28px 12px;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"><div style="background:linear-gradient(135deg,#0f172a,#2563eb);padding:22px 24px;color:#fff"><div style="font-size:12px;letter-spacing:1.2px;opacity:.8">MADISON88 ITSM</div><h1 style="font-size:20px;margin:8px 0 0">${escapeHtml(subject)}</h1></div><div style="padding:24px"><p style="white-space:pre-line;line-height:1.6;font-size:14px">${escapeHtml(text)}</p>${rows ? `<table style="width:100%;border-top:1px solid #e2e8f0;margin:18px 0">${rows}</table>` : ''}${button ? `<div style="margin-top:22px">${button}</div>` : ''}</div><div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 24px;color:#64748b;font-size:11px">Madison88 ITSM Support · This is an automated notification.</div></div></div>`;
+  return `
+    <div style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f1f5f9">
+        <tr><td align="center" style="padding:32px 16px">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+            <!-- Header -->
+            <tr><td style="background:${headerBg};padding:28px 32px;color:#ffffff">
+              <table role="presentation" width="100%"><tr>
+                <td>
+                  <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.8;margin-bottom:4px">${escapeHtml(appName)}</div>
+                  <div style="font-size:22px;font-weight:700;line-height:1.3">${escapeHtml(subject)}</div>
+                </td>
+              </tr></table>
+            </td></tr>
+            <!-- Body -->
+            <tr><td style="padding:32px">
+              <div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-line;margin-bottom:24px">${escapeHtml(text)}</div>
+              ${rows ? `
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin:24px 0">
+                <tr><td style="background:#0f172a;padding:12px 16px;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Ticket Details</td></tr>
+                <tr><td>
+                  <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${rows}</table>
+                </td></tr>
+              </table>` : ''}
+              ${button ? `<div style="text-align:center;margin:32px 0 8px">${button}</div>` : ''}
+            </td></tr>
+            <!-- Footer -->
+            <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center">
+              <div style="font-size:11px;color:#94a3b8;line-height:1.6">
+                ${escapeHtml(appName)} Support · This is an automated notification.<br>
+                © ${new Date().getFullYear()} Madison88. All rights reserved.
+              </div>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </div>`;
 }
 
 async function sendEmail({ to, subject, text, templateParams = {}, html = null }) {
@@ -490,32 +534,69 @@ async function sendCriticalTicketNotice({ ticket, requester, recipients }) {
 async function sendWelcomeNotice({ user }) {
   if (!user?.email) return false;
 
-  const subject = `Welcome to ${process.env.APP_NAME || 'Madison88 ITSM'}`;
-  const text = [
-    `Hello ${user.full_name || 'there'},`,
-    '',
-    `Welcome to the Madison88 IT Service Management Platform! Your account has been successfully created.`,
-    '',
-    `You can now log in to the platform at: ${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal'}`,
-    '',
-    `Through the portal, you can:`,
-    `- Create new IT Support tickets`,
-    `- Track the status of your requests`,
-    `- View company announcements`,
-    '',
-    `If you have any questions, feel free to contact the IT support team.`,
-    '',
-    `Best regards,`,
-    `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
-  ].join('\n');
+  const appName = process.env.APP_NAME || 'Madison88 ITSM';
+  const loginUrl = process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal';
+  const subject = `Welcome to ${appName}`;
+  const text = `Hello ${user.full_name || 'there'},
+
+Welcome to the Madison88 IT Service Management Platform! Your account has been successfully created.
+
+You can now log in to the platform at: ${loginUrl}
+
+Through the portal, you can:
+- Create new IT Support tickets
+- Track the status of your requests
+- View company announcements
+
+If you have any questions, feel free to contact the IT support team.
+
+Best regards,
+${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`;
+
+  const html = `
+    <div style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f1f5f9">
+        <tr><td align="center" style="padding:32px 16px">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+            <tr><td style="background:linear-gradient(135deg,#059669,#10b981);padding:32px;text-align:center;color:#fff">
+              <div style="font-size:48px;margin-bottom:12px">👋</div>
+              <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-bottom:4px">${escapeHtml(appName)}</div>
+              <div style="font-size:24px;font-weight:700">Welcome, ${escapeHtml(user.full_name || 'there')}!</div>
+            </td></tr>
+            <tr><td style="padding:32px">
+              <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 20px">Your account has been successfully created. You can now access the Madison88 IT Service Management Platform.</p>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0">
+                <div style="font-size:12px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">You can now:</div>
+                <div style="font-size:14px;color:#334155;line-height:2">
+                  🎫 Create new IT Support tickets<br>
+                  📊 Track the status of your requests<br>
+                  📢 View company announcements
+                </div>
+              </div>
+              <div style="text-align:center;margin:32px 0 8px">
+                <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#059669;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.3px">Log In to ITSM →</a>
+              </div>
+              <p style="font-size:13px;color:#94a3b8;text-align:center;margin:24px 0 0">If you have any questions, feel free to contact the IT support team.</p>
+            </td></tr>
+            <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center">
+              <div style="font-size:11px;color:#94a3b8;line-height:1.6">
+                ${escapeHtml(appName)} Support · This is an automated notification.<br>
+                © ${new Date().getFullYear()} Madison88. All rights reserved.
+              </div>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </div>`;
 
   return sendEmail({
     to: user.email,
     subject,
     text,
+    html,
     templateParams: {
       user_name: user.full_name,
-      welcome_link: process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL,
+      welcome_link: loginUrl,
     },
   });
 }
@@ -584,26 +665,61 @@ async function sendPasswordResetNotice({ user, temporaryPassword, token }) {
   // Backwards-compatible: temporary password flow
   if (temporaryPassword) {
     const subject = `Security: Temporary Password for ${appName}`;
-    const text = [
-      `Hello ${user.full_name},`,
-      '',
-      `A temporary password has been generated for your account.`,
-      '',
-      `Temporary Password: ${temporaryPassword}`,
-      '',
-      `Please log in using the link below and change your password immediately upon entry.`,
-      `${process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal'}`,
-      '',
-      `Security Tip: Never share your password with anyone, including IT Support.`,
-      '',
-      `Best regards,`,
-      `${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`,
-    ].join('\n');
+    const loginUrl = process.env.FRONTEND_PROD_URL || process.env.FRONTEND_URL || 'the portal';
+    const text = `Hello ${user.full_name},
+
+A temporary password has been generated for your account.
+
+Temporary Password: ${temporaryPassword}
+
+Please log in using the link below and change your password immediately upon entry.
+${loginUrl}
+
+Security Tip: Never share your password with anyone, including IT Support.
+
+Best regards,
+${process.env.SMTP_FROM_NAME || 'Madison88 Support Team'}`;
+
+    const html = `
+      <div style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f1f5f9">
+          <tr><td align="center" style="padding:32px 16px">
+            <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+              <tr><td style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:32px;text-align:center;color:#fff">
+                <div style="font-size:48px;margin-bottom:12px">🔐</div>
+                <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-bottom:4px">${escapeHtml(appName)}</div>
+                <div style="font-size:24px;font-weight:700">Temporary Password</div>
+              </td></tr>
+              <tr><td style="padding:32px">
+                <p style="font-size:15px;color:#334155;line-height:1.7;margin:0 0 20px">Hello ${escapeHtml(user.full_name)},</p>
+                <p style="font-size:14px;color:#334155;line-height:1.7;margin:0 0 20px">A temporary password has been generated for your account. Please use it to log in and change your password immediately.</p>
+                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
+                  <div style="font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Your Temporary Password</div>
+                  <div style="font-size:28px;font-weight:800;color:#0f172a;font-family:'Courier New',monospace;letter-spacing:3px;padding:8px 0">${escapeHtml(temporaryPassword)}</div>
+                </div>
+                <div style="text-align:center;margin:32px 0 8px">
+                  <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#d97706;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.3px">Log In Now →</a>
+                </div>
+                <div style="background:#fef3c7;border-radius:8px;padding:16px;margin:24px 0">
+                  <p style="font-size:13px;color:#92400e;margin:0;line-height:1.6">⚠️ <strong>Security Tip:</strong> Never share your password with anyone, including IT Support. Change this temporary password immediately after logging in.</p>
+                </div>
+              </td></tr>
+              <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center">
+                <div style="font-size:11px;color:#94a3b8;line-height:1.6">
+                  ${escapeHtml(appName)} Support · This is an automated notification.<br>
+                  © ${new Date().getFullYear()} Madison88. All rights reserved.
+                </div>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>`;
 
     return sendEmail({
       to: user.email,
       subject,
       text,
+      html,
       templateParams: {
         user_name: user.full_name,
         temp_password: temporaryPassword,
