@@ -1,4 +1,6 @@
 const axios = require('axios');
+const https = require('https');
+const http = require('http');
 const nodemailer = require('nodemailer');
 const db = require('../config/database');
 const logger = require('../utils/logger');
@@ -64,6 +66,22 @@ function getTransporter() {
   return transporter;
 }
 
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+}
+
+function buildNotificationHtml({ subject, text, templateParams = {} }) {
+  const rows = Object.entries(templateParams)
+    .filter(([key, value]) => value !== undefined && value !== null && value !== '' && key !== 'ticket_url')
+    .slice(0, 8)
+    .map(([key, value]) => `<tr><td style="padding:8px 0;color:#64748b;font-size:12px;text-transform:capitalize">${escapeHtml(key.replace(/_/g, ' '))}</td><td style="padding:8px 0;color:#0f172a;font-size:13px;font-weight:600">${escapeHtml(value)}</td></tr>`)
+    .join('');
+  const button = templateParams.ticket_url
+    ? `<a href="${escapeHtml(templateParams.ticket_url)}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 18px;border-radius:7px;text-decoration:none;font-weight:700;font-size:13px">View ticket</a>`
+    : '';
+  return `<div style="margin:0;background:#f1f5f9;padding:28px 12px;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"><div style="background:linear-gradient(135deg,#0f172a,#2563eb);padding:22px 24px;color:#fff"><div style="font-size:12px;letter-spacing:1.2px;opacity:.8">MADISON88 ITSM</div><h1 style="font-size:20px;margin:8px 0 0">${escapeHtml(subject)}</h1></div><div style="padding:24px"><p style="white-space:pre-line;line-height:1.6;font-size:14px">${escapeHtml(text)}</p>${rows ? `<table style="width:100%;border-top:1px solid #e2e8f0;margin:18px 0">${rows}</table>` : ''}${button ? `<div style="margin-top:22px">${button}</div>` : ''}</div><div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 24px;color:#64748b;font-size:11px">Madison88 ITSM Support · This is an automated notification.</div></div></div>`;
+}
+
 async function sendEmail({ to, subject, text, templateParams = {}, html = null }) {
   if (process.env.NOTIFICATION_QUEUE_ENABLED === 'true' && process.env.NOTIFICATION_WORKER_PROCESSING !== 'true') {
     const { enqueueEmail } = require('./notification-queue.service');
@@ -112,6 +130,8 @@ async function sendEmail({ to, subject, text, templateParams = {}, html = null }
     logger.info('All email recipients opted out via preferences', { subject });
     return false;
   }
+
+  html = html || buildNotificationHtml({ subject, text, templateParams });
 
   const sendSingleEmail = async (recipient) => {
     const emailJsConfig = getEmailJsConfig();
@@ -622,12 +642,16 @@ async function sendViaBrevo({ to, subject, text, templateParams = {}, html = nul
     htmlContent: html || (text || '').replace(/\n/g, '<br/>'),
   };
 
+  // Force IPv4 to avoid Brevo rejecting IPv6 addresses
+  const ipv4Agent = new https.Agent({ family: 4 });
+
   const res = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
     headers: {
       'Content-Type': 'application/json',
       'api-key': apiKey,
     },
     timeout: 10000,
+    httpsAgent: ipv4Agent,
   });
 
   return res.data;
