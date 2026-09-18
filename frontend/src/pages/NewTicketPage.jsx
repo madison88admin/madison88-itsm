@@ -18,6 +18,7 @@ const categories = [
   "Software",
   "Access Request",
   "Account Creation",
+  "Onboarding",
   "Network",
   "Other",
 ];
@@ -53,6 +54,11 @@ const categoryGuidance = {
     checklist: ["User full name", "Department", "Start date", "Required systems"],
     template:
       "New user full name:\nDepartment:\nStart date:\nRequired systems:\nManager/approver:\n",
+  },
+  Onboarding: {
+    checklist: ["New hire name", "Department", "Start date", "Equipment/systems needed"],
+    template:
+      "New hire full name:\nDepartment:\nStart date:\nEquipment needed (laptop, phone, etc.):\nSystems/access required:\nManager/approver:\n",
   },
   Other: {
     checklist: ["What happened", "Who is affected", "When it started", "Business impact"],
