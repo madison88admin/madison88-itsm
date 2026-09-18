@@ -22,7 +22,7 @@ const createSchema = Joi.object({
   title: Joi.string().min(5).max(255).required(),
   description: Joi.string().min(10).required(),
   business_impact: Joi.string().min(10).required(),
-  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other').required(),
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Onboarding', 'Network', 'Other').required(),
   location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'China', 'Other').required(),
   subcategory: Joi.string().allow('', null),
   tags: Joi.string().allow('', null),
@@ -61,7 +61,7 @@ const bulkAssignSchema = Joi.object({
 });
 
 const slaPreviewSchema = Joi.object({
-  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other').required(),
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Onboarding', 'Network', 'Other').required(),
   location: Joi.string().valid('Philippines', 'US', 'Indonesia', 'China', 'Other').required(),
   subcategory: Joi.string().allow('', null),
   priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').allow('', null),

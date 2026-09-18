@@ -10,7 +10,7 @@ const templateSchema = Joi.object({
   title: Joi.string().min(5).max(255).required(),
   description: Joi.string().min(10).required(),
   business_impact: Joi.string().min(10).required(),
-  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other').required(),
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Onboarding', 'Network', 'Other').required(),
   priority: Joi.string().valid('P1', 'P2', 'P3', 'P4').required(),
   is_active: Joi.boolean().default(true),
 }).required();
@@ -20,7 +20,7 @@ const templateUpdateSchema = Joi.object({
   title: Joi.string().min(5).max(255),
   description: Joi.string().min(10),
   business_impact: Joi.string().min(10),
-  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Network', 'Other'),
+  category: Joi.string().valid('Hardware', 'Software', 'Access Request', 'Account Creation', 'Onboarding', 'Network', 'Other'),
   priority: Joi.string().valid('P1', 'P2', 'P3', 'P4'),
   is_active: Joi.boolean(),
 }).min(1);

@@ -35,6 +35,7 @@ const categoryOptions = [
   "Software",
   "Access Request",
   "Account Creation",
+  "Onboarding",
   "Network",
   "Other",
 ];

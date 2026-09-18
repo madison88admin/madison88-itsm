@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import apiClient from "../api/client";
 
 const priorities = ["P1", "P2", "P3", "P4"];
-const categories = ["Hardware", "Software", "Access Request", "Account Creation", "Network", "Other"];
+const categories = ["Hardware", "Software", "Access Request", "Account Creation", "Onboarding", "Network", "Other"];
 
 const AdminSlaPage = () => {
   const [rules, setRules] = useState([]);
