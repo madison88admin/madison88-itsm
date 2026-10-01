@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useRef, useState, useCallback } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import apiClient from "./api/client";
 import { clearAuthToken, setAuthToken } from "./api/session";
 import { getSocket } from "./api/socket";
@@ -68,9 +68,16 @@ function App() {
   );
   const recentNotificationRef = useRef(new Map());
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Load user and verify session on mount
   useEffect(() => {
+    const publicPaths = new Set(["/login", "/signup", "/reset-password"]);
+    if (publicPaths.has(location.pathname)) {
+      setLoadingUser(false);
+      return undefined;
+    }
+
     const initAuth = async () => {
       try {
         // The HttpOnly cookie is the source of truth. Never trust a cached user
@@ -85,7 +92,7 @@ function App() {
     };
 
     initAuth();
-  }, []);
+  }, [location.pathname]);
 
   const handleLogin = (jwt, userInfo) => {
     setUser(userInfo);
