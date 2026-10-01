@@ -21,10 +21,20 @@ const RUN_SLA_JOB = process.env.RUN_SLA_JOB !== 'false';
 const RUN_AUTO_CLOSE_JOB = process.env.RUN_AUTO_CLOSE_JOB !== 'false';
 const INTERNAL_JOB_KEY = process.env.INTERNAL_JOB_KEY || '';
 
-// Initialize Socket.io for real-time notifications
+// Initialize Socket.io for real-time notifications. Keep this list aligned
+// with the REST API CORS configuration so direct and proxied clients work.
+const socketCorsOrigins = Array.from(new Set([
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  process.env.FRONTEND_PROD_URL || 'https://m88itsm.netlify.app',
+  ...(process.env.ADDITIONAL_CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]));
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: socketCorsOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }

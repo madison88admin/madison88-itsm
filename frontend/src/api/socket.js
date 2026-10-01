@@ -1,14 +1,18 @@
 import { io } from "socket.io-client";
 
-// Socket.IO needs a direct connection. Set REACT_APP_SOCKET_URL to the HTTPS
-// VPS/tunnel endpoint in production; otherwise it uses the current origin.
-const socketUrl =
-  process.env.REACT_APP_SOCKET_URL ||
-  (process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '') ||
-  '';
-
-// Cloudflare tunnel supports WebSocket upgrades, so we can always use websocket transport
-const transports = ['websocket', 'polling'];
+// Set REACT_APP_SOCKET_URL to a direct HTTPS VPS/tunnel endpoint when available.
+// Netlify cannot upgrade WebSocket requests through the SPA route, so the
+// same-origin Netlify fallback uses Socket.IO polling through the API proxy.
+const explicitSocketUrl = (process.env.REACT_APP_SOCKET_URL || '').trim();
+const apiSocketUrl = (process.env.REACT_APP_API_URL || '')
+  .replace(/\/api\/?$/, '')
+  .trim();
+const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const isNetlifyHost = currentHost.endsWith('.netlify.app');
+const useNetlifyPolling = !explicitSocketUrl && !apiSocketUrl && isNetlifyHost;
+const socketUrl = explicitSocketUrl || apiSocketUrl ||
+  (typeof window !== 'undefined' ? window.location.origin : '');
+const transports = useNetlifyPolling ? ['polling'] : ['websocket', 'polling'];
 
 // Debug log (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -23,7 +27,7 @@ export function getSocket() {
       path: "/socket.io",
       autoConnect: true,
       transports,
-      upgrade: true,
+      upgrade: !useNetlifyPolling,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,

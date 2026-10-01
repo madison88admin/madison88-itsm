@@ -1,3 +1,4 @@
 /api/*  /.netlify/functions/proxy-api?path=:splat  200
+/socket.io/*  /.netlify/functions/proxy-api?path=socket.io/:splat  200
 /uploads/*  /.netlify/functions/proxy-api?path=uploads/:splat  200
 /*    /index.html   200

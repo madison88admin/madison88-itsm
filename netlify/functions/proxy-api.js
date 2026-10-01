@@ -20,7 +20,8 @@ exports.handler = async (event) => {
   const query = new URLSearchParams(event.queryStringParameters || {});
   query.delete('path');
   const isUpload = apiPath.startsWith('uploads/');
-  const target = `${backend}${isUpload ? '' : '/api'}/${apiPath}${query.toString() ? `?${query}` : ''}`;
+  const isSocket = apiPath === 'socket.io' || apiPath.startsWith('socket.io/');
+  const target = `${backend}${isUpload || isSocket ? '' : '/api'}/${apiPath}${query.toString() ? `?${query}` : ''}`;
 
   console.log('[proxy-api]', { method: event.httpMethod, rawPath: event.path, apiPath, target });
 
