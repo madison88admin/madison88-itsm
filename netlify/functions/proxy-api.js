@@ -37,6 +37,16 @@ exports.handler = async (event) => {
     ? response.headers.getSetCookie()
     : [];
 
+  // The upstream fetch runtime may transparently decode Brotli/gzip, while
+  // Netlify will encode the function response again. Forwarding the upstream
+  // transport headers in that case makes browsers try to decode an already
+  // decoded body and results in ERR_CONTENT_DECODING_FAILED (often reported
+  // as a misleading 200 response). Let Netlify own these headers.
+  delete responseHeaders['content-encoding'];
+  delete responseHeaders['content-length'];
+  delete responseHeaders['transfer-encoding'];
+  delete responseHeaders.connection;
+
   // Netlify needs Set-Cookie forwarded explicitly so the browser can retain
   // the HttpOnly auth cookie issued by the VPS backend. Use multiValueHeaders
   // when the runtime exposes multiple Set-Cookie values; keep a fallback for
