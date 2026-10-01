@@ -13,6 +13,10 @@ const apiClient = axios.create({
   timeout: Number(process.env.REACT_APP_API_TIMEOUT) || 30000,
 });
 
+const wait = (milliseconds) => new Promise((resolve) => {
+  setTimeout(resolve, milliseconds);
+});
+
 apiClient.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
@@ -37,7 +41,25 @@ if (process.env.NODE_ENV !== 'production') {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // Netlify/VPS cold starts can produce a one-off connection failure even
+    // though the next request succeeds. Retry idempotent reads once, but do
+    // not retry writes or HTTP responses such as 401/403/5xx.
+    const requestConfig = error.config;
+    const isGetRequest = requestConfig?.method?.toUpperCase() === "GET";
+    const isRetryableNetworkError =
+      !error.response &&
+      error.code !== "ECONNABORTED" &&
+      isGetRequest &&
+      requestConfig &&
+      !requestConfig.__networkRetry;
+
+    if (isRetryableNetworkError) {
+      requestConfig.__networkRetry = true;
+      await wait(350);
+      return apiClient.request(requestConfig);
+    }
+
     if (!error.response) {
       error.message = error.code === "ECONNABORTED"
         ? "The request timed out. Please try again."
