@@ -4,7 +4,6 @@ import apiClient from "../../api/client";
 import { onDashboardRefresh } from "../../api/socket";
 import {
   FiActivity,
-  FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiLayers,
@@ -46,7 +45,7 @@ const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
-    summary: { open: 0, in_progress: 0, pending: 0, resolved: 0, closed: 0, mttr: 0, mtta: 0, approvals: 0, overdue: 0 },
+    summary: { open: 0, in_progress: 0, resolved: 0, closed: 0, mttr: 0, mtta: 0, approvals: 0, overdue: 0 },
     sla: {},
     aging: { over_7: 0, over_14: 0, over_30: 0 },
     workload: { labels: [], datasets: [] },
@@ -74,12 +73,6 @@ const ManagerDashboard = () => {
     phone: '',
     department: 'IT Support'
   });
-
-  const trendLabelsForChart = (trendData) => {
-    return trendData.map(d => {
-      return new Date(d.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    });
-  };
 
   const loadData = useCallback(async () => {
     setError("");
@@ -119,8 +112,7 @@ const ManagerDashboard = () => {
       setData({
         summary: {
           open: status.open || 0,
-          in_progress: status.in_progress || 0,
-          pending: status.pending || 0,
+          in_progress: (status.in_progress || 0) + (status.pending || 0) + (status.reopened || 0),
           resolved: status.resolved || 0,
           closed: status.closed || 0,
           mttr: advanced.summary?.mttr_hours || 0,
@@ -221,9 +213,8 @@ const ManagerDashboard = () => {
   };
 
   const handleExport = () => {
-    const token = localStorage.getItem('token');
-    const apiBase = (process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL || window.location.origin).replace(/\/$/, '');
-    const url = `${apiBase}/api/dashboard/export?format=csv&token=${token}`;
+    const apiBase = (process.env.REACT_APP_API_URL || window.location.origin).replace(/\/$/, '');
+    const url = `${apiBase}/api/dashboard/export?format=csv`;
     window.open(url, '_blank');
   };
 

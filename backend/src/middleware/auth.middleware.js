@@ -3,11 +3,20 @@ const UserModel = require('../models/user.model');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
+const readCookie = (req, name) => {
+  const header = req.headers.cookie || '';
+  const match = header.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+};
+
 async function authenticate(req, res, next) {
   let token;
   const authHeader = req.headers['authorization'];
+  const cookieToken = readCookie(req, 'itsm_access_token');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
+  } else if (cookieToken) {
+    token = cookieToken;
   } else if (req.query.token) {
     token = req.query.token;
   }

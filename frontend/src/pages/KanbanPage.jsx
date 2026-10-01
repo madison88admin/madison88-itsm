@@ -4,6 +4,7 @@ import KanbanBoard from "../components/kanban/KanbanBoard";
 import apiClient from "../api/client";
 import { getSocket } from "../api/socket";
 import { toast } from "react-toastify";
+import { normalizeTicketStatus } from "../constants/ticket-status";
 
 const KanbanPage = ({ user }) => {
     const [tickets, setTickets] = useState([]);
@@ -18,7 +19,9 @@ const KanbanPage = ({ user }) => {
             const res = await apiClient.get("/tickets");
             const allTickets = res.data.data.tickets || [];
             // Filter out tickets assigned to John Patrick Maaliw
-            const filteredTickets = allTickets.filter(ticket => ticket.assignee_name !== "John Patrick Maaliw");
+            const filteredTickets = allTickets
+                .filter(ticket => ticket.assignee_name !== "John Patrick Maaliw")
+                .map(ticket => ({ ...ticket, status: normalizeTicketStatus(ticket.status) }));
             setTickets(filteredTickets);
         } catch (err) {
             setError("Failed to load tickets");

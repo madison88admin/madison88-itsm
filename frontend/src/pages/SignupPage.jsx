@@ -32,7 +32,6 @@ const SignupPage = () => {
         // Reuse the same logic from LoginPage.jsx for consistency
         const headingStyle = { color: '#1976d2', fontWeight: 'bold', marginBottom: 8 };
         const subheadingStyle = { color: '#1976d2', fontWeight: 'bold', marginTop: 24, marginBottom: 8 };
-        const labelStyle = { color: '#1976d2', fontWeight: 'bold' };
         const textStyle = { color: '#222', fontWeight: 'normal' };
 
         if (type === 'terms') {
@@ -209,13 +208,13 @@ const SignupPage = () => {
 
                 <p className="terms-notice">
                     By signing up, you agree to our{' '}
-                    <a href="#" onClick={e => { e.preventDefault(); handleShowModal('terms'); }} className="terms-link">
+                    <button type="button" onClick={() => handleShowModal('terms')} className="terms-link terms-button">
                         Terms of Service
-                    </a>
+                    </button>
                     {' '}and{' '}
-                    <a href="#" onClick={e => { e.preventDefault(); handleShowModal('privacy'); }} className="terms-link">
+                    <button type="button" onClick={() => handleShowModal('privacy')} className="terms-link terms-button">
                         Privacy Policy
-                    </a>
+                    </button>
                     .
                 </p>
 

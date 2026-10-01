@@ -2,16 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import apiClient from "../../api/client";
 
 const API_BASE = (() => {
-    const env = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL;
+    const env = process.env.REACT_APP_API_URL;
     if (env) return env.replace(/\/api\/?$/, '').replace(/\/$/, '');
     if (typeof window !== 'undefined') {
-        // Default to the isolated VPS ITSM port when no environment is present.
-        if (window.location.port === '3000') {
-            return `${window.location.protocol}//${window.location.hostname}:3011`;
-        }
         return window.location.origin;
     }
-    return 'http://localhost:3011';
+    return '';
 })();
 
 const TicketConversation = ({ ticketId, comments, audit = [], onCommentAdded }) => {

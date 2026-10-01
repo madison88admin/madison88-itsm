@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../api/client";
 import { hasMinLength, isBlank } from "../utils/validation";
@@ -12,6 +12,12 @@ const LAST_UPDATED_OPTIONS = [
   { label: "Last 30 days", value: "30" },
   { label: "Last 90 days", value: "90" },
 ];
+
+const normalizeTags = (value) => {
+  if (!value) return "";
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value);
+};
 
 const KnowledgeBasePage = ({ user }) => {
   const location = useLocation();
@@ -51,12 +57,6 @@ const KnowledgeBasePage = ({ user }) => {
     [user?.role],
   );
 
-  const normalizeTags = (value) => {
-    if (!value) return "";
-    if (Array.isArray(value)) return value.join(", ");
-    return String(value);
-  };
-
   const extractCodeBlocks = (content) => {
     if (!content) return [];
     const blocks = [];
@@ -84,7 +84,7 @@ const KnowledgeBasePage = ({ user }) => {
       }));
   };
 
-  const buildKbParams = ({ includeQuery = true } = {}) => {
+  const buildKbParams = useCallback(({ includeQuery = true } = {}) => {
     const params = {};
     if (includeQuery && query.trim()) params.q = query.trim();
     if (isPrivileged && statusFilter !== "all") params.status = statusFilter;
@@ -94,9 +94,9 @@ const KnowledgeBasePage = ({ user }) => {
     if (locationFilter !== "all") params.location = locationFilter;
     if (lastUpdatedFilter !== "all") params.last_updated = lastUpdatedFilter;
     return params;
-  };
+  }, [categoryFilter, isPrivileged, lastUpdatedFilter, locationFilter, productFilter, query, roleFilter, statusFilter]);
 
-  const fetchArticles = async ({ includeQuery = true } = {}) => {
+  const fetchArticles = useCallback(async ({ includeQuery = true } = {}) => {
     setLoading(true);
     setError("");
     try {
@@ -113,9 +113,9 @@ const KnowledgeBasePage = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [buildKbParams]);
 
-  const loadArticle = async (articleId) => {
+  const loadArticle = useCallback(async (articleId) => {
     setSelectedId(articleId);
     setDetailLoading(true);
     setDetailError("");
@@ -140,7 +140,7 @@ const KnowledgeBasePage = ({ user }) => {
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, []);
 
   const handleUpdate = async () => {
     if (!selectedArticle) return;
@@ -224,7 +224,7 @@ const KnowledgeBasePage = ({ user }) => {
     if (id) {
       loadArticle(id);
     }
-  }, [location.search]);
+  }, [loadArticle, location.search]);
 
   useEffect(() => {
     if (searchDebounceRef.current) {
@@ -236,7 +236,7 @@ const KnowledgeBasePage = ({ user }) => {
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, [query, statusFilter, categoryFilter, productFilter, roleFilter, locationFilter, lastUpdatedFilter, isPrivileged]);
+  }, [fetchArticles, query, statusFilter, categoryFilter, productFilter, roleFilter, locationFilter, lastUpdatedFilter, isPrivileged]);
 
   const categoryOptions = useMemo(() => {
     const values = new Set();

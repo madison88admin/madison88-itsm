@@ -1,49 +1,50 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/client";
 import { onDashboardRefresh } from "../../api/socket";
+import { normalizeTicketStatus } from "../../constants/ticket-status";
+import { useQuery, useQueryClient } from "react-query";
 import {
   FiActivity,
   FiSearch,
-  FiPlusCircle,
   FiHelpCircle,
   FiBookOpen,
   FiPackage,
   FiCheckCircle,
-  FiClock,
   FiArrowRight,
   FiX
 } from "react-icons/fi";
 
 const UserDashboard = () => {
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState([]);
-  const [stats, setStats] = useState({ open: 0, pending: 0, resolved: 0 });
   const [searchQuery, setSearchQuery] = useState("");
   const [kbResults, setKbResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const queryClient = useQueryClient();
 
-  const loadData = useCallback(async () => {
-    try {
+  const { data: allTickets = [], isLoading: loadingTickets } = useQuery(
+    ["user-tickets"],
+    async () => {
       const res = await apiClient.get("/tickets");
-      const allTickets = res.data.data.tickets || [];
-      setTickets(allTickets.slice(0, 5)); // Show recent 5 for the timeline
-
-      setStats({
-        open: allTickets.filter((t) => ["New", "In Progress"].includes(t.status)).length,
-        pending: allTickets.filter((t) => t.status === "Pending").length,
-        resolved: allTickets.filter((t) => ["Resolved", "Closed"].includes(t.status)).length,
-      });
-    } catch (err) {
-      console.error("Failed to load user portal data", err);
-    }
-  }, []);
+      return (res.data.data.tickets || []).map((ticket) => ({
+        ...ticket,
+        status: normalizeTicketStatus(ticket.status),
+      }));
+    },
+    { refetchInterval: 30000 },
+  );
 
   useEffect(() => {
-    loadData();
-    const unsubscribe = onDashboardRefresh(loadData);
+    const unsubscribe = onDashboardRefresh(() => queryClient.invalidateQueries(["user-tickets"]));
     return () => unsubscribe && unsubscribe();
-  }, [loadData]);
+  }, [queryClient]);
+
+  const tickets = useMemo(() => allTickets.slice(0, 5), [allTickets]);
+  const stats = useMemo(() => ({
+    open: allTickets.filter((t) => ["New", "In Progress"].includes(t.status)).length,
+    inProgress: allTickets.filter((t) => t.status === "In Progress").length,
+    resolved: allTickets.filter((t) => ["Resolved", "Closed"].includes(t.status)).length,
+  }), [allTickets]);
 
   // Magic Search / KB Deflection
   useEffect(() => {
@@ -70,7 +71,6 @@ const UserDashboard = () => {
     switch (status) {
       case 'New': return 0;
       case 'In Progress':
-      case 'Pending': return 1;
       case 'Resolved': return 2;
       case 'Closed': return 3;
       default: return 0;
@@ -175,7 +175,9 @@ const UserDashboard = () => {
           </div>
 
           <div className="ticket-timeline-list">
-            {tickets.length > 0 ? (
+            {loadingTickets ? (
+              <div className="empty-state">Loading your tickets...</div>
+            ) : tickets.length > 0 ? (
               tickets.map(ticket => {
                 const currentStep = getTimelineStep(ticket.status);
                 return (
@@ -231,8 +233,8 @@ const UserDashboard = () => {
                 <strong>{stats.open}</strong>
               </div>
               <div className="stat-item">
-                <label>Pending</label>
-                <strong>{stats.pending}</strong>
+                <label>In Progress</label>
+                <strong>{stats.inProgress}</strong>
               </div>
               <div className="stat-item">
                 <label>Resolved</label>

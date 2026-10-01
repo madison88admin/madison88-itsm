@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { sanitizeHtml } from "../../utils/sanitize";
 
 const LOCATION_TIMEZONES = {
     'Philippines': 'Asia/Manila',
@@ -114,7 +115,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
                 <button className="section-toggle" type="button" onClick={() => toggleSection('description')} aria-expanded={openSections.description}>
                     <span>DESCRIPTION</span><span aria-hidden="true">{openSections.description ? '−' : '+'}</span>
                 </button>
-                {openSections.description && <div className="description-text" dangerouslySetInnerHTML={{ __html: ticket.description }} />}
+                {openSections.description && <div className="description-text" dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.description) }} />}
             </div>
 
             {/* Business Impact */}
@@ -122,7 +123,7 @@ const TicketContextPanel = ({ ticket, user, assets }) => {
                 <button className="section-toggle" type="button" onClick={() => toggleSection('impact')} aria-expanded={openSections.impact}>
                     <span>BUSINESS IMPACT</span><span aria-hidden="true">{openSections.impact ? '−' : '+'}</span>
                 </button>
-                {openSections.impact && <div className="impact-text" dangerouslySetInnerHTML={{ __html: ticket.business_impact }} />}
+                {openSections.impact && <div className="impact-text" dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.business_impact) }} />}
             </div>
 
             {/* Assets */}

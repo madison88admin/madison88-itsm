@@ -33,7 +33,7 @@ const getDateRange = (scope, customStart, customEnd) => {
   return { start: toISODate(startDate), end };
 };
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ user }) => {
   const [viewMode, setViewMode] = useState(localStorage.getItem('adminViewMode') || 'detailed');
   const [users, setUsers] = useState(0);
   const [agentStatusMatrix, setAgentStatusMatrix] = useState([]);
@@ -104,13 +104,6 @@ const AdminDashboard = () => {
       if (volumeRes) setTicketsByLocation(volumeRes.data.data.ticket_volume?.by_location || []);
       if (exportRes) setExportTickets(exportRes.data.data.tickets || []);
 
-      // Normalize priority data to ensure P1-P4 are always present
-      const priorityRaw = volumeRes?.data?.data?.ticket_volume?.by_priority || [];
-      const priorityMap = priorityRaw.reduce((acc, item) => {
-        acc[item.key] = item.value;
-        return acc;
-      }, {});
-
       setLastUpdatedAt(new Date());
       setRefreshLatencyMs(Math.round(performance.now() - startTick));
 
@@ -145,12 +138,12 @@ const AdminDashboard = () => {
         const status = String(ticket.status || "").toLowerCase();
         if (status === "new") acc.open += 1;
         else if (status === "in progress") acc.in_progress += 1;
-        else if (status === "pending") acc.pending += 1;
+        else if (status === "pending" || status === "reopened") acc.in_progress += 1;
         else if (status === "resolved") acc.resolved += 1;
         else if (status === "closed") acc.closed += 1;
         return acc;
       },
-      { open: 0, in_progress: 0, pending: 0, resolved: 0, closed: 0 },
+      { open: 0, in_progress: 0, resolved: 0, closed: 0 },
     );
   }, [scopedTickets]);
 
@@ -214,13 +207,12 @@ const AdminDashboard = () => {
   const totalTickets =
     (scopedStatusSummary.open || 0) +
     (scopedStatusSummary.in_progress || 0) +
-    (scopedStatusSummary.pending || 0) +
     (scopedStatusSummary.resolved || 0) +
     (scopedStatusSummary.closed || 0);
   const activeTickets =
     (scopedStatusSummary.open || 0) +
     (scopedStatusSummary.in_progress || 0) +
-    (scopedStatusSummary.pending || 0);
+    0;
   const resolvedTotal =
     (scopedStatusSummary.resolved || 0) + (scopedStatusSummary.closed || 0);
   const formatPercent = (value, total) =>
@@ -232,17 +224,14 @@ const AdminDashboard = () => {
   const statusCards = [
     { label: "Open", value: scopedStatusSummary.open || 0 },
     { label: "In Progress", value: scopedStatusSummary.in_progress || 0 },
-    { label: "Pending", value: scopedStatusSummary.pending || 0 },
     { label: "Resolved", value: scopedStatusSummary.resolved || 0 },
     { label: "Closed", value: scopedStatusSummary.closed || 0 },
   ];
   const statusKeys = [
     { key: "new_count", label: "New", color: "47, 215, 255" },
     { key: "in_progress_count", label: "In Progress", color: "43, 107, 255" },
-    { key: "pending_count", label: "Pending", color: "255, 181, 71" },
     { key: "resolved_count", label: "Resolved", color: "55, 217, 150" },
     { key: "closed_count", label: "Closed", color: "139, 151, 186" },
-    { key: "reopened_count", label: "Reopened", color: "255, 93, 108" },
   ];
   const maxHeatCount = agentStatusMatrix.reduce((max, row) => {
     const rowMax = statusKeys.reduce((innerMax, status) => {
@@ -271,26 +260,26 @@ const AdminDashboard = () => {
       severity: "critical",
       text: `${scopedSlaSummary.critical_breached || 0} critical SLA breaches`,
       hidden: !(scopedSlaSummary.critical_breached > 0),
-      params: { status: "New,In Progress,Pending", priority: "P1" },
+      params: { status: "New,In Progress", priority: "P1" },
     },
     {
-      key: "pending-aging",
+      key: "in-progress-aging",
       severity: "warn",
-      text: `${scopedStatusSummary.pending || 0} tickets waiting in Pending`,
-      hidden: !(scopedStatusSummary.pending > 0),
-      params: { status: "Pending" },
+      text: `${scopedStatusSummary.in_progress || 0} tickets in progress`,
+      hidden: !(scopedStatusSummary.in_progress > 0),
+      params: { status: "In Progress" },
     },
     {
       key: "active-spike",
       severity: "info",
       text: `${activeTickets} active tickets in current scope`,
       hidden: !(activeTickets >= 10),
-      params: { status: "New,In Progress,Pending" },
+      params: { status: "New,In Progress" },
     },
   ].filter((item) => !item.hidden);
 
   if (viewMode === 'simple') {
-    return <ExecutiveDashboard loadDetailView={() => setViewMode('detailed')} />;
+    return <ExecutiveDashboard user={user} loadDetailView={() => setViewMode('detailed')} />;
   }
 
   const scopeSelectStyle = {

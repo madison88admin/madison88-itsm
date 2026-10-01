@@ -9,6 +9,7 @@ import {
   isBlank,
   stripHtml,
 } from "../utils/validation";
+import { sanitizeHtml } from "../utils/sanitize";
 
 const steps = ["Issue Details", "Impact", "Attachments"];
 const DEFAULT_TICKET_TYPE = "incident";
@@ -86,6 +87,7 @@ const hasMeaningfulDraftContent = ({ form = {}, step = 0, selectedTemplateId = "
 const NewTicketPage = ({ onCreated, user }) => {
   const isEndUser = user?.role === "end_user";
   const allowedPriorities = isEndUser ? ["P3", "P4"] : priorities;
+  const visibleSteps = isEndUser ? ["Request", "Attachments"] : steps;
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -109,6 +111,7 @@ const NewTicketPage = ({ onCreated, user }) => {
     business_impact: "",
     tags: "",
   });
+  const endUserSubmitLabel = form.ticket_type === "request" ? "Submit Request" : "Submit Ticket";
   const [files, setFiles] = useState([]);
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
   const [kbSuggestions, setKbSuggestions] = useState([]);
@@ -122,6 +125,7 @@ const NewTicketPage = ({ onCreated, user }) => {
   const [draftSavedAt, setDraftSavedAt] = useState("");
   const [showDraftNotice, setShowDraftNotice] = useState(false);
   const [pendingDraft, setPendingDraft] = useState(null);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
   const searchTimeoutRef = useRef(null);
   const kbSearchTimeoutRef = useRef(null);
   const slaPreviewTimeoutRef = useRef(null);
@@ -186,7 +190,7 @@ const NewTicketPage = ({ onCreated, user }) => {
     if (templateParam) {
       setSelectedTemplateId(templateParam);
     }
-  }, [location.search]);
+  }, [location.search, user?.location]);
 
   useEffect(() => {
     if (!user?.location) return;
@@ -343,7 +347,7 @@ const NewTicketPage = ({ onCreated, user }) => {
         applyTemplate(template);
       }
     }
-  }, [templates]); // Trigger when templates array is populated
+  }, [applyTemplate, form.category, form.title, selectedTemplateId, templates]);
 
   useEffect(() => {
     if (form.title.trim().length < 4) {
@@ -573,6 +577,7 @@ const NewTicketPage = ({ onCreated, user }) => {
       setSelectedTemplateId("");
       setFiles([]);
       setSelectedAssetId("");
+      setShowOptionalFields(false);
       setStep(0);
       setDraftSavedAt("");
       setDraftRecoveredAt("");
@@ -589,6 +594,16 @@ const NewTicketPage = ({ onCreated, user }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEndUserAttachments = () => {
+    const validationMessage = validateIssueDetails() || validateImpact();
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
+    setError("");
+    setStep(2);
   };
 
   const handleSubmitAnyway = () => {
@@ -674,17 +689,24 @@ const NewTicketPage = ({ onCreated, user }) => {
       <div className="panel-header">
         <div>
           <h2>Create Ticket</h2>
-          <p>Submit an issue or request and we will route it automatically.</p>
+          <p>
+            {isEndUser
+              ? "Fast submission: complete the required details and submit. Attachments are optional."
+              : "Submit an issue or request and we will route it automatically."}
+          </p>
         </div>
       </div>
 
       <div className="steps">
-        {steps.map((label, index) => (
-          <div key={label} className={`step ${index <= step ? "active" : ""}`}>
+        {visibleSteps.map((label, index) => {
+          const displayStepIndex = isEndUser && step === 2 ? 1 : step;
+          return (
+          <div key={label} className={`step ${index <= displayStepIndex ? "active" : ""}`}>
             <span>{index + 1}</span>
             <p>{label}</p>
           </div>
-        ))}
+          );
+        })}
       </div>
       <p className="muted" style={{ marginTop: "0.5rem", marginBottom: "1rem", fontSize: "12px" }}>
         Draft autosaves locally while you type.
@@ -823,7 +845,7 @@ const NewTicketPage = ({ onCreated, user }) => {
               }}
             >
               {selectedKbBodyHasHtml ? (
-                <div dangerouslySetInnerHTML={{ __html: selectedKbBody }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedKbBody) }} />
               ) : (
                 <div style={{ whiteSpace: "pre-wrap" }}>{selectedKbBody}</div>
               )}
@@ -851,6 +873,7 @@ const NewTicketPage = ({ onCreated, user }) => {
 
       {step === 0 && (
         <div className="form-grid">
+          {!isEndUser && (
           <label className="field">
             <span>Template (optional)</span>
             <select
@@ -907,12 +930,14 @@ const NewTicketPage = ({ onCreated, user }) => {
               );
             })()}
           </label>
+          )}
           <label className="field">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Ticket Title</span>
               {searchingDuplicates && <small className="muted" style={{ fontSize: '10px' }}>Checking for duplicates...</small>}
             </div>
             <input
+              autoFocus={isEndUser}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="Brief summary of the issue"
@@ -1007,36 +1032,33 @@ const NewTicketPage = ({ onCreated, user }) => {
               Incident = unplanned interruption. Request = formal request from a user for something to be provided.
             </small>
           </label>
-          <label className="field">
-            <span>Priority (optional)</span>
-            <select
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value })}
-            >
-              <option value="">Auto</option>
-              {allowedPriorities.map((priority) => (
-                <option key={priority} value={priority}>
-                  {priority}
-                </option>
-              ))}
-            </select>
-            {isEndUser && (
-              <small className="muted" style={{ display: "block", marginTop: "6px" }}>
-                P1/P2 are restricted to admins, managers, or the assigned IT agent.
-              </small>
-            )}
-            {selectedCategoryGuide && (
-              <div style={{ marginTop: "8px", border: "1px solid rgba(59,130,246,0.28)", borderRadius: "10px", padding: "8px" }}>
-                <small className="muted" style={{ display: "block", marginBottom: "6px" }}>
-                  Smart checklist: {selectedCategoryGuide.checklist.join(" • ")}
-                </small>
-                <button type="button" className="btn ghost" onClick={applyGuidedTemplate}>
-                  Insert guided description template
-                </button>
-              </div>
-            )}
-          </label>
-          <div className="field full">
+          {!isEndUser && (
+            <label className="field">
+              <span>Priority (optional)</span>
+              <select
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              >
+                <option value="">Auto</option>
+                {allowedPriorities.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+              {selectedCategoryGuide && (
+                <div style={{ marginTop: "8px", border: "1px solid rgba(59,130,246,0.28)", borderRadius: "10px", padding: "8px" }}>
+                  <small className="muted" style={{ display: "block", marginBottom: "6px" }}>
+                    Smart checklist: {selectedCategoryGuide.checklist.join(" • ")}
+                  </small>
+                  <button type="button" className="btn ghost" onClick={applyGuidedTemplate}>
+                    Insert guided description template
+                  </button>
+                </div>
+              )}
+            </label>
+          )}
+          {!isEndUser && <div className="field full">
             <span>SLA Estimate</span>
             <div
               style={{
@@ -1072,34 +1094,50 @@ const NewTicketPage = ({ onCreated, user }) => {
                 </div>
               )}
             </div>
-          </div>
-          <label className="field">
-            <span>Related Asset (optional)</span>
-            <select
-              value={selectedAssetId}
-              onChange={(e) => setSelectedAssetId(e.target.value)}
-            >
-              <option value="">Select your asset</option>
-              {assets.map((asset) => (
-                <option key={asset.asset_id} value={asset.asset_id}>
-                  {asset.asset_tag} ({asset.asset_type})
-                </option>
-              ))}
-            </select>
-            {assets.length === 0 && (
-              <small className="muted">
-                No assets assigned to your account.
-              </small>
-            )}
-          </label>
-          <label className="field">
-            <span>Tags (optional)</span>
-            <input
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              placeholder="Example: vpn, urgent, onboarding"
-            />
-          </label>
+          </div>}
+          {isEndUser && (
+            <div className="field full" style={{ marginTop: "-4px" }}>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setShowOptionalFields((current) => !current)}
+                aria-expanded={showOptionalFields}
+              >
+                {showOptionalFields ? "Hide optional details" : "Add optional details (asset or tags)"}
+              </button>
+            </div>
+          )}
+          {(!isEndUser || showOptionalFields) && (
+            <>
+              <label className="field">
+                <span>Related Asset (optional)</span>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => setSelectedAssetId(e.target.value)}
+                >
+                  <option value="">Select your asset</option>
+                  {assets.map((asset) => (
+                    <option key={asset.asset_id} value={asset.asset_id}>
+                      {asset.asset_tag} ({asset.asset_type})
+                    </option>
+                  ))}
+                </select>
+                {assets.length === 0 && (
+                  <small className="muted">
+                    No assets assigned to your account.
+                  </small>
+                )}
+              </label>
+              <label className="field">
+                <span>Tags (optional)</span>
+                <input
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                  placeholder="Example: vpn, urgent, onboarding"
+                />
+              </label>
+            </>
+          )}
           <label className="field full">
             <span>Detailed Description</span>
             <ReactQuill
@@ -1108,7 +1146,23 @@ const NewTicketPage = ({ onCreated, user }) => {
               className="editor"
             />
           </label>
-          <div className="field full">
+          {isEndUser && (
+            <label className="field full">
+              <span>Business Impact</span>
+              <textarea
+                rows={4}
+                value={form.business_impact}
+                onChange={(e) =>
+                  setForm({ ...form, business_impact: e.target.value })
+                }
+                placeholder="What will be affected if this is not resolved?"
+              />
+              <small className="muted">
+                A short impact helps IT prioritize your request correctly.
+              </small>
+            </label>
+          )}
+          {!isEndUser && <div className="field full">
             <span>Helpful Articles</span>
             <div className="duplicates-suggestion" style={{
               marginTop: "8px",
@@ -1163,11 +1217,11 @@ const NewTicketPage = ({ onCreated, user }) => {
                 </div>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
-      {step === 1 && (
+      {step === 1 && !isEndUser && (
         <div className="form-grid">
           <label className="field full">
             <span>Business Impact</span>
@@ -1220,46 +1274,70 @@ const NewTicketPage = ({ onCreated, user }) => {
         </div>
       )}
 
-      <div className="form-actions">
-        <button
-          className="btn ghost"
-          type="button"
-          disabled={step === 0}
-          onClick={() => setStep(step - 1)}
-        >
-          Back
-        </button>
-        {step < steps.length - 1 ? (
-          <button
-            className="btn primary btn-press"
-            type="button"
-            onClick={() => {
-              const validationMessage =
-                step === 0 ? validateIssueDetails() : validateImpact();
-              if (validationMessage) {
-                setError(validationMessage);
-                return;
-              }
-              setError("");
-              setStep(step + 1);
-            }}
-            style={{
-              opacity: !validateStep() ? 0.6 : 1,
-              cursor: !validateStep() ? "not-allowed" : "pointer",
-            }}
-            title={!validateStep() ? (step === 0 ? validateIssueDetails() || "Please fill all required fields" : validateImpact() || "Please fill all required fields") : ""}
-          >
-            Next
-          </button>
+      <div className={`form-actions ${isEndUser ? "quick-request-actions" : ""}`}>
+        {isEndUser ? (
+          <>
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={loading}
+              onClick={step === 2 ? () => setStep(0) : handleEndUserAttachments}
+            >
+              {step === 2 ? "Back to request" : "Add attachment (optional)"}
+            </button>
+            <button
+              className="btn primary btn-press"
+              type="button"
+              disabled={loading}
+              onClick={handleSubmit}
+              title={validateIssueDetails() || validateImpact() || "Ready to submit"}
+            >
+              {loading ? "Submitting..." : endUserSubmitLabel}
+            </button>
+          </>
         ) : (
-          <button
-            className="btn primary btn-press"
-            type="button"
-            disabled={!validateStep() || loading}
-            onClick={handleSubmit}
-          >
-            {loading ? "Submitting..." : "Submit Ticket"}
-          </button>
+          <>
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={step === 0}
+              onClick={() => setStep(step - 1)}
+            >
+              Back
+            </button>
+            {step < steps.length - 1 ? (
+              <button
+                className="btn primary btn-press"
+                type="button"
+                onClick={() => {
+                  const validationMessage =
+                    step === 0 ? validateIssueDetails() : validateImpact();
+                  if (validationMessage) {
+                    setError(validationMessage);
+                    return;
+                  }
+                  setError("");
+                  setStep(step + 1);
+                }}
+                style={{
+                  opacity: !validateStep() ? 0.6 : 1,
+                  cursor: !validateStep() ? "not-allowed" : "pointer",
+                }}
+                title={!validateStep() ? (step === 0 ? validateIssueDetails() || "Please fill all required fields" : validateImpact() || "Please fill all required fields") : ""}
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                className="btn primary btn-press"
+                type="button"
+                disabled={!validateStep() || loading}
+                onClick={handleSubmit}
+              >
+                {loading ? "Submitting..." : "Submit Ticket"}
+              </button>
+            )}
+          </>
         )}
       </div>
       <style>{`
@@ -1292,6 +1370,16 @@ const NewTicketPage = ({ onCreated, user }) => {
           .new-ticket-mobile-polish .form-actions .btn {
             flex: 1;
           }
+        }
+        .new-ticket-mobile-polish .quick-request-actions {
+          position: sticky;
+          bottom: 0;
+          z-index: 8;
+          margin-top: 14px;
+          padding: 12px;
+          border-radius: 12px;
+          background: linear-gradient(to top, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.9));
+          box-shadow: 0 -8px 24px rgba(2, 6, 23, 0.3);
         }
       `}</style>
     </div>

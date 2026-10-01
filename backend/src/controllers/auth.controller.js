@@ -1,7 +1,6 @@
 const Joi = require('joi');
 const AuthService = require('../services/auth.service');
 const UserActivityService = require('../services/user-activity.service');
-const jwt = require('jsonwebtoken');
 
 const toPublicUser = (user) => {
   if (!user) return user;
@@ -25,6 +24,14 @@ const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
 }).required();
+
+const accessCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/',
+  maxAge: 8 * 60 * 60 * 1000,
+});
 
 
 const AuthController = {
@@ -79,6 +86,7 @@ const AuthController = {
       }
       const { email, password } = value;
       const { token, user } = await AuthService.login({ email, password });
+      res.cookie('itsm_access_token', token, accessCookieOptions());
       
       // Log user login activity
       const ipAddress = req.ip || req.connection.remoteAddress || 'UNKNOWN';
@@ -92,7 +100,9 @@ const AuthController = {
         console.error('Failed to log login activity:', logErr);
       }
       
-      res.json({ status: 'success', token, user: toPublicUser(user) });
+      // Do not expose the access token to browser JavaScript. The HttpOnly
+      // cookie is forwarded by the same-origin frontend proxy.
+      res.json({ status: 'success', user: toPublicUser(user) });
     } catch (err) {
       next(err);
     }
@@ -120,6 +130,7 @@ const AuthController = {
         }
       }
       
+      res.clearCookie('itsm_access_token', { ...accessCookieOptions(), maxAge: undefined });
       res.json({
         status: 'success',
         message: 'Logout successful'

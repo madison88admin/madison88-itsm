@@ -1,17 +1,13 @@
 import React from "react";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import KanbanCard from "./KanbanCard";
+import { TICKET_STATUSES, normalizeTicketStatus } from "../../constants/ticket-status";
 
-const COLUMNS = [
-    { id: "New", title: "New" },
-    { id: "In Progress", title: "In Progress" },
-    { id: "Pending", title: "Pending" },
-    { id: "Resolved", title: "Resolved" }
-];
+const COLUMNS = TICKET_STATUSES.map((status) => ({ id: status, title: status }));
 
 const KanbanBoard = ({ tickets, onDragEnd, user, canClaimTickets, onClaimTicket }) => {
     const getTicketsByStatus = (status) => {
-        return tickets.filter(t => t.status === status);
+        return tickets.filter(t => normalizeTicketStatus(t.status) === status);
     };
 
     return (

@@ -1,17 +1,20 @@
 import axios from "axios";
+import { clearAuthToken, getAuthToken } from "./session";
 
-// This project builds with Create React App, so REACT_APP_* is the reliable
-// production variable. Keep VITE_API_URL as a compatibility option.
-const API_HOST = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL || '';
+// This project builds with Create React App. Use the Netlify /api proxy in
+// production by leaving REACT_APP_API_URL empty; direct HTTP IPs must not be
+// used from an HTTPS deployment.
+const API_HOST = process.env.REACT_APP_API_URL || '';
 const API_BASE = API_HOST ? `${API_HOST.replace(/\/$/, '')}/api` : '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: Number(import.meta.env?.VITE_API_TIMEOUT) || Number(process.env.REACT_APP_API_TIMEOUT) || 30000,
+  withCredentials: true,
+  timeout: Number(process.env.REACT_APP_API_TIMEOUT) || 30000,
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,7 +30,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Log resolved API base to aid debugging when deployments forget to set VITE_API_URL
+// Log resolved API base during local development so missing CRA configuration is visible.
 if (process.env.NODE_ENV !== 'production') {
   console.info('[apiClient] API_BASE resolved to:', API_BASE);
 }
@@ -35,9 +38,13 @@ if (process.env.NODE_ENV !== 'production') {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (!error.response) {
+      error.message = error.code === "ECONNABORTED"
+        ? "The request timed out. Please try again."
+        : "Unable to reach the ITSM service. Check your connection and try again.";
+    }
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearAuthToken();
       // Use window.location as we are outside of React routing context here
       if (!window.location.pathname.includes('/login')) {
         window.location.href = "/login?msg=Session+expired";

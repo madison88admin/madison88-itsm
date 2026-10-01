@@ -1,30 +1,31 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import React, { lazy, Suspense, useEffect, useRef, useState, useCallback } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import apiClient from "./api/client";
+import { clearAuthToken, setAuthToken } from "./api/session";
 import { getSocket } from "./api/socket";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Layouts & Pages
 import MainLayout from "./components/layout/MainLayout";
 import TicketsLayout from "./components/layout/TicketsLayout";
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
-import NewTicketPage from "./pages/NewTicketPage";
-import KnowledgeBasePage from "./pages/KnowledgeBasePage";
-import KnowledgeBaseEditor from "./pages/KnowledgeBaseEditor";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import ResetPasswordPage from "./pages/ResetPassword";
-import AdminSlaPage from "./pages/AdminSlaPage";
-import ChangeManagementPage from "./pages/ChangeManagementPage";
-import AssetsPage from "./pages/AssetsPage";
-import AdvancedReportingPage from "./pages/AdvancedReportingPage";
-import TicketTemplatesPage from "./pages/TicketTemplatesPage";
-import UserDashboard from "./pages/dashboards/UserDashboard";
-import AgentDashboard from "./pages/dashboards/AgentDashboard";
-import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
-import AdminDashboard from "./pages/dashboards/AdminDashboard";
-import KanbanPage from "./pages/KanbanPage";
-import ProfilePage from "./pages/ProfilePage";
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const SignupPage = lazy(() => import("./pages/SignupPage"));
+const NewTicketPage = lazy(() => import("./pages/NewTicketPage"));
+const KnowledgeBasePage = lazy(() => import("./pages/KnowledgeBasePage"));
+const KnowledgeBaseEditor = lazy(() => import("./pages/KnowledgeBaseEditor"));
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
+const AdminSlaPage = lazy(() => import("./pages/AdminSlaPage"));
+const ChangeManagementPage = lazy(() => import("./pages/ChangeManagementPage"));
+const AssetsPage = lazy(() => import("./pages/AssetsPage"));
+const AdvancedReportingPage = lazy(() => import("./pages/AdvancedReportingPage"));
+const TicketTemplatesPage = lazy(() => import("./pages/TicketTemplatesPage"));
+const UserDashboard = lazy(() => import("./pages/dashboards/UserDashboard"));
+const AgentDashboard = lazy(() => import("./pages/dashboards/AgentDashboard"));
+const ManagerDashboard = lazy(() => import("./pages/dashboards/ManagerDashboard"));
+const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
+const KanbanPage = lazy(() => import("./pages/KanbanPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const defaultNotificationPrefs = {
   ticket_updates_enabled: true,
@@ -67,36 +68,18 @@ function App() {
   );
   const recentNotificationRef = useRef(new Map());
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Load user and verify session on mount
   useEffect(() => {
     const initAuth = async () => {
-      const storedUser = localStorage.getItem("user");
-      const storedToken = localStorage.getItem("token");
-
-      if (storedToken) {
-        try {
-          // Verify token and get fresh user data
-          apiClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
-          const res = await apiClient.get("/auth/me");
-          const freshUser = res.data.user;
-          setUser(freshUser);
-          localStorage.setItem("user", JSON.stringify(freshUser));
-        } catch (err) {
-          console.error("Session verification failed:", err);
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
-          delete apiClient.defaults.headers.common["Authorization"];
-          setUser(null);
-        }
-      } else if (storedUser) {
-        // Fallback if token is missing but user is there (shouldn't happen with clean logic but for safety)
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          localStorage.removeItem("user");
-        }
+      try {
+        // The HttpOnly cookie is the source of truth. Never trust a cached user
+        // object without a server-verified session.
+        const res = await apiClient.get("/auth/me");
+        setUser(res.data.user);
+      } catch (err) {
+        clearAuthToken();
+        setUser(null);
       }
       setLoadingUser(false);
     };
@@ -106,21 +89,17 @@ function App() {
 
   const handleLogin = (jwt, userInfo) => {
     setUser(userInfo);
-    localStorage.setItem("token", jwt);
-    localStorage.setItem("user", JSON.stringify(userInfo));
-    apiClient.defaults.headers.common["Authorization"] = `Bearer ${jwt}`;
+    setAuthToken(jwt);
     navigate('/');
   };
 
   const handleLogout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    delete apiClient.defaults.headers.common["Authorization"];
-    navigate('/login');
+    clearAuthToken();
+    apiClient.post("/auth/logout").catch(() => null).finally(() => navigate('/login'));
   }, [navigate]);
 
-  const shouldNotify = (ticket, statusValue) => {
+  const shouldNotify = useCallback((ticket, statusValue) => {
     const key = `${ticket.ticket_id}-${statusValue}`;
     const now = Date.now();
     const last = recentNotificationRef.current.get(key);
@@ -132,17 +111,17 @@ function App() {
       recentNotificationRef.current.clear();
     }
     return true;
-  };
+  }, []);
 
-  const pushToast = (notification) => {
+  const pushToast = useCallback((notification) => {
     if (isNowInQuietHours(notificationPrefs)) return;
     setToasts((prev) => [...prev, notification]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== notification.id));
     }, 5000);
-  };
+  }, [notificationPrefs]);
 
-  const mapNotification = (item) => ({
+  const mapNotification = useCallback((item) => ({
     id: item.notification_id,
     ticketId: item.ticket_id,
     ticketNumber: item.ticket_number,
@@ -151,9 +130,9 @@ function App() {
     type: item.type,
     createdAt: item.created_at,
     read: item.is_read,
-  });
+  }), []);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await apiClient.get("/notifications");
       const rows = res.data.data.notifications || [];
@@ -166,27 +145,27 @@ function App() {
     } catch (err) {
       // Silent fail
     }
-  };
+  }, [mapNotification, notificationPrefs.broadcast_enabled, notificationPrefs.ticket_updates_enabled]);
 
-  const fetchNotificationPreferences = async () => {
+  const fetchNotificationPreferences = useCallback(async () => {
     try {
       const res = await apiClient.get("/notifications/preferences");
       setNotificationPrefs({ ...defaultNotificationPrefs, ...(res.data?.data?.preferences || {}) });
     } catch (err) {
       setNotificationPrefs(defaultNotificationPrefs);
     }
-  };
+  }, []);
 
-  const isAssignedToUser = (ticket, currentUser) => {
+  const isAssignedToUser = useCallback((ticket, currentUser) => {
     if (!currentUser?.user_id) return false;
     if (currentUser.role === "end_user") {
       return `${ticket?.user_id}` === `${currentUser.user_id}`;
     }
     if (!ticket?.assigned_to) return false;
     return `${ticket.assigned_to}` === `${currentUser.user_id}`;
-  };
+  }, []);
 
-  const addResolvedNotification = (ticket) => {
+  const addResolvedNotification = useCallback((ticket) => {
     if (!ticket) return;
     if (!isAssignedToUser(ticket, user)) return;
     const statusValue = ticket.status || "Resolved";
@@ -213,12 +192,12 @@ function App() {
         body: `${notification.ticketNumber || "Ticket"}: ${notification.title}`,
       });
     }
-  };
+  }, [fetchNotifications, isAssignedToUser, notificationPrefs, pushToast, shouldNotify, user]);
 
-  const handleResolvedTickets = (resolvedTickets) => {
+  const handleResolvedTickets = useCallback((resolvedTickets) => {
     if (!Array.isArray(resolvedTickets)) return;
     resolvedTickets.forEach((ticket) => addResolvedNotification(ticket));
-  };
+  }, [addResolvedNotification]);
 
   const handleNotificationToggle = () => {
     setIsNotificationsOpen((prev) => {
@@ -275,12 +254,12 @@ function App() {
       fetchNotifications();
     }, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [fetchNotificationPreferences, fetchNotifications, user]);
 
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
-  }, [user, notificationPrefs.ticket_updates_enabled, notificationPrefs.broadcast_enabled]);
+  }, [fetchNotifications, notificationPrefs.ticket_updates_enabled, notificationPrefs.broadcast_enabled, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -303,8 +282,8 @@ function App() {
         ticketId: ticket.ticket_id,
         ticketNumber: ticket.ticket_number,
         title: ticket.title,
-        message: 'Ticket has been reopened',
-        type: 'ticket_reopened',
+        message: 'Ticket moved back to In Progress',
+        type: 'ticket_updated',
         createdAt: new Date().toISOString(),
         read: false,
       };
@@ -316,7 +295,7 @@ function App() {
         typeof Notification !== 'undefined' &&
         Notification.permission === 'granted'
       ) {
-        new Notification('Ticket Reopened', {
+        new Notification('Ticket updated', {
           body: `${ticket.ticket_number || 'Ticket'}: ${ticket.title}`,
           icon: '/favicon.ico',
         });
@@ -327,7 +306,7 @@ function App() {
     return () => {
       socket.off('ticket-reopened', handleTicketReopened);
     };
-  }, [user]);
+  }, [fetchNotifications, notificationPrefs, pushToast, user]);
 
   if (loadingUser) {
     return (
@@ -339,7 +318,8 @@ function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
+      <Suspense fallback={<div className="loading-screen"><div className="loader"></div><p>Loading Madison88 ITSM...</p></div>}>
       <Routes>
         <Route
           path="/login"
@@ -414,7 +394,7 @@ function App() {
 
           <Route path="/knowledge-base" element={<KnowledgeBasePage user={user} />} />
           <Route path="/kb-editor" element={<KnowledgeBaseEditor />} />
-          <Route path="/advanced-reporting" element={<AdvancedReportingPage />} />
+          <Route path="/advanced-reporting" element={<AdvancedReportingPage user={user} />} />
           <Route path="/ticket-templates" element={<TicketTemplatesPage />} />
           <Route path="/change-management" element={<ChangeManagementPage user={user} />} />
           <Route path="/asset-tracking" element={<AssetsPage user={user} />} />
@@ -423,12 +403,12 @@ function App() {
           <Route path="/kanban" element={<KanbanPage user={user} />} />
           <Route path="/profile" element={<ProfilePage user={user} onUserUpdate={(updated) => {
             setUser(updated);
-            localStorage.setItem("user", JSON.stringify(updated));
           }} />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </Suspense>
 
       {toasts.length > 0 && (
         <div className="toast-stack" aria-live="polite">
@@ -442,7 +422,7 @@ function App() {
           ))}
         </div>
       )}
-    </>
+    </ErrorBoundary>
   );
 }
 

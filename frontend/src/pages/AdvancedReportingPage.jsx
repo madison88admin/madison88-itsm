@@ -23,7 +23,7 @@ ChartJS.register(
   Legend,
 );
 
-const AdvancedReportingPage = () => {
+const AdvancedReportingPage = ({ user }) => {
   const [summary, setSummary] = useState({
     mttr_hours: 0,
     mtta_hours: 0,
@@ -60,14 +60,7 @@ const AdvancedReportingPage = () => {
   const [exportAction, setExportAction] = useState("");
   const [exporting, setExporting] = useState(false);
 
-  const currentUser = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      return raw ? JSON.parse(raw) : null;
-    } catch (err) {
-      return null;
-    }
-  }, []);
+  const currentUser = user;
 
   const canExportAudit = ["it_manager", "system_admin"].includes(
     currentUser?.role,
@@ -200,10 +193,8 @@ const AdvancedReportingPage = () => {
     () => [
       { key: "new_count", label: "New", color: "47, 215, 255" },
       { key: "in_progress_count", label: "In Progress", color: "43, 107, 255" },
-      { key: "pending_count", label: "Pending", color: "255, 181, 71" },
       { key: "resolved_count", label: "Resolved", color: "55, 217, 150" },
       { key: "closed_count", label: "Closed", color: "139, 151, 186" },
-      { key: "reopened_count", label: "Reopened", color: "255, 93, 108" },
     ],
     [],
   );
@@ -212,7 +203,9 @@ const AdvancedReportingPage = () => {
     let max = 0;
     agentStatusMatrix.forEach((row) => {
       statusKeys.forEach((status) => {
-        const value = row[status.key] || 0;
+        const value = status.key === "in_progress_count"
+          ? (row.in_progress_count || 0) + (row.pending_count || 0) + (row.reopened_count || 0)
+          : (row[status.key] || 0);
         if (value > max) max = value;
       });
     });
@@ -572,7 +565,9 @@ const AdvancedReportingPage = () => {
                     {row.full_name || "Agent"}
                   </span>
                   {statusKeys.map((status) => {
-                    const value = row[status.key] || 0;
+                    const value = status.key === "in_progress_count"
+                      ? (row.in_progress_count || 0) + (row.pending_count || 0) + (row.reopened_count || 0)
+                      : (row[status.key] || 0);
                     const intensity = maxHeatCount
                       ? Math.max(0.12, (value / maxHeatCount) * 0.7)
                       : 0.12;

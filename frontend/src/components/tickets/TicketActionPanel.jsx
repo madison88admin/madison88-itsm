@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import apiClient from "../../api/client";
 import GlassyModal from "./GlassyModal";
+import { sanitizeHtml } from "../../utils/sanitize";
+import { normalizeTicketStatus } from "../../constants/ticket-status";
+
+const LOCATION_TIMEZONES = {
+    Philippines: "Asia/Manila",
+    Indonesia: "Asia/Jakarta",
+    China: "Asia/Shanghai",
+    US: "America/New_York",
+    Default: "UTC",
+};
 
 const TicketActionPanel = ({ ticket, user, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -23,14 +33,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
     const [localTime, setLocalTime] = useState("");
     const [selectedPriority, setSelectedPriority] = useState(ticket?.priority || "P3");
     const [priorityReason, setPriorityReason] = useState("");
-
-    const LOCATION_TIMEZONES = {
-        'Philippines': 'Asia/Manila',
-        'Indonesia': 'Asia/Jakarta',
-        'China': 'Asia/Shanghai',
-        'US': 'America/New_York',
-        'Default': 'UTC'
-    };
+    const currentStatus = normalizeTicketStatus(ticket?.status);
 
     React.useEffect(() => {
         const timer = setInterval(() => {
@@ -109,7 +112,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
 
     const handleAssignSubmit = async () => {
         if (!selectedStaff) return;
-        await handleStatusChange(ticket.status, 'Reassigned by management', { assigned_to: selectedStaff });
+        await handleStatusChange(currentStatus, 'Reassigned by management', { assigned_to: selectedStaff });
     };
 
     const handleStatusChange = async (newStatus, reason = null, additionalData = {}) => {
@@ -179,7 +182,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
     };
 
     const handleOpenCloseModal = () => {
-        if (ticket.status === 'Resolved') {
+        if (currentStatus === 'Resolved') {
             setResolutionForm({
                 category: ticket.resolution_category || "Software",
                 root_cause: ticket.root_cause || "",
@@ -302,7 +305,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                         <span>Category: {selectedArticle?.category}</span>
                         <span>Views: {selectedArticle?.views || 0}</span>
                     </div>
-                    <div className="kb-content-html" dangerouslySetInnerHTML={{ __html: selectedArticle?.content }} />
+                    <div className="kb-content-html" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedArticle?.content) }} />
                 </div>
             </GlassyModal>
 
@@ -409,22 +412,17 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                         <div className="action-group">
                             <label>WORKFLOW</label>
                             <div className="action-buttons-grid">
-                                {ticket.status === 'New' && (
+                                {currentStatus === 'New' && (
                                     <button onClick={() => setActiveModal('ownership')} disabled={loading} className="btn-action primary">
                                         TAKE OWNERSHIP
                                     </button>
                                 )}
-                                {['In Progress', 'Reopened'].includes(ticket.status) && (
-                                    <button onClick={() => handleStatusChange('Pending', 'Waiting for user')} disabled={loading} className="btn-action warning">
-                                        MARK PENDING
-                                    </button>
-                                )}
-                                {['In Progress', 'Pending', 'Reopened'].includes(ticket.status) && (
+                                {currentStatus === 'In Progress' && (
                                     <button onClick={() => setActiveModal('resolve')} disabled={loading} className="btn-action success">
                                         RESOLVE TICKET
                                     </button>
                                 )}
-                                {ticket.status === 'Resolved' && (
+                                {currentStatus === 'Resolved' && (
                                     <button onClick={handleOpenCloseModal} disabled={loading} className="btn-action neutral">
                                         CLOSE TICKET
                                     </button>
@@ -498,10 +496,10 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
                         {!searchingKb && kbResults.length === 0 && !kbQuery && <div className="empty-text">Search for articles or guides...</div>}
 
                         {kbResults.map(article => (
-                            <div key={article.article_id} className="kb-result-item" onClick={() => openArticle(article.article_id)}>
-                                <a>{article.title}</a>
+                            <button type="button" key={article.article_id} className="kb-result-item" onClick={() => openArticle(article.article_id)}>
+                                <span>{article.title}</span>
                                 <div className="meta">Click to view article</div>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -716,6 +714,10 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             background: rgba(255,255,255,0.02);
             border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.05);
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
             transition: all 0.2s;
         }
         .kb-result-item:hover {
@@ -723,7 +725,7 @@ const TicketActionPanel = ({ ticket, user, onUpdate }) => {
             border-color: rgba(255,255,255,0.1);
             transform: translateX(4px);
         }
-        .kb-result-item a {
+        .kb-result-item > span {
             color: #3b82f6;
             text-decoration: none;
             font-size: 0.9rem;

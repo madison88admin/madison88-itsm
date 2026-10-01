@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation, Navigate, Outlet } from "react-router-dom";
 import brandLogo from "../../assets/Madison-88-Logo-250.png";
-import apiClient from "../../api/client";
 import ITPulseTicker from "./ITPulseTicker";
 
 const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNotificationToggle, isNotificationsOpen, onRequestBrowserPermission, browserPermission, onNotificationClick }) => {
@@ -25,18 +24,8 @@ const MainLayout = ({ user, notifications = [], unreadCount = 0, onLogout, onNot
         ...(user?.role === "end_user" ? [{ path: "/new-ticket", label: "New Ticket" }] : []),
         { path: "/knowledge-base", label: "Knowledge Base" },
         ...(isManager || isAdmin ? [{ path: "/kb-editor", label: "KB Editor" }] : []),
-        ...(isManager || isAdmin
-            ? [{ path: "/advanced-reporting", label: "Advanced Reporting" }]
-            : []),
-        ...(isManager || isAdmin
-            ? [{ path: "/ticket-templates", label: "Ticket Templates" }]
-            : []),
-        ...(isManager || isAdmin
-            ? [{ path: "/change-management", label: "Change Management" }]
-            : []),
-        ...(isAgent || isManager || isAdmin
-            ? [{ path: "/asset-tracking", label: "Asset Tracking" }]
-            : []),
+        // Temporarily hidden from the sidebar while the modules are being finalized.
+        // Their routes remain available for controlled/direct access.
         ...(isAdmin ? [{ path: "/admin-users", label: "User Management" }] : []),
         ...(isAdmin ? [{ path: "/sla-standards", label: "SLA Standards" }] : []),
     ];

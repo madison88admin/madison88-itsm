@@ -1,18 +1,17 @@
 import { io } from "socket.io-client";
 
-// Socket.IO needs a direct connection - Netlify cant forward WebSocket upgrades.
-// In production, VITE_SOCKET_URL should point to the VPS domain (e.g. https://itsm-ws.madison88.com)
-// If not set, fall back to the API URL with polling-only transport.
+// Socket.IO needs a direct connection. Set REACT_APP_SOCKET_URL to the HTTPS
+// VPS/tunnel endpoint in production; otherwise it uses the current origin.
 const socketUrl =
   process.env.REACT_APP_SOCKET_URL ||
-  import.meta.env?.VITE_SOCKET_URL ||
-  'https://api.madison88.com';
+  (process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '') ||
+  '';
 
 // Cloudflare tunnel supports WebSocket upgrades, so we can always use websocket transport
 const transports = ['websocket', 'polling'];
 
 // Debug log (only in development)
-if (import.meta.env?.MODE === 'development') {
+if (process.env.NODE_ENV === 'development') {
   console.log('[Socket] Connecting to:', socketUrl, 'transports:', transports);
 }
 
@@ -31,7 +30,7 @@ export function getSocket() {
     });
 
     // Connection event logs (dev only)
-    if (import.meta.env?.MODE === 'development') {
+    if (process.env.NODE_ENV === 'development') {
       socket.on('connect', () => console.log('[Socket] Connected:', socket.id));
       socket.on('disconnect', () => console.log('[Socket] Disconnected'));
       socket.on('connect_error', (err) => console.error('[Socket] Error:', err.message));

@@ -57,6 +57,24 @@ describe('authentication and authorization behavior', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  test('authenticates an active user from the HttpOnly session cookie', async () => {
+    const userId = '123e4567-e89b-12d3-a456-426614174000';
+    const token = jwt.sign({ user_id: userId }, process.env.JWT_SECRET || 'changeme');
+    const user = { user_id: userId, role: 'end_user', is_active: true };
+    UserModel.findById.mockResolvedValue(user);
+    const req = {
+      headers: { cookie: `itsm_access_token=${encodeURIComponent(token)}` },
+      query: {},
+    };
+    const res = response();
+    const next = jest.fn();
+
+    await authenticate(req, res, next);
+
+    expect(req.user).toEqual(user);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   test('allows system admins through every role guard', () => {
     const req = { user: { role: 'system_admin' } };
     const res = response();

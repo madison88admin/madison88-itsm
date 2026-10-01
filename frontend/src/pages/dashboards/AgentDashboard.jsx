@@ -1,51 +1,47 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../api/client";
+import { onDashboardRefresh } from "../../api/socket";
 import { Link } from "react-router-dom";
+import { normalizeTicketStatus } from "../../constants/ticket-status";
+import { useQuery, useQueryClient } from "react-query";
 
 const SLA_ALERT_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 const AgentDashboard = ({ user }) => {
-  const [stats, setStats] = useState(null);
-  const [myTickets, setMyTickets] = useState([]);
-  const [teamTickets, setTeamTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [teamPulse, setTeamPulse] = useState([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState("all");
   const [nowMs, setNowMs] = useState(Date.now());
+  const queryClient = useQueryClient();
+
+  const { data: dashboard = {}, isLoading: loading } = useQuery(
+    ["agent-dashboard"],
+    async () => {
+      const [statsRes, ticketsRes, pulseRes] = await Promise.all([
+        apiClient.get("/dashboard/agent-stats"),
+        apiClient.get("/tickets?assigned_to=me&status=New,In Progress&limit=10"),
+        apiClient.get("/dashboard/pulse"),
+      ]);
+      let teamTickets = [];
+      try {
+        const teamRes = await apiClient.get("/tickets?status=New,In Progress&limit=100");
+        teamTickets = teamRes?.data?.data?.tickets || [];
+      } catch (err) {
+        // The agent dashboard can still render if the team queue is unavailable.
+      }
+      return {
+        stats: statsRes.data.data,
+        myTickets: (ticketsRes.data.data.tickets || []).map((ticket) => ({ ...ticket, status: normalizeTicketStatus(ticket.status) })),
+        teamPulse: pulseRes.data.data.events || [],
+        teamTickets: teamTickets.map((ticket) => ({ ...ticket, status: normalizeTicketStatus(ticket.status) })),
+      };
+    },
+    { refetchInterval: 30000 },
+  );
+  const { stats = null, myTickets = [], teamTickets = [], teamPulse = [] } = dashboard;
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [statsRes, ticketsRes, pulseRes] = await Promise.all([
-          apiClient.get("/dashboard/agent-stats"),
-          apiClient.get("/tickets?assigned_to=me&status=New,In Progress,Pending&limit=10"),
-          apiClient.get("/dashboard/pulse")
-        ]);
-
-        let teamRes = null;
-        try {
-          teamRes = await apiClient.get("/tickets?status=New,In Progress,Pending&limit=100");
-        } catch (e) {
-          teamRes = null;
-        }
-
-        setStats(statsRes.data.data);
-        setMyTickets(ticketsRes.data.data.tickets || []);
-        setTeamPulse(pulseRes.data.data.events || []);
-        setTeamTickets(teamRes?.data?.data?.tickets || []);
-      } catch (err) {
-        console.error("Failed to load agent dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-    // Refresh every 30s
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    const unsubscribe = onDashboardRefresh(() => queryClient.invalidateQueries(["agent-dashboard"]));
+    return unsubscribe;
+  }, [queryClient]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 30000);
@@ -82,7 +78,7 @@ const AgentDashboard = ({ user }) => {
     return { text, color, isBreached: false };
   };
 
-  const isPendingLike = (status = "") => String(status).toLowerCase().includes("pending");
+  const isInProgress = (status = "") => normalizeTicketStatus(status) === "In Progress";
   const isP1P2 = (priority = "") => ["P1", "P2"].includes(String(priority).toUpperCase());
   const isNearBreach = (ticket) => {
     if (!ticket?.sla_due_date || ticket?.sla_breached) return false;
@@ -91,8 +87,8 @@ const AgentDashboard = ({ user }) => {
     const remaining = dueMs - nowMs;
     return remaining > 0 && remaining <= SLA_ALERT_WINDOW_MS;
   };
-  const isPendingOver24h = (ticket) => {
-    if (!isPendingLike(ticket?.status)) return false;
+  const isInProgressOver24h = (ticket) => {
+    if (!isInProgress(ticket?.status)) return false;
     const base = ticket?.updated_at || ticket?.created_at;
     if (!base) return false;
     const ageMs = nowMs - new Date(base).getTime();
@@ -104,25 +100,25 @@ const AgentDashboard = ({ user }) => {
       key: "at_risk",
       label: "At Risk SLA",
       value: myTickets.filter((t) => t?.sla_breached || isNearBreach(t)).length,
-      to: "/tickets?status=New,In%20Progress,Pending&quick_filter=at_risk",
+      to: "/tickets?status=New,In%20Progress&quick_filter=at_risk",
     },
     {
-      key: "waiting_user",
-      label: "Waiting on User",
-      value: myTickets.filter((t) => isPendingLike(t?.status)).length,
-      to: "/tickets?status=Pending&quick_filter=pending",
+      key: "in_progress",
+      label: "In Progress",
+      value: myTickets.filter((t) => isInProgress(t?.status)).length,
+      to: "/tickets?status=In%20Progress&quick_filter=in_progress",
     },
     {
       key: "unassigned_high",
       label: "Unassigned P1/P2",
       value: teamTickets.filter((t) => !t?.assigned_to && isP1P2(t?.priority)).length,
-      to: "/team-queue?assignment=unassigned&status=New,In%20Progress,Pending&priority=P1,P2",
+      to: "/team-queue?assignment=unassigned&status=New,In%20Progress&priority=P1,P2",
     },
     {
       key: "due_2h",
       label: "Due in 2h",
       value: myTickets.filter((t) => isNearBreach(t)).length,
-      to: "/tickets?status=New,In%20Progress,Pending&quick_filter=due_2h",
+      to: "/tickets?status=New,In%20Progress&quick_filter=due_2h",
     },
   ];
 
@@ -130,7 +126,7 @@ const AgentDashboard = ({ user }) => {
     if (activeQuickFilter === "all") return true;
     if (activeQuickFilter === "my") return true;
     if (activeQuickFilter === "p1p2") return isP1P2(ticket.priority);
-    if (activeQuickFilter === "pending24") return isPendingOver24h(ticket);
+    if (activeQuickFilter === "inProgress24") return isInProgressOver24h(ticket);
     if (activeQuickFilter === "nearBreach") return isNearBreach(ticket);
     return true;
   });
@@ -196,7 +192,7 @@ const AgentDashboard = ({ user }) => {
             {[
               { key: "all", label: "All" },
               { key: "p1p2", label: "P1/P2" },
-              { key: "pending24", label: "Pending >24h" },
+              { key: "inProgress24", label: "In Progress >24h" },
               { key: "nearBreach", label: "Near Breach" },
             ].map((filter) => (
               <button

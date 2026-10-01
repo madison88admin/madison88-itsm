@@ -19,7 +19,8 @@ exports.handler = async (event) => {
 
   const query = new URLSearchParams(event.queryStringParameters || {});
   query.delete('path');
-  const target = `${backend}/api/${apiPath}${query.toString() ? `?${query}` : ''}`;
+  const isUpload = apiPath.startsWith('uploads/');
+  const target = `${backend}${isUpload ? '' : '/api'}/${apiPath}${query.toString() ? `?${query}` : ''}`;
 
   console.log('[proxy-api]', { method: event.httpMethod, rawPath: event.path, apiPath, target });
 

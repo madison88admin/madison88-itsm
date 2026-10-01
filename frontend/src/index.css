@@ -2832,6 +2832,13 @@ textarea {
   text-decoration: underline;
 }
 
+.terms-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+}
+
 .password-field {
   position: relative;
   display: flex;
@@ -3292,18 +3299,6 @@ textarea {
   background: var(--blue-500);
   border-radius: 0 0 4px 4px;
   box-shadow: 0 0 10px var(--blue-500);
-}
-
-.kanban-column[data-status="Pending"]::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 24px;
-  right: 24px;
-  height: 3px;
-  background: var(--warning);
-  border-radius: 0 0 4px 4px;
-  box-shadow: 0 0 10px var(--warning);
 }
 
 .kanban-column[data-status="Resolved"]::before {

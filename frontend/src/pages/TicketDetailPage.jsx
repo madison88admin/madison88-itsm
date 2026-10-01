@@ -5,26 +5,15 @@ import { joinTicket, leaveTicket, onPresenceUpdate } from "../api/socket";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import GlassyTicketLayout from "../components/tickets/GlassyTicketLayout";
-import { stripHtml } from "../utils/validation";
-
-const statusOptions = [
-  "New",
-  "In Progress",
-  "Pending",
-  "Resolved",
-  "Closed",
-  "Reopened",
-];
+import { normalizeTicketStatus } from "../constants/ticket-status";
 
 const priorityOptions = ["P1", "P2", "P3", "P4"];
-const AUTO_CLOSE_INTERVAL_MINUTES = Number(import.meta.env.VITE_AUTO_CLOSE_INTERVAL_MINUTES || 60);
+const AUTO_CLOSE_INTERVAL_MINUTES = Number(process.env.REACT_APP_AUTO_CLOSE_INTERVAL_MINUTES || 60);
 const STATUS_LABELS = {
   New: "Submitted",
   "In Progress": "Being worked on",
-  Pending: "Waiting on you/3rd party",
   Resolved: "Resolved",
   Closed: "Closed",
-  Reopened: "Being worked on",
 };
 const MOBILE_QUICK_COMMENT_PRESETS = [
   "Still experiencing the same issue.",
@@ -32,6 +21,10 @@ const MOBILE_QUICK_COMMENT_PRESETS = [
   "Please prioritize, this is blocking my work.",
   "Added screenshot and extra details.",
 ];
+
+const normalizeTicketPayload = (ticketData) => ticketData
+  ? { ...ticketData, status: normalizeTicketStatus(ticketData.status) }
+  : ticketData;
 
 const TicketDetailPage = ({
   ticketId,
@@ -56,8 +49,6 @@ const TicketDetailPage = ({
   const [priority, setPriority] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [priorityOverrideReason, setPriorityOverrideReason] = useState("");
-  const [priorityRequestPriority, setPriorityRequestPriority] = useState("P3");
-  const [priorityRequestReason, setPriorityRequestReason] = useState("");
   const [priorityRequests, setPriorityRequests] = useState([]);
   const [statusHistory, setStatusHistory] = useState([]);
   const [resolutionSummary, setResolutionSummary] = useState("");
@@ -96,7 +87,6 @@ const TicketDetailPage = ({
   const canAssign = isManager || isAdmin;
   const isAssignedToUser = ticket?.assigned_to && ticket.assigned_to === user?.user_id;
   // Allow assigned IT agent, manager, or admin to edit priority
-  const canOverridePriority = isAdmin || (isAssignedToUser && user?.role === "it_agent") || isManager;
   const canComment = isEndUser ? ticket?.user_id === user?.user_id : isAssignedToUser;
   const canEscalate = isAdmin || isManager || !!isAssignedToUser;
   const canSeePermanentDelete = isAdmin;
@@ -108,7 +98,6 @@ const TicketDetailPage = ({
   const progressStages = [
     { key: "New", label: "Submitted" },
     { key: "In Progress", label: "Being worked on" },
-    { key: "Pending", label: "Waiting on you/3rd party" },
     { key: "Resolved", label: "Resolved" },
     { key: "Closed", label: "Closed" },
   ];
@@ -167,7 +156,7 @@ const TicketDetailPage = ({
     return () => clearInterval(intervalId);
   }, [ticket]);
 
-  const currentProgressStatus = ticket?.status === "Reopened" ? "In Progress" : ticket?.status;
+  const currentProgressStatus = normalizeTicketStatus(ticket?.status);
   const currentProgressIndex = Math.max(
     0,
     progressStages.findIndex((stage) => stage.key === currentProgressStatus)
@@ -228,15 +217,14 @@ const TicketDetailPage = ({
           }
         }
         const payload = ticketRes.data.data;
-        setTicket(payload.ticket);
+        setTicket(normalizeTicketPayload(payload.ticket));
         setComments(payload.comments || []);
         setAttachments(payload.attachments || []);
         setAssets(payload.assets || []);
-        setStatus(payload.ticket?.status || "");
+        setStatus(normalizeTicketStatus(payload.ticket?.status || ""));
         setPriority(payload.ticket?.priority || "");
         setAssignedTo(payload.ticket?.assigned_to || "");
         setPriorityOverrideReason("");
-        setPriorityRequestPriority(payload.ticket?.priority || "P3");
         setEditTitle(payload.ticket?.title || "");
         setEditDescription(payload.ticket?.description || "");
         setEditImpact(payload.ticket?.business_impact || "");
@@ -273,7 +261,7 @@ const TicketDetailPage = ({
       leaveTicket(ticketId);
       unsubscribePresence();
     };
-  }, [ticketId, canSeeAudit, user]);
+  }, [ticketId, canSeeAudit, isAdmin, isManager, user]);
 
   useEffect(() => {
     if (!isEndUser) return;
@@ -454,8 +442,8 @@ const TicketDetailPage = ({
         await apiClient.post(`/tickets/${ticketId}/attachments`, formData);
       }
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
-      setTicket(ticketRes.data.data.ticket);
-      setStatus(ticketRes.data.data.ticket?.status || "");
+      setTicket(normalizeTicketPayload(ticketRes.data.data.ticket));
+      setStatus(normalizeTicketStatus(ticketRes.data.data.ticket?.status || ""));
       setPriority(ticketRes.data.data.ticket?.priority || "");
       setAssignedTo(ticketRes.data.data.ticket?.assigned_to || "");
       setPriorityOverrideReason("");
@@ -474,7 +462,7 @@ const TicketDetailPage = ({
       );
       setStatusHistory(historyRes.data.data.history || []);
       if (isResolving && onResolved) {
-        onResolved({ ...ticketRes.data.data.ticket, status: nextStatus });
+        onResolved({ ...normalizeTicketPayload(ticketRes.data.data.ticket), status: normalizeTicketStatus(nextStatus) });
       }
       if (onUpdated) onUpdated();
     } catch (err) {
@@ -515,37 +503,6 @@ const TicketDetailPage = ({
     }
   };
 
-  const handlePriorityOverrideRequest = async () => {
-    if (!priorityRequestReason.trim()) {
-      setError("Priority override reason required");
-      return;
-    }
-    if (!hasMinLength(priorityRequestReason, 5)) {
-      setError("Priority override reason must be at least 5 characters.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await apiClient.post(`/tickets/${ticketId}/priority-override-requests`, {
-        requested_priority: priorityRequestPriority,
-        reason: priorityRequestReason.trim(),
-      });
-      setNotice("Priority override request submitted");
-      setPriorityRequestReason("");
-      const res = await apiClient.get(
-        `/tickets/${ticketId}/priority-override-requests`,
-      );
-      setPriorityRequests(res.data.data.requests || []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to request priority override",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handlePriorityOverrideReview = async (requestId, statusValue) => {
     setSaving(true);
     setError("");
@@ -559,7 +516,7 @@ const TicketDetailPage = ({
       );
       setPriorityRequests(res.data.data.requests || []);
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
-      setTicket(ticketRes.data.data.ticket);
+      setTicket(normalizeTicketPayload(ticketRes.data.data.ticket));
     } catch (err) {
       setError(
         err.response?.data?.message || "Failed to review priority override",
@@ -601,7 +558,7 @@ const TicketDetailPage = ({
     try {
       await apiClient.patch(`/tickets/${ticketId}`, payload);
       const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
-      setTicket(ticketRes.data.data.ticket);
+      setTicket(normalizeTicketPayload(ticketRes.data.data.ticket));
       setEditTitle(ticketRes.data.data.ticket?.title || "");
       setEditDescription(ticketRes.data.data.ticket?.description || "");
       setEditImpact(ticketRes.data.data.ticket?.business_impact || "");
@@ -658,7 +615,7 @@ const TicketDetailPage = ({
   };
 
   const handlePendingQuickAction = async (preset = "") => {
-    if (!isEndUser || ticket?.status !== "Pending") return;
+    if (!isEndUser || normalizeTicketStatus(ticket?.status) !== "In Progress") return;
     const finalText = (pendingResponseText || preset || "").trim();
     if (!finalText) {
       setError("Please add a short response so support can continue the work.");
@@ -684,12 +641,8 @@ const TicketDetailPage = ({
     if (!filePath) return "";
     if (filePath.startsWith("http")) return filePath;
     const normalized = filePath.replace(/\\/g, "/");
-    const env = process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL;
-    const baseOrigin = env
-      ? env.replace(/\/$/, '')
-      : (window.location.port === "3000"
-        ? `${window.location.protocol}//${window.location.hostname}:3001`
-        : window.location.origin);
+    const env = process.env.REACT_APP_API_URL;
+    const baseOrigin = env ? env.replace(/\/$/, '') : window.location.origin;
     if (normalized.startsWith("/")) return `${baseOrigin}${normalized}`;
     if (normalized.startsWith("uploads/")) return `${baseOrigin}/${normalized}`;
     const fileName = normalized.split("/").pop();
@@ -740,7 +693,7 @@ const TicketDetailPage = ({
         audit={audit}
         onCommentAdded={(newComment) => setComments([...comments, newComment])}
         onTicketUpdated={(updatedTicket) => {
-          setTicket(updatedTicket);
+          setTicket(normalizeTicketPayload(updatedTicket));
           if (onUpdated) onUpdated();
         }}
         canPermanentlyDelete={canSeePermanentDelete}
@@ -753,7 +706,7 @@ const TicketDetailPage = ({
   }
 
   const canEditEndUser =
-    isEndUser && ["New", "Pending"].includes(ticket.status);
+    isEndUser && ["New", "In Progress"].includes(normalizeTicketStatus(ticket.status));
 
   return (
     <div className="panel detail-panel" style={{ animation: 'slideUp 0.6s cubic-bezier(0.2, 0, 0, 1) both' }}>
@@ -781,6 +734,8 @@ const TicketDetailPage = ({
         </div>
       </div>
 
+      {notice && <div className="panel success" role="status">{notice}</div>}
+
       <div className="detail-section progress-stepper">
         <h3>Ticket Progress</h3>
         <div className="progress-stepper-row">
@@ -792,7 +747,7 @@ const TicketDetailPage = ({
                 <div className="progress-dot">{index + 1}</div>
                 <div className="progress-copy">
                   <strong>{stage.label}</strong>
-                  <small>{timestamp ? formatDateTimeWithZone(timestamp) : "Pending"}</small>
+                    <small>{timestamp ? formatDateTimeWithZone(timestamp) : "Not reached"}</small>
                 </div>
               </div>
             );
@@ -872,9 +827,9 @@ const TicketDetailPage = ({
           <p>
             Resolution target: <strong>{formatDateTimeWithZone(ticket.sla_due_date)}</strong>
           </p>
-          {ticket.status === "Pending" && (
+          {normalizeTicketStatus(ticket.status) === "In Progress" && (
             <>
-              <p>Please check comments and provide any requested details to keep the ticket moving.</p>
+              <p>Check the latest comments and provide any requested details to keep the ticket moving.</p>
               <div className="field" style={{ marginTop: "10px" }}>
                 <span>Quick response to support</span>
                 <textarea
@@ -1190,7 +1145,7 @@ const TicketDetailPage = ({
                             // Refresh ticket data
                             const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
                             const updatedTicket = ticketRes.data.data.ticket;
-                            setTicket(updatedTicket);
+                            setTicket(normalizeTicketPayload(updatedTicket));
                             setStatus(updatedTicket?.status || "");
                             if (onUpdated) onUpdated();
                           }
@@ -1226,7 +1181,7 @@ const TicketDetailPage = ({
                             // Refresh ticket data
                             const ticketRes = await apiClient.get(`/tickets/${ticketId}`);
                             const updatedTicket = ticketRes.data.data.ticket;
-                            setTicket(updatedTicket);
+                            setTicket(normalizeTicketPayload(updatedTicket));
                             setStatus(updatedTicket?.status || "");
                             setPriority(updatedTicket?.priority || "");
                             setAssignedTo(updatedTicket?.assigned_to || "");

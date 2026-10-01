@@ -36,14 +36,6 @@ ChartJS.register(
   Filler
 );
 
-const parseStoredUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch (err) {
-    return null;
-  }
-};
-
 const toDayLabel = (day) =>
   new Date(day).toLocaleDateString("en-US", { weekday: "short" });
 
@@ -83,9 +75,9 @@ const trendDefinitions = {
   },
 };
 
-const ExecutiveDashboard = ({ loadDetailView }) => {
+const ExecutiveDashboard = ({ loadDetailView, user }) => {
   const navigate = useNavigate();
-  const currentUser = useMemo(() => parseStoredUser(), []);
+  const currentUser = user;
   const [data, setData] = useState({
     summary: { open: 0, resolved: 0, compliance: 100, slaBreached: 0 },
     health: { status: "optimal", text: "All systems operational", checks: [] },
@@ -261,9 +253,8 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
   };
 
   const handleExport = () => {
-    const token = localStorage.getItem("token");
-    const apiBase = (process.env.REACT_APP_API_URL || import.meta.env?.VITE_API_URL || window.location.origin).replace(/\/$/, '');
-    const url = `${apiBase}/api/dashboard/export?format=csv&token=${token}`;
+    const apiBase = (process.env.REACT_APP_API_URL || window.location.origin).replace(/\/$/, '');
+    const url = `${apiBase}/api/dashboard/export?format=csv`;
     window.open(url, "_blank");
   };
 
@@ -349,7 +340,7 @@ const ExecutiveDashboard = ({ loadDetailView }) => {
           <div className="kpi-row">
             <div
               className="kpi-card hover-lift"
-              onClick={() => handleKpiClick({ status: "New,In Progress,Pending" })}
+              onClick={() => handleKpiClick({ status: "New,In Progress" })}
             >
               <div className="kpi-icon active"><FiActivity /></div>
               <div className="kpi-data">

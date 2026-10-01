@@ -74,7 +74,7 @@ const LoginPage = ({ onLogin }) => {
     setLoading(true);
     try {
       const res = await apiClient.post("/auth/login", { email, password });
-      onLogin(res.data.token, res.data.user);
+      onLogin(null, res.data.user);
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {
@@ -156,13 +156,13 @@ const LoginPage = ({ onLogin }) => {
 
         <p className="terms-notice">
           By logging in, you agree to our{' '}
-          <a href="#" onClick={e => { e.preventDefault(); handleShowModal('terms'); }} className="terms-link">
+          <button type="button" onClick={() => handleShowModal('terms')} className="terms-link terms-button">
             Terms of Service
-          </a>
+          </button>
           {' '}and{' '}
-          <a href="#" onClick={e => { e.preventDefault(); handleShowModal('privacy'); }} className="terms-link">
+          <button type="button" onClick={() => handleShowModal('privacy')} className="terms-link terms-button">
             Privacy Policy
-          </a>
+          </button>
           .
         </p>
 

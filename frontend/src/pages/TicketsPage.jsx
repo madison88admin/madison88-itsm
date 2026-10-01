@@ -2,14 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import apiClient from "../api/client";
 import { onDashboardRefresh } from "../api/socket";
+import { TICKET_STATUSES, normalizeStatusFilter, normalizeTicketStatus } from "../constants/ticket-status";
 
 const statusColor = {
   New: "badge-new",
   "In Progress": "badge-progress",
-  Pending: "badge-pending",
   Resolved: "badge-resolved",
   Closed: "badge-closed",
-  Reopened: "badge-reopened",
 };
 
 const priorityColor = {
@@ -21,12 +20,7 @@ const priorityColor = {
 
 const statusOptions = [
   "",
-  "New",
-  "In Progress",
-  "Pending",
-  "Resolved",
-  "Closed",
-  "Reopened",
+  ...TICKET_STATUSES,
 ];
 const priorityOptions = ["", "P1", "P2", "P3", "P4"];
 const categoryOptions = [
@@ -110,7 +104,7 @@ const TicketsPage = ({
       ["it_manager", "system_admin"].includes(user?.role) && viewMode === "my"
         ? "mine"
         : "both";
-    setStatusFilter(params.get("status") || "");
+    setStatusFilter(normalizeStatusFilter(params.get("status")));
     setPriorityFilter(params.get("priority") || "");
     setCategoryFilter(params.get("category") || "");
     setAssignmentFilter(normalizedAssignment || defaultAssignment);
@@ -164,7 +158,10 @@ const TicketsPage = ({
         params.page = page;
         params.limit = PAGE_SIZE;
         const res = await apiClient.get("/tickets", { params });
-        const nextTickets = res.data.data.tickets || [];
+        const nextTickets = (res.data.data.tickets || []).map((ticket) => ({
+          ...ticket,
+          status: normalizeTicketStatus(ticket.status),
+        }));
         const pag = res.data.data.pagination || { page: 1, limit: PAGE_SIZE, total: 0 };
         setPagination(pag);
         if (onResolvedTickets) {
@@ -217,6 +214,9 @@ const TicketsPage = ({
     pollKey,
     socketRefreshKey,
     page,
+    isAdmin,
+    isManager,
+    onResolvedTickets,
   ]);
 
   useEffect(() => {
@@ -269,18 +269,6 @@ const TicketsPage = ({
       return { label: `SLA ${timeLabel}`, className: "badge-sla-warning" };
     }
     return { label: `SLA ${timeLabel}`, className: "badge-sla" };
-  };
-
-  const getUrgencyScore = (ticket) => {
-    // Don't calculate urgency for Resolved/Closed tickets
-    if (['Resolved', 'Closed'].includes(ticket?.status)) return Number.MAX_SAFE_INTEGER;
-    const remaining = ticket?.sla_status?.resolution_remaining_minutes;
-    if (typeof remaining === "number") return remaining;
-    if (ticket?.sla_due_date) {
-      const due = new Date(ticket.sla_due_date).getTime();
-      if (!Number.isNaN(due)) return Math.ceil((due - now) / 60000);
-    }
-    return Number.MAX_SAFE_INTEGER;
   };
 
   const statusWantsArchived = ["resolved", "closed"].includes(

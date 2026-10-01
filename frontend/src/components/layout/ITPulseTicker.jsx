@@ -6,7 +6,6 @@ import {
     InformationCircleIcon,
     RssIcon,
     AdjustmentsHorizontalIcon,
-    ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 const ITPulseTicker = () => {
